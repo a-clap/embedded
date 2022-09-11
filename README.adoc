@@ -1,16 +1,19 @@
-= Beaglebone adaptor
+= Beaglebone package
 :toc: preamble
 :toclevels: 3
 
-Beaglebone adaptor for Gobot.
+Beaglebone package for personal use.
 
-== Why? One already exists
+== Why? There are packages like gobot...
 
 The Beaglebone adaptor provided by Gobot assumes that you use official Debian image for BBB.
 
 Well, I am not. I am going to use https://github.com/a-clap/bbb_go[yocto image]. Furthermore, there are more reasons:
 
-* use gpio char device, instead of legacy sysfs interface
+* use gpio char device, instead of legacy sysfs interface,
+* more...
+
+
 
 
 
