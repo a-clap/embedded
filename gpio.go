@@ -100,3 +100,16 @@ func (g *gpio) parsePin(pin string) (chip string, pinNumber int, err error) {
 	Log.Debugf("getPinNumber: for pin %v, chip: %v, pinNumber: %v", pin, chip, pinNumber)
 	return
 }
+
+func (g *gpio) Finalize() []error {
+	var err []error
+	for pin, line := range g.gpio {
+		if line == nil {
+			continue
+		}
+		if lineErr := line.Close(); lineErr != nil {
+			err = append(err, fmt.Errorf("line.Close(): pin: %v, err %v", pin, lineErr))
+		}
+	}
+	return err
+}
