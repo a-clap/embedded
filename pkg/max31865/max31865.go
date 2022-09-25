@@ -71,12 +71,13 @@ func New(t Transfer, config Config) (*Device, error) {
 }
 
 func (d *Device) Temperature() (float32, error) {
-	if err := d.update(); err != nil {
+	if err := d.readRegs(); err != nil {
 		return 0, err
 	}
 
-	if d.regs.faults != 0 {
+	if d.regs.faults != 0 || d.regs.rtdFault {
 		d.clearFaults()
+		_ = d.doConfig()
 		return 0, ErrFault
 	}
 
@@ -84,15 +85,19 @@ func (d *Device) Temperature() (float32, error) {
 }
 
 func (d *Device) doConfig() error {
-	if err := d.update(); err != nil {
+	if err := d.readRegs(); err != nil {
 		return err
 	}
+
 	d.cfg.parse()
-	return d.write(d.cfg.get())
+	cfg := d.cfg.get()
+	Log.Debug("writing cfg: ", cfg)
+	return d.write(cfg)
 }
 
 func (d *Device) write(value byte) error {
 	buf := []byte{uint8(0x80), value}
+	Log.Debug("interface write ", buf)
 	_, err := d.t.TxRx(buf)
 	if err != nil {
 		return fmt.Errorf("%w %v", ErrInterface, err)
@@ -112,10 +117,11 @@ func (d *Device) read(addr byte, length int) ([]byte, error) {
 
 func (d *Device) clearFaults() {
 	d.cfg.clearFaults()
+	Log.Debug("clearing faults")
 	_ = d.write(d.cfg.get())
 }
 
-func (d *Device) update() error {
+func (d *Device) readRegs() error {
 	const (
 		conf         uint8 = 0x0
 		rtdMsb             = 0x1
@@ -132,14 +138,18 @@ func (d *Device) update() error {
 	if err != nil {
 		return err
 	}
+	Log.Debug("read from max ", r)
+
+	// Update config structure
 	d.cfg.set(r[conf])
 	// LSB of RTD is signification of fault
-	if d.regs.rtdFault = (r[rtdLsb] >> 7) == 0x1; !d.regs.rtdFault {
+	d.regs.rtdFault = r[rtdLsb]&0x1 == 0x1
+	if !d.regs.rtdFault {
 		d.regs.rtd = (uint16(r[rtdMsb])<<8 | uint16(r[rtdLsb])) >> 1
 	}
-	d.regs.faults = r[faultStatus]
-	Log.Info(d.regs)
 
+	d.regs.faults = r[faultStatus]
+	Log.Debugf("%#v", d.regs)
 	return nil
 }
 

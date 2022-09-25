@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/a-clap/beaglebone/pkg/max31865"
+	"github.com/a-clap/logger"
+	"go.uber.org/zap/zapcore"
 	"log"
 	"periph.io/x/conn/v3/driver/driverreg"
 	"periph.io/x/conn/v3/physic"
@@ -25,9 +27,8 @@ func (m *maxTransfer) TxRx(w []byte) ([]byte, error) {
 var _ max31865.Transfer = &maxTransfer{}
 
 func main() {
-	//max31865.Log = logger.NewDefaultZap(zapcore.DebugLevel)
+	max31865.Log = logger.NewDefaultZap(zapcore.DebugLevel)
 	// Make sure periph is initialized.
-	// TODO: Use host.Init(). It is not used in this example to prevent circular
 	_, err := host.Init()
 	if err != nil {
 		log.Fatal(err)
