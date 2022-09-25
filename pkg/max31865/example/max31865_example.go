@@ -2,9 +2,9 @@ package main
 
 import (
 	"fmt"
+	"github.com/a-clap/beaglebone/pkg/gpio"
 	"github.com/a-clap/beaglebone/pkg/max31865"
-	"github.com/a-clap/logger"
-	"go.uber.org/zap/zapcore"
+	"github.com/warthog618/gpiod"
 	"log"
 	"periph.io/x/conn/v3/driver/driverreg"
 	"periph.io/x/conn/v3/physic"
@@ -26,8 +26,16 @@ func (m *maxTransfer) TxRx(w []byte) ([]byte, error) {
 
 var _ max31865.Transfer = &maxTransfer{}
 
+var ch chan struct{}
+
+func event(evt gpiod.LineEvent) {
+	if evt.Type == gpiod.LineEventFallingEdge {
+		ch <- struct{}{}
+	}
+
+}
+
 func main() {
-	max31865.Log = logger.NewDefaultZap(zapcore.DebugLevel)
 	// Make sure periph is initialized.
 	_, err := host.Init()
 	if err != nil {
@@ -56,11 +64,35 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-	for i := 0; i < 100; i++ {
-		<-time.After(1 * time.Second)
-		rtd, err := m.Temperature()
-		fmt.Println("rtd =", rtd, ", err = ", err)
 
+	ch = make(chan struct{})
+
+	in, err := gpio.Input(16,
+		gpiod.WithPullUp,
+		gpiod.WithFallingEdge,
+		gpiod.WithDebounce(10*time.Microsecond),
+		gpiod.WithEventHandler(event),
+	)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	val, err := in.Get()
+	if err != nil {
+		log.Fatal(err)
+	}
+	// If there is already low level, edge will not be detected
+	if !val {
+		_, _ = m.Temperature()
+	}
+
+	for {
+		select {
+		case <-ch:
+			rtd, _ := m.Temperature()
+			fmt.Println("Temperature =", rtd)
+
+		}
 	}
 
 }

@@ -68,21 +68,22 @@ func getLine(pin int, options ...gpiod.LineReqOption) (*gpiod.Line, error) {
 	return gpiod.RequestLine(chip, pin, options...)
 }
 
-func Input(pin int) (*In, error) {
-	line, err := getLine(pin, gpiod.AsInput)
+func Input(pin int, options ...gpiod.LineReqOption) (*In, error) {
+	options = append(options, gpiod.AsInput)
+	line, err := getLine(pin, options...)
 	if err != nil {
 		return nil, err
 	}
 	return &In{Line: line}, nil
 }
 
-func Output(pin int, initValue bool) (*Out, error) {
+func Output(pin int, initValue bool, options ...gpiod.LineReqOption) (*Out, error) {
 	startValue := 0
 	if initValue {
 		startValue = 1
 	}
-
-	line, err := getLine(pin, gpiod.AsOutput(startValue))
+	options = append(options, gpiod.AsOutput(startValue))
+	line, err := getLine(pin, options...)
 	if err != nil {
 		return nil, err
 	}
