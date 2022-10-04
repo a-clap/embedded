@@ -6,6 +6,8 @@ import (
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"io/fs"
+	"os"
+	"path/filepath"
 	"testing"
 )
 
@@ -41,12 +43,15 @@ func (i *iAfero) Path() string {
 	return i.path
 }
 
-var _ ds.Handler = &iError{}
-var _ ds.Handler = &iAfero{}
+var _ ds.Onewire = &iError{}
+var _ ds.Onewire = &iAfero{}
 
 func TestHandler_Devices(t *testing.T) {
 	var err error
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
+
+	nodevice := "/empty"
+	require.Nil(t, af.Mkdir(nodevice, 0777))
 
 	justMasterDevice := "/just/master/device"
 
@@ -60,11 +65,20 @@ func TestHandler_Devices(t *testing.T) {
 	_, err = af.Create(singleOneWireDevicePath + "/" + singleOneWireDevice)
 	require.Nil(t, err)
 
+	multipleDevicesPath := "/onewire/multiple_devices"
+	multipleDevices := []string{"1234", "182-2313123", "999996696"}
+	require.Nil(t, af.Mkdir(multipleDevicesPath, 0777))
+	for _, device := range multipleDevices {
+		_, err = af.Create(multipleDevicesPath + "/" + device)
+	}
+
+	require.Nil(t, err)
+
 	defer af.RemoveAll("/*")
 
 	tests := []struct {
 		name    string
-		handler ds.Handler
+		handler ds.Onewire
 		want    []string
 		wantErr bool
 		err     error
@@ -75,6 +89,15 @@ func TestHandler_Devices(t *testing.T) {
 			want:    nil,
 			wantErr: true,
 			err:     ds.ErrInterface,
+		},
+		{
+			name: "no onewire device",
+			handler: &iAfero{
+				path: nodevice,
+				a:    &af,
+			},
+			want:    nil,
+			wantErr: false,
 		},
 		{
 			name: "just master device",
@@ -94,6 +117,15 @@ func TestHandler_Devices(t *testing.T) {
 			want:    []string{singleOneWireDevice},
 			wantErr: false,
 		},
+		{
+			name: "multiple devices",
+			handler: &iAfero{
+				path: multipleDevicesPath,
+				a:    &af,
+			},
+			want:    multipleDevices,
+			wantErr: false,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -102,12 +134,96 @@ func TestHandler_Devices(t *testing.T) {
 
 			if tt.wantErr {
 				require.NotNil(t, err)
-				require.ErrorContains(t, err, tt.err.Error())
+				require.ErrorIs(t, err, tt.err)
 				return
 			}
 
 			require.Nil(t, err)
 			require.EqualValues(t, tt.want, got)
+		})
+	}
+}
+
+func TestHandler_NewSensor(t *testing.T) {
+	af := afero.Afero{Fs: afero.NewMemMapFs()}
+	defer af.RemoveAll("/")
+
+	sensorDoesntexist := "/not_exist"
+
+	sensorIDWithoutTemperaturePath := "/exist"
+	sensorIDWithoutTemperature := "81-12131"
+	p := filepath.Join(sensorIDWithoutTemperaturePath, sensorIDWithoutTemperature)
+	require.Nil(t, af.Mkdir(p, 0777))
+
+	sensorGoodID := "28-abcdefg"
+	sensorGoodPath := "/good"
+	p = filepath.Join(sensorGoodPath, sensorGoodID)
+	require.Nil(t, af.Mkdir(p, 0777))
+
+	p = filepath.Join(p, "temperature")
+	f, err := af.Create(p)
+	require.Nil(t, err)
+	sensorGoodTemperature := "98121"
+
+	_, err = f.Write([]byte(sensorGoodTemperature))
+	require.Nil(t, err)
+	f.Close()
+
+	tests := []struct {
+		name        string
+		o           ds.Onewire
+		argsId      string
+		wantErr     bool
+		errType     error
+		temperature string
+	}{
+		{
+			name: "sensor doesn't exist",
+			o: &iAfero{
+				path: sensorDoesntexist,
+				a:    &af,
+			},
+			argsId:  "blabla",
+			wantErr: true,
+			errType: os.ErrNotExist,
+		},
+		{
+			name: "temperature file doesn't exist",
+			o: &iAfero{
+				path: sensorIDWithoutTemperaturePath,
+				a:    &af,
+			},
+			argsId:  sensorIDWithoutTemperature,
+			wantErr: true,
+			errType: os.ErrNotExist,
+		},
+		{
+			name: "working sensor",
+			o: &iAfero{
+				path: sensorGoodPath,
+				a:    &af,
+			},
+			argsId:      sensorGoodID,
+			wantErr:     false,
+			errType:     nil,
+			temperature: sensorGoodTemperature,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := ds.New(tt.o)
+			s, err := h.NewSensor(tt.argsId)
+
+			if tt.wantErr {
+				require.NotNil(t, err)
+				require.ErrorIs(t, err, tt.errType)
+				return
+			}
+
+			require.Nil(t, err)
+			require.EqualValues(t, tt.argsId, s.ID())
+			tmp, _ := s.Temperature()
+			require.EqualValues(t, tt.temperature, tmp)
 		})
 	}
 }
