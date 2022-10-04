@@ -2,19 +2,22 @@ package ds
 
 import (
 	"fmt"
-	"github.com/a-clap/logger"
+	"io"
 	"io/fs"
 )
-
-var Log logger.Logger = logger.NewNop()
 
 var (
 	ErrInterface = fmt.Errorf("interface")
 )
 
+type File interface {
+	io.Reader
+}
+
 type Handler interface {
 	Path() string
 	ReadDir(dirname string) ([]fs.FileInfo, error)
+	Open(name string) (File, error)
 }
 
 type DS struct {

@@ -12,6 +12,10 @@ import (
 type iError struct {
 }
 
+func (i *iError) Open(name string) (ds.File, error) {
+	panic("shouldn't be used")
+}
+
 func (i *iError) ReadDir(dirname string) ([]fs.FileInfo, error) {
 	return nil, fmt.Errorf("interfaceError")
 }
@@ -22,7 +26,15 @@ func (i *iError) Path() string {
 
 type iAfero struct {
 	path string
-	*afero.Afero
+	a    *afero.Afero
+}
+
+func (i *iAfero) ReadDir(dirname string) ([]fs.FileInfo, error) {
+	return i.a.ReadDir(dirname)
+}
+
+func (i *iAfero) Open(name string) (ds.File, error) {
+	return i.a.Open(name)
 }
 
 func (i *iAfero) Path() string {
@@ -67,8 +79,8 @@ func TestHandler_Devices(t *testing.T) {
 		{
 			name: "just master device",
 			handler: &iAfero{
-				path:  justMasterDevice,
-				Afero: &af,
+				path: justMasterDevice,
+				a:    &af,
 			},
 			want:    nil,
 			wantErr: false,
@@ -76,8 +88,8 @@ func TestHandler_Devices(t *testing.T) {
 		{
 			name: "single one wire device",
 			handler: &iAfero{
-				path:  singleOneWireDevicePath,
-				Afero: &af,
+				path: singleOneWireDevicePath,
+				a:    &af,
 			},
 			want:    []string{singleOneWireDevice},
 			wantErr: false,
