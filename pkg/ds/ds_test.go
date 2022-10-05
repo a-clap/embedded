@@ -170,12 +170,11 @@ func TestHandler_NewSensor(t *testing.T) {
 	f.Close()
 
 	tests := []struct {
-		name        string
-		o           ds.Onewire
-		argsId      string
-		wantErr     bool
-		errType     error
-		temperature string
+		name    string
+		o       ds.Onewire
+		argsId  string
+		wantErr bool
+		errType error
 	}{
 		{
 			name: "sensor doesn't exist",
@@ -203,10 +202,9 @@ func TestHandler_NewSensor(t *testing.T) {
 				path: sensorGoodPath,
 				a:    &af,
 			},
-			argsId:      sensorGoodID,
-			wantErr:     false,
-			errType:     nil,
-			temperature: sensorGoodTemperature,
+			argsId:  sensorGoodID,
+			wantErr: false,
+			errType: nil,
 		},
 	}
 	for _, tt := range tests {
@@ -222,8 +220,69 @@ func TestHandler_NewSensor(t *testing.T) {
 
 			require.Nil(t, err)
 			require.EqualValues(t, tt.argsId, s.ID())
-			tmp, _ := s.Temperature()
-			require.EqualValues(t, tt.temperature, tmp)
 		})
 	}
+}
+
+func TestHandler_SensorTemperature(t *testing.T) {
+	af := afero.Afero{Fs: afero.NewMemMapFs()}
+	defer af.RemoveAll("/")
+	// Prepare files
+	id := "28-12313asb"
+	p := filepath.Join("/wire", id)
+	require.Nil(t, af.Mkdir(p, 0777))
+	filePath := filepath.Join(p, "temperature")
+	_, err := af.Create(filePath)
+	require.Nil(t, err)
+	// Prepare interface
+	o := &iAfero{
+		path: "/wire",
+		a:    &af,
+	}
+	// Get sensor tested
+	s, err := ds.New(o).NewSensor(id)
+	require.Nil(t, err)
+	require.Equal(t, id, s.ID())
+
+	tests := []struct {
+		write    string
+		expected string
+	}{
+		{
+			write:    "988654\r\n",
+			expected: "988.654",
+		},
+		{
+			write:    "12355\r\n",
+			expected: "12.355",
+		},
+		{
+			write:    "1230\r",
+			expected: "1.230",
+		},
+		{
+			write:    "456\n",
+			expected: "0.456",
+		},
+		{
+			write:    "38\n",
+			expected: "0.038",
+		},
+		{
+			write:    "1",
+			expected: "0.001",
+		},
+	}
+
+	t.Run("proper conversions", func(t *testing.T) {
+		for _, test := range tests {
+			err := af.WriteFile(filePath, []byte(test.write), 0644)
+			require.Nil(t, err)
+
+			r, err := s.Temperature()
+			require.Nil(t, err)
+
+			require.EqualValues(t, test.expected, r)
+		}
+	})
 }

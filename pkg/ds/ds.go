@@ -96,8 +96,19 @@ func (s *ds) Temperature() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return strings.TrimRight(string(buf), "\r\n"), nil
-
+	conv := strings.TrimRight(string(buf), "\r\n")
+	length := len(conv)
+	if length > 3 {
+		conv = conv[:length-3] + "." + conv[length-3:]
+	} else {
+		leading := "0."
+		for length < 3 {
+			leading += "0"
+			length++
+		}
+		conv = leading + conv
+	}
+	return conv, nil
 }
 
 func (s *ds) ID() string {
