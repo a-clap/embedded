@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 type iError struct {
@@ -285,4 +286,73 @@ func TestHandler_SensorTemperature(t *testing.T) {
 			require.EqualValues(t, test.expected, r)
 		}
 	})
+}
+
+func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
+	af := afero.Afero{Fs: afero.NewMemMapFs()}
+	defer af.RemoveAll("/")
+	// Prepare sensor
+	expectedID := "281ab"
+	expectedTemp := "12.345"
+	tmp := "12345"
+	require.Nil(t, af.Mkdir("/"+expectedID, 0777))
+	f, err := af.Create("/" + expectedID + "/temperature")
+	require.Nil(t, err)
+
+	f.Write([]byte(tmp))
+	f.Close()
+
+	o := &iAfero{
+		path: "/",
+		a:    &af,
+	}
+
+	readings := make(chan ds.Readings)
+	exitCh := make(chan struct{})
+	interval := 5 * time.Millisecond
+	h := ds.New(o)
+
+	finChan, errch, errs := h.Poll([]string{expectedID}, readings, exitCh, interval)
+	require.Len(t, errs, 0)
+
+	for i := 0; i < 10; i++ {
+		now := time.Now()
+		select {
+		case r := <-readings:
+			rid, tmp, stamp := r.Get()
+			require.EqualValues(t, expectedID, rid)
+			require.EqualValues(t, expectedTemp, tmp)
+			diff := stamp.Sub(now)
+			require.Less(t, interval, diff)
+			require.InDelta(t, interval.Milliseconds(), diff.Milliseconds(), float64(interval.Milliseconds())/10)
+		case e := <-errch:
+			require.Fail(t, "received error ", e)
+		case <-time.After(2 * interval):
+			require.Fail(t, "failed, waiting for readings too long")
+		}
+	}
+	exitCh <- struct{}{}
+	select {
+	case <-finChan:
+	case <-time.After(2 * interval):
+		require.Fail(t, "should be done after this time")
+	}
+
+}
+
+func TestHandler_Poll_WrongsIDs(t *testing.T) {
+	af := afero.Afero{Fs: afero.NewMemMapFs()}
+
+	o := &iAfero{
+		path: "/",
+		a:    &af,
+	}
+	readings := make(chan ds.Readings)
+	exitCh := make(chan struct{})
+	interval := 5 * time.Millisecond
+	finChan, errch, errs := ds.New(o).Poll([]string{"not existing", "this one tooo"}, readings, exitCh, interval)
+
+	require.Len(t, errs, 2)
+	require.Nil(t, finChan)
+	require.Nil(t, errch)
 }
