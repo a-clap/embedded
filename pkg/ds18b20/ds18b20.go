@@ -1,106 +1,132 @@
 package ds18b20
 
 import (
-	"github.com/a-clap/logger"
+	"fmt"
+	"io"
+	"io/fs"
 	"io/ioutil"
 	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 )
 
-var Log logger.Logger = logger.NewNop()
-
-const (
-	// W1Path path, where we can find onewire devices
-	W1Path = "/sys/bus/w1/devices"
+var (
+	ErrInterface = fmt.Errorf("interface")
 )
 
-// Sensor return information about current polled sensor
-type Sensor struct {
-	ID, Temperature string
+type File interface {
+	io.Reader
 }
 
-// ParseTemperature returns s.Temperature in format X.YYY degrees
-func (s Sensor) ParseTemperature() (float32, error) {
-	// DS returns temperature with 3 digits after dot
-	conv := s.Temperature
-	length := len(conv)
-	if length > 3 {
-		conv = conv[:length-3] + "." + conv[length-3:]
-	} else {
-		leading := "0."
-		for length < 3 {
-			leading += "0"
-			length++
-		}
-		conv = leading + conv
-	}
-	f, err := strconv.ParseFloat(conv, 32)
-	if err != nil {
-		return 0, err
-	}
-	return float32(f), nil
-
+type Onewire interface {
+	Path() string
+	ReadDir(dirname string) ([]fs.FileInfo, error)
+	Open(name string) (File, error)
 }
 
-// SensorsIDs returns list of detected sensors
-func SensorsIDs() (ids []string, err error) {
-	Log.Debug("Reading directory: ", W1Path)
-	files, err := ioutil.ReadDir(W1Path)
-	if err != nil {
-		Log.Error("Error on reading directory: ", err)
+type Sensor interface {
+	ID() string
+	Temperature() (string, error)
+}
+
+type Readings interface {
+	Get() (id string, temperature string, timestamp time.Time)
+}
+
+type data struct {
+	id, temperature string
+	timestamp       time.Time
+}
+
+type opener interface {
+	Open(name string) (File, error)
+}
+
+type handler struct {
+}
+
+type ds struct {
+	o    opener
+	id   string
+	path string
+}
+
+type Handler struct {
+	devices []string
+	o       Onewire
+}
+
+func New(o Onewire) *Handler {
+	return &Handler{
+		o:       o,
+		devices: nil,
+	}
+}
+func NewDefault() *Handler {
+
+	return &Handler{
+		o:       &handler{},
+		devices: nil,
+	}
+}
+
+func (h *Handler) Devices() ([]string, error) {
+	err := h.updateDevices()
+	return h.devices, err
+}
+
+func (h *Handler) NewSensor(id string) (Sensor, error) {
+	// We could search array of devices...
+	// or just assume that user know, what is doing
+	s := &ds{
+		o:    h.o,
+		id:   id,
+		path: h.o.Path() + "/" + id + "/temperature",
+	}
+	// But let's check whether it is possible to read temperature from DS18B20
+	if _, err := s.Temperature(); err != nil {
 		return nil, err
 	}
 
-	for _, file := range files {
-		if name := file.Name(); len(name) > 0 {
-			Log.Debug("Found file: ", name)
-			// Sensor ID starts with digit, they maybe also w1_master_slave
-			if name[0] >= '0' && name[0] <= '9' {
-				ids = append(ids, file.Name())
-			}
+	return s, nil
+}
+
+func (h *Handler) Poll(ids []string, readings chan<- Readings, exitCh <-chan struct{}, interval time.Duration) (finChan <-chan struct{}, errCh <-chan error, errors []error) {
+
+	sensors := make([]Sensor, 0, len(ids))
+	for _, id := range ids {
+		if s, err := h.NewSensor(id); err == nil {
+			sensors = append(sensors, s)
+		} else {
+			errors = append(errors, err)
 		}
 	}
-	return ids, nil
-}
-
-// PollAll starts poll on every device found in user space
-// for rest parameters check Poll
-func PollAll(readings chan<- Sensor, exitCh <-chan struct{}, interval time.Duration) (finChan <-chan struct{}, errCh <-chan error, err error) {
-	ids, err := SensorsIDs()
-	if err != nil {
-		return nil, nil, err
+	// No sensor available
+	if len(sensors) == 0 {
+		return nil, nil, errors
 	}
-	return Poll(ids, readings, exitCh, interval)
-}
 
-// Poll starts polling on devices in ids[]
-// readings is user channel, where he will receive Sensor structure
-// exitCh provides way of finishing polling
-// interval is time between two consecutive reads
-// finChan is information channel, user should read than channel after exitCh <-, so he can be sure that job is done
-// errCh will send errors from polling
-func Poll(ids []string, readings chan<- Sensor, exitCh <-chan struct{}, interval time.Duration) (finChan <-chan struct{}, errCh <-chan error, err error) {
 	fin := make(chan struct{})
 	errChan := make(chan error)
-	go poll(ids, readings, exitCh, fin, errChan, interval)
-
-	return fin, errChan, nil
+	go h.poll(ids, readings, exitCh, fin, errChan, interval)
+	return fin, errChan, errors
 }
 
-func poll(ids []string, readings chan<- Sensor, exit <-chan struct{}, finChan chan<- struct{}, errCh chan error, interval time.Duration) {
-	// If some jerk try to kill us with same IDs...
-	ids = removeDuplicates(ids)
-
+func (h *Handler) poll(ids []string, readings chan<- Readings, exit <-chan struct{}, finChan chan<- struct{}, errCh chan error, interval time.Duration) {
 	w := sync.WaitGroup{}
 	w.Add(1)
 
-	dataCh := make(chan Sensor)
+	// Let's make it at least number of sensors
+	dataCh := make(chan Readings, len(ids))
 	stopCh := make(chan struct{})
 	for _, id := range ids {
-		go pollSingle(id, dataCh, stopCh, errCh, interval, &w)
+		if s, err := h.NewSensor(id); err == nil {
+			go pollSingle(s, dataCh, stopCh, errCh, interval, &w)
+		} else {
+			fmt.Println("failed", err)
+		}
+		// TODO: notify about error
 	}
 
 	go func() {
@@ -126,21 +152,14 @@ func poll(ids []string, readings chan<- Sensor, exit <-chan struct{}, finChan ch
 	close(finChan)
 }
 
-func pollSingle(id string, sensorCh chan<- Sensor, stopCh <-chan struct{}, errCh chan error, pollTime time.Duration, w *sync.WaitGroup) {
+func pollSingle(s Sensor, sensorCh chan<- Readings, stopCh <-chan struct{}, errCh chan error, pollTime time.Duration, w *sync.WaitGroup) {
 	w.Add(1)
 	defer func() {
-		Log.Info("Closing device...")
 		w.Done()
 	}()
 
-	path := W1Path + "/" + id + "/temperature"
-	s := Sensor{
-		ID:          id,
-		Temperature: "",
-	}
-
-	sendErr := func(err error) {
-		errCh <- err
+	r := data{
+		id: s.ID(),
 	}
 
 	for {
@@ -154,46 +173,75 @@ func pollSingle(id string, sensorCh chan<- Sensor, stopCh <-chan struct{}, errCh
 		case <-stopCh:
 			return
 		case <-time.After(pollTime):
-			f, err := os.Open(path)
+			tmp, err := s.Temperature()
 			if err != nil {
-				Log.Warn("Error on opening file ", path, ", err is ", err)
-				sendErr(err)
-				// TODO: Should we return here?
+				errCh <- err
 				return
 			}
-
-			// We don't expect that there will be a lot of data, 10 bytes maybe max, so I feel it is safe to use ReadAll
-			buf, err := ioutil.ReadAll(f)
-			if err != nil {
-				Log.Warn("Error on reading file ", path, ", err is ", err)
-				sendErr(err)
-				// TODO: Should we return here?
-				return
-			}
-			s.Temperature = strings.TrimRight(string(buf), "\r\n")
-			Log.Debug("Got reading: ", s)
-			sensorCh <- s
-
-			err = f.Close()
-			if err != nil {
-				Log.Warn("Error on closing file ", path, ", err is ", err)
-				sendErr(err)
-				return
-			}
+			r.timestamp = time.Now()
+			r.temperature = tmp
+			sensorCh <- r
 		}
 	}
 }
 
-// removeDuplicates remove duplicate elements from slice
-// Generics just 4fun
-func removeDuplicates[T comparable](s []T) []T {
-	keys := make(map[T]bool)
-	var list []T
-	for _, elem := range s {
-		if _, ok := keys[elem]; !ok {
-			list = append(list, elem)
-			keys[elem] = true
+func (s *ds) Temperature() (string, error) {
+	f, err := s.o.Open(s.path)
+	if err != nil {
+		return "", err
+	}
+	// ds temperature file is just few bytes, ioutil.ReadAll is fine for that purpose
+	buf, err := ioutil.ReadAll(f)
+	if err != nil {
+		return "", err
+	}
+	conv := strings.TrimRight(string(buf), "\r\n")
+	length := len(conv)
+	if length > 3 {
+		conv = conv[:length-3] + "." + conv[length-3:]
+	} else {
+		leading := "0."
+		for length < 3 {
+			leading += "0"
+			length++
+		}
+		conv = leading + conv
+	}
+	return conv, nil
+}
+
+func (s *ds) ID() string {
+	return s.id
+}
+
+func (h *Handler) updateDevices() error {
+	files, err := h.o.ReadDir(h.o.Path())
+	if err != nil {
+		return fmt.Errorf("%w: %v", ErrInterface, err)
+	}
+	for _, maybeOnewire := range files {
+		if name := maybeOnewire.Name(); len(name) > 0 {
+			// Onewire devices names starts with digit
+			if name[0] >= '0' && name[0] <= '9' {
+				h.devices = append(h.devices, name)
+			}
 		}
 	}
-	return list
+	return nil
+}
+
+func (d data) Get() (id string, temperature string, timestamp time.Time) {
+	return d.id, d.temperature, d.timestamp
+}
+
+func (h *handler) Path() string {
+	return "/sys/bus/w1/devices"
+}
+
+func (h *handler) ReadDir(dirname string) ([]fs.FileInfo, error) {
+	return ioutil.ReadDir(dirname)
+}
+
+func (h *handler) Open(name string) (File, error) {
+	return os.Open(name)
 }

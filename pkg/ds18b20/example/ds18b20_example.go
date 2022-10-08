@@ -9,20 +9,20 @@ import (
 )
 
 func main() {
-	log := logger.NewDefaultZap(zapcore.WarnLevel)
-	ds18b20.Log = log
+	log := logger.NewDefaultZap(zapcore.DebugLevel)
 
-	devices, err := ds18b20.SensorsIDs()
+	reads := make(chan ds18b20.Readings)
+	exitCh := make(chan struct{})
+
+	ds := ds18b20.NewDefault()
+
+	ids, err := ds.Devices()
 	if err != nil {
 		log.Fatal(err)
 	}
-	log.Info("Found devices ", devices)
 
-	reads := make(chan ds18b20.Sensor)
-	exitCh := make(chan struct{})
-
-	finCh, errCh, err := ds18b20.Poll(devices, reads, exitCh, 1*time.Second)
-	if err != nil {
+	finCh, errCh, errs := ds.Poll(ids, reads, exitCh, 750*time.Millisecond)
+	if errs != nil {
 		log.Fatal(err)
 	}
 
@@ -46,11 +46,8 @@ func main() {
 				exitCh <- struct{}{}
 				return
 			case sensor := <-reads:
-				tmp, err := sensor.ParseTemperature()
-				if err != nil {
-					log.Warn("couldn't parse temp ", err)
-				}
-				fmt.Printf("ID: %s\nTemperature %v\n", sensor.ID, tmp)
+				id, tmp, stamp := sensor.Get()
+				fmt.Printf("ID: %s, Temperature: %s. Time: %s\n", id, tmp, stamp)
 			case err := <-errCh:
 				fmt.Println("Error from ds18b20", err)
 			}
