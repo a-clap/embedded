@@ -44,3 +44,12 @@ func (c *Config) reg() uint8 {
 func (c *Config) clearFaults() uint8 {
 	return c.reg() | (1 << clearFault)
 }
+
+func (c *Config) faultDetect() uint8 {
+	return 0b10000100 | (c.reg() & ((1 << filter60Hz) | (1 << wire3)))
+}
+
+func (c *Config) faultDetectFinished(reg uint8) bool {
+	mask := uint8(1<<faultDetect2 | 1<<faultDetect1)
+	return reg&mask == 0
+}
