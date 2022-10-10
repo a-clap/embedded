@@ -19,37 +19,37 @@ const (
 	vBias
 )
 
-type Config struct {
-	Wiring Wiring
+type config struct {
+	wiring Wiring
 	value  uint8
 }
 
-func NewConfig(w Wiring) *Config {
+func newConfig(w Wiring) *config {
 	// Default values
 	value := uint8((1 << filter60Hz) | (1 << continuous) | (1 << vBias))
 
 	if w == ThreeWire {
 		value |= 1 << wire3
 	}
-	return &Config{
-		Wiring: w,
+	return &config{
+		wiring: w,
 		value:  value,
 	}
 }
 
-func (c *Config) reg() uint8 {
+func (c *config) reg() uint8 {
 	return c.value
 }
 
-func (c *Config) clearFaults() uint8 {
+func (c *config) clearFaults() uint8 {
 	return c.reg() | (1 << clearFault)
 }
 
-func (c *Config) faultDetect() uint8 {
+func (c *config) faultDetect() uint8 {
 	return 0b10000100 | (c.reg() & ((1 << filter60Hz) | (1 << wire3)))
 }
 
-func (c *Config) faultDetectFinished(reg uint8) bool {
+func (c *config) faultDetectFinished(reg uint8) bool {
 	mask := uint8(1<<faultDetect2 | 1<<faultDetect1)
 	return reg&mask == 0
 }

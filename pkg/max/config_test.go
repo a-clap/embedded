@@ -37,7 +37,7 @@ func TestConfig_reg(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewConfig(tt.wiring)
+			c := newConfig(tt.wiring)
 
 			if got := c.reg(); got != tt.reg {
 				t.Errorf("reg() = %v, reg %v", got, tt.reg)
@@ -62,7 +62,7 @@ func TestConfig_faultDetectFinished(t *testing.T) {
 
 	t.Run("test many options", func(t *testing.T) {
 		for i, wiring := range wireModes {
-			c := NewConfig(wiring)
+			c := newConfig(wiring)
 
 			for k, running := range regRunning {
 				require.Falsef(t, c.faultDetectFinished(running), "should detect running for wiring = %s, and regRunning %v", wireModes[i], regRunning[k])
