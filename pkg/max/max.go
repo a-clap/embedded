@@ -1,6 +1,9 @@
 package max
 
-import "fmt"
+import (
+	"errors"
+	"fmt"
+)
 
 const (
 	REG_CONF = iota
@@ -27,19 +30,51 @@ type Transfer interface {
 type Dev struct {
 	Transfer
 	c *config
+	r *rtd
 }
 
 func New(t Transfer, wiring Wiring) (*Dev, error) {
 	if err := checkTransfer(t); err != nil {
 		return nil, err
 	}
-	return &Dev{Transfer: t, c: newConfig(wiring)}, nil
+	d := &Dev{
+		Transfer: t,
+		c:        newConfig(wiring),
+		r:        newRtd(),
+	}
+	// Do initial config
+	err := d.config()
+	if err != nil {
+		return nil, err
+	}
+
+	return d, nil
 }
 
-func (d *Dev) write(addr byte, w []byte) error {
-	buf := []byte{addr | 0x80}
-	buf = append(buf, w...)
-	_, err := d.ReadWrite(buf)
+func (d *Dev) Temperature() (tmp float32, err error) {
+	r, err := d.read(REG_CONF, REG_FAULT+1)
+	if err != nil {
+		if errors.Is(err, ErrReadWrite) {
+			//	can't do much about it
+			return
+		}
+		// Not handling error here, should have happened on previous call
+		_ = d.clearFaults()
+		// make error more specfic
+		err = getError(r[REG_FAULT], d.c.wiring)
+		return
+	}
+	_ = r
+
+	return
+}
+
+func (d *Dev) clearFaults() error {
+	return d.write(REG_CONF, []byte{d.c.clearFaults()})
+}
+
+func (d *Dev) config() error {
+	err := d.write(REG_CONF, []byte{d.c.reg()})
 	return err
 }
 
@@ -53,6 +88,13 @@ func (d *Dev) read(addr byte, len int) ([]byte, error) {
 	}
 	// First byte is useless
 	return r[1:], nil
+}
+
+func (d *Dev) write(addr byte, w []byte) error {
+	buf := []byte{addr | 0x80}
+	buf = append(buf, w...)
+	_, err := d.ReadWrite(buf)
+	return err
 }
 
 func checkTransfer(t Transfer) error {
