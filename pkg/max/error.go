@@ -1,7 +1,5 @@
 package max
 
-import "fmt"
-
 var (
 	twoWireErrors = [...]string{
 		"Overvoltage or undervoltage fault",                  // D2
@@ -32,7 +30,7 @@ var (
 	}
 )
 
-func getError(errorReg byte, w Wiring) error {
+func errorCauses(errorReg byte, w Wiring) []string {
 	const offset = 2
 	bitPos := offset
 	var s []string
@@ -54,5 +52,5 @@ func getError(errorReg byte, w Wiring) error {
 		errorReg >>= 1
 	}
 
-	return fmt.Errorf("%w: errorReg: %v, info: %v", ErrRtd, errorReg, s)
+	return s
 }

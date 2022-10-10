@@ -60,8 +60,8 @@ func (d *Dev) Temperature() (tmp float32, err error) {
 		}
 		// Not handling error here, should have happened on previous call
 		_ = d.clearFaults()
-		// make error more specfic
-		err = getError(r[REG_FAULT], d.c.wiring)
+		// make error more specific
+		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[REG_FAULT], errorCauses(r[REG_FAULT], d.c.wiring))
 		return
 	}
 	_ = r
