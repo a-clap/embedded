@@ -30,35 +30,51 @@ func TestNew(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		c        max.Wiring
+		c        max.Config
 		transfer max.Transfer
 		wantErr  bool
 		errType  error
 	}{
 		{
-			name:     "all good",
-			c:        max.FourWire,
+			name: "all good",
+			c: max.Config{
+				Wiring:   max.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
+			},
 			transfer: transfer{val: 1, err: nil},
 			wantErr:  false,
 			errType:  nil,
 		},
 		{
-			name:     "interface error",
-			c:        max.FourWire,
+			name: "interface error",
+			c: max.Config{
+				Wiring:   max.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
+			},
 			transfer: transfer{val: 1, err: fmt.Errorf("interface error")},
 			wantErr:  true,
 			errType:  max.ErrReadWrite,
 		},
 		{
-			name:     "only zeroes",
-			c:        max.FourWire,
+			name: "only zeroes",
+			c: max.Config{
+				Wiring:   max.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
+			},
 			transfer: transfer{val: 0, err: nil},
 			wantErr:  true,
 			errType:  max.ErrReadZeroes,
 		},
 		{
-			name:     "only ff",
-			c:        max.FourWire,
+			name: "only ff",
+			c: max.Config{
+				Wiring:   max.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
+			},
 			transfer: transfer{val: 0xff, err: nil},
 			wantErr:  true,
 			errType:  max.ErrReadFF,

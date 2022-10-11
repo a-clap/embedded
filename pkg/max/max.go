@@ -29,18 +29,26 @@ type Transfer interface {
 
 type Dev struct {
 	Transfer
-	c *config
-	r *rtd
+	cfg Config
+	c   *config
+	r   *rtd
 }
 
-func New(t Transfer, wiring Wiring) (*Dev, error) {
+type Config struct {
+	Wiring   Wiring
+	RefRes   float32
+	RNominal float32
+}
+
+func New(t Transfer, c Config) (*Dev, error) {
 	if err := checkTransfer(t); err != nil {
 		return nil, err
 	}
 	d := &Dev{
 		Transfer: t,
-		c:        newConfig(wiring),
+		c:        newConfig(c.Wiring),
 		r:        newRtd(),
+		cfg:      c,
 	}
 	// Do initial config
 	err := d.config()
@@ -66,7 +74,7 @@ func (d *Dev) Temperature() (tmp float32, err error) {
 		return
 	}
 	rtd := d.r.rtd()
-	return rtdToTemperature(rtd, 430.0, 100.0), nil
+	return rtdToTemperature(rtd, d.cfg.RefRes, d.cfg.RNominal), nil
 }
 
 func (d *Dev) clearFaults() error {
