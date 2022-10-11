@@ -30,7 +30,7 @@ type Transfer interface {
 type Dev struct {
 	Transfer
 	cfg Config
-	c   *config
+	c   *regConfig
 	r   *rtd
 }
 
@@ -50,7 +50,7 @@ func New(t Transfer, c Config) (*Dev, error) {
 		r:        newRtd(),
 		cfg:      c,
 	}
-	// Do initial config
+	// Do initial regConfig
 	err := d.config()
 	if err != nil {
 		return nil, err
@@ -70,7 +70,7 @@ func (d *Dev) Temperature() (tmp float32, err error) {
 		// Not handling error here, should have happened on previous call
 		_ = d.clearFaults()
 		// make error more specific
-		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[REG_FAULT], errorCauses(r[REG_FAULT], d.c.wiring))
+		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[REG_FAULT], errorCauses(r[REG_FAULT], d.cfg.Wiring))
 		return
 	}
 	rtd := d.r.rtd()
