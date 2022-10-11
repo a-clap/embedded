@@ -1,8 +1,8 @@
 package max
 
 import (
-	"errors"
 	"fmt"
+	"math"
 )
 
 const (
@@ -54,19 +54,19 @@ func New(t Transfer, wiring Wiring) (*Dev, error) {
 func (d *Dev) Temperature() (tmp float32, err error) {
 	r, err := d.read(REG_CONF, REG_FAULT+1)
 	if err != nil {
-		if errors.Is(err, ErrReadWrite) {
-			//	can't do much about it
-			return
-		}
+		//	can't do much about it
+		return
+	}
+	err = d.r.update(r[REG_RTD_MSB], r[REG_RTD_LSB])
+	if err != nil {
 		// Not handling error here, should have happened on previous call
 		_ = d.clearFaults()
 		// make error more specific
 		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[REG_FAULT], errorCauses(r[REG_FAULT], d.c.wiring))
 		return
 	}
-	_ = r
-
-	return
+	rtd := d.r.rtd()
+	return rtdToTemperature(rtd, 430.0, 100.0), nil
 }
 
 func (d *Dev) clearFaults() error {
@@ -122,4 +122,44 @@ func checkTransfer(t Transfer) error {
 		return ErrReadFF
 	}
 	return nil
+}
+
+func rtdToTemperature(rtd uint16, refRes float32, rNominal float32) float32 {
+	const (
+		RtdA float32 = 3.9083e-3
+		RtdB float32 = -5.775e-7
+	)
+	Rt := float32(rtd)
+	Rt /= 32768
+	Rt *= refRes
+
+	Z1 := -RtdA
+	Z2 := RtdA*RtdA - (4 * RtdB)
+	Z3 := (4 * RtdB) / rNominal
+	Z4 := 2 * RtdB
+
+	temp := Z2 + (Z3 * Rt)
+	temp = (float32(math.Sqrt(float64(temp))) + Z1) / Z4
+
+	if temp >= 0 {
+		return temp
+	}
+
+	Rt /= rNominal
+	Rt *= 100
+
+	rpoly := Rt
+
+	temp = -242.02
+	temp += 2.2228 * rpoly
+	rpoly *= Rt
+	temp += 2.5859e-3 * rpoly
+	rpoly *= rNominal
+	temp -= 4.8260e-6 * rpoly
+	rpoly *= Rt
+	temp -= 2.8183e-8 * rpoly
+	rpoly *= Rt
+	temp += 1.5243e-10 * rpoly
+
+	return temp
 }
