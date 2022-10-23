@@ -1,4 +1,4 @@
-package max
+package max31865
 
 import (
 	"github.com/stretchr/testify/require"

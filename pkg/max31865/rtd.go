@@ -1,4 +1,4 @@
-package max
+package max31865
 
 type rtd struct {
 	r   uint16

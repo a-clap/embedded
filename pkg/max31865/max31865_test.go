@@ -1,202 +1,100 @@
-package max31865
+package max31865_test
 
 import (
-	"errors"
 	"fmt"
-	"github.com/a-clap/logger"
+	"github.com/a-clap/beaglebone/pkg/max31865"
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap/zapcore"
 	"testing"
 )
 
-func init() {
-	Log = logger.NewDefaultZap(zapcore.DebugLevel)
-}
-
-type data struct {
-	w   []byte
-	r   []byte
+type transfer struct {
+	val byte
 	err error
 }
 
-type fakeTransfer struct {
-	i    int
-	data []data
+func (t transfer) Close() error {
+	return nil
 }
 
-func (f *fakeTransfer) TxRx(w []byte) (r []byte, err error) {
-	defer func() { f.i++ }()
-	f.data[f.i].w = w
-	return f.data[f.i].r, f.data[f.i].err
+func (t transfer) ReadWrite(write []byte) ([]byte, error) {
+	if t.err != nil {
+		return nil, t.err
+	}
+	size := len(write)
+	r := make([]byte, size)
+	for i := 0; i < size; i++ {
+		r[i] = t.val
+	}
+	return r, nil
 }
 
-var _ Transfer = &fakeTransfer{}
+var _ max31865.Transfer = &transfer{}
 
 func TestNew(t *testing.T) {
+
 	tests := []struct {
-		name    string
-		t       fakeTransfer
-		want    [][]byte
-		config  Config
-		wantErr bool
-		err     error
+		name     string
+		c        max31865.Config
+		transfer max31865.Transfer
+		wantErr  bool
+		errType  error
 	}{
 		{
-			name: "handle interface error",
-			t: fakeTransfer{
-				i: 0,
-				data: []data{
-					{
-						w:   nil,
-						r:   nil,
-						err: fmt.Errorf("hello error"),
-					},
-				},
+			name: "all good",
+			c: max31865.Config{
+				Wiring:   max31865.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
 			},
-			config:  Config{},
-			wantErr: true,
-			err:     ErrInterface,
+			transfer: transfer{val: 1, err: nil},
+			wantErr:  false,
+			errType:  nil,
 		},
 		{
-			name: "new writes updates config, then write 1",
-			t: fakeTransfer{
-				i: 0,
-				data: []data{
-					{
-						w:   nil,
-						r:   make([]byte, 9),
-						err: nil,
-					},
-					{},
-				},
+			name: "interface error",
+			c: max31865.Config{
+				Wiring:   max31865.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
 			},
-			want: [][]byte{
-				{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-				{0x80, 0b10010000},
-			},
-			config: Config{
-				Bias:       true,
-				AutoMode:   false,
-				Wire3:      true,
-				Filter50Hz: false,
-				RefRes:     100,
-				RNominal:   430,
-				reg:        0,
-			},
-			wantErr: false,
-			err:     nil,
+			transfer: transfer{val: 1, err: fmt.Errorf("interface error")},
+			wantErr:  true,
+			errType:  max31865.ErrReadWrite,
 		},
 		{
-			name: "new writes updates config, then write 2",
-			t: fakeTransfer{
-				i: 0,
-				data: []data{
-					{
-						w:   nil,
-						r:   make([]byte, 9),
-						err: nil,
-					},
-					{},
-				},
+			name: "only zeroes",
+			c: max31865.Config{
+				Wiring:   max31865.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
 			},
-			want: [][]byte{
-				{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0},
-				{0x80, 0b11010001},
+			transfer: transfer{val: 0, err: nil},
+			wantErr:  true,
+			errType:  max31865.ErrReadZeroes,
+		},
+		{
+			name: "only ff",
+			c: max31865.Config{
+				Wiring:   max31865.FourWire,
+				RefRes:   430.0,
+				RNominal: 100.0,
 			},
-			config: Config{
-				Bias:       true,
-				AutoMode:   true,
-				Wire3:      true,
-				Filter50Hz: true,
-				RefRes:     100,
-				RNominal:   430,
-				reg:        0,
-			},
-			wantErr: false,
-			err:     nil,
+			transfer: transfer{val: 0xff, err: nil},
+			wantErr:  true,
+			errType:  max31865.ErrReadFF,
 		},
 	}
+
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := New(&tt.t, tt.config)
+			_, err := max31865.New(tt.transfer, tt.c)
+
 			if tt.wantErr {
 				require.NotNil(t, err)
-				require.True(t, errors.Is(err, tt.err))
+				require.ErrorIs(t, err, tt.errType)
 				return
 			}
-
 			require.Nil(t, err)
-			require.Equal(t, 2, tt.t.i)
-			for i, elem := range tt.t.data {
-				require.Equal(t, tt.want[i], elem.w)
-			}
-		})
-	}
-}
-
-func TestDevice_Temperature(t *testing.T) {
-	tests := []struct {
-		name    string
-		t       fakeTransfer
-		want    [][]byte
-		wantErr bool
-		err     error
-	}{
-		{
-			name: "clear faults, if received rtd fault",
-			t: fakeTransfer{
-				i: 0,
-				data: []data{
-					{
-						w:   nil,
-						r:   make([]byte, 9),
-						err: nil,
-					},
-					{
-						w:   nil,
-						r:   make([]byte, 9),
-						err: nil,
-					},
-					{
-						w: nil,
-						r: []byte{
-							0x1, 0x0, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1, 0x1,
-						},
-						err: nil,
-					},
-					{
-						w:   nil,
-						r:   make([]byte, 9),
-						err: nil,
-					},
-				},
-			},
-			want: [][]byte{
-				nil,         // don't check it
-				nil,         // don't check it
-				nil,         // don't check it
-				{0x80, 0x2}, // here should be clear fault with last read config
-			},
-			wantErr: false,
-			err:     nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			d, err := NewDefault(&tt.t)
-			require.Nil(t, err)
-
-			got, err := d.Temperature()
-			if tt.wantErr {
-				require.NotNil(t, err)
-				require.True(t, errors.Is(err, ErrFault))
-			}
-			for i, elem := range tt.t.data {
-				if tt.want[i] != nil {
-					require.Equal(t, tt.want[i], elem.w)
-				}
-			}
-			require.NotNil(t, got)
 
 		})
 	}
