@@ -33,6 +33,7 @@ var (
 func errorCauses(errorReg byte, w Wiring) []string {
 	const offset = 2
 	bitPos := offset
+	errorReg >>= offset
 	var s []string
 	for bitPos < 8 {
 		if errorReg&0x1 == 0x1 {
