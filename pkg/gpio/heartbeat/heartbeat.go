@@ -7,9 +7,14 @@ import (
 )
 
 func main() {
-	out, err := gpio.Output(gpio.USR3_LED, false)
+	bpiled, err := gpio.BananaPiPin("PWR_LED")
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
+	}
+
+	out, err := gpio.Output(bpiled, false)
+	if err != nil {
+		panic(err)
 	}
 
 	states := []struct {
