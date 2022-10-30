@@ -1,7 +1,6 @@
-package max31865
+package spidev
 
 import (
-	"log"
 	"periph.io/x/conn/v3/driver/driverreg"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
@@ -16,9 +15,9 @@ type spiHandler struct {
 	handler map[string]spi.PortCloser
 }
 
-type spiTransfer struct {
+type Spidev struct {
 	name string
-	conn spi.Conn
+	spi.Conn
 }
 
 var spiHandle = spiHandler{
@@ -27,7 +26,7 @@ var spiHandle = spiHandler{
 	handler: make(map[string]spi.PortCloser),
 }
 
-func newSpi(devFile string) (Transfer, error) {
+func New(devFile string, freq physic.Frequency, mode spi.Mode, bits int) (*Spidev, error) {
 	spiHandle.init.Do(func() {
 		if _, err := host.Init(); err != nil {
 			panic(err)
@@ -53,17 +52,16 @@ func newSpi(devFile string) (Transfer, error) {
 	}
 
 	p, _ := spiHandle.handler[devFile]
-	conn, err := p.Connect(5*physic.MegaHertz, spi.Mode1, 8)
+	conn, err := p.Connect(freq, mode, bits)
 	if err != nil {
 		return nil, err
 	}
-	return spiTransfer{conn: conn, name: devFile}, nil
+	return &Spidev{name: devFile, Conn: conn}, nil
 }
 
 func (s *spiHandler) Close(devFile string) error {
 	count, ok := spiHandle.count[devFile]
 	if !ok {
-		log.Println(devFile, "doesn't exist")
 		return nil
 	}
 
@@ -77,12 +75,6 @@ func (s *spiHandler) Close(devFile string) error {
 	return nil
 }
 
-func (s spiTransfer) ReadWrite(write []byte) (read []byte, err error) {
-	read = make([]byte, len(write))
-	err = s.conn.Tx(write, read)
-	return read, err
-}
-
-func (s spiTransfer) Close() error {
+func (s Spidev) Close() error {
 	return spiHandle.Close(s.name)
 }
