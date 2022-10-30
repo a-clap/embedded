@@ -17,19 +17,11 @@ type Out struct {
 	*gpiod.Line
 }
 
-// init read gpiochips from user space, so we can set detect how many gpios are available
+// init checks if there are any gpiochips available
 func init() {
 	chips := gpiod.Chips()
 	if chips == nil {
 		panic("gpiochips not found!")
-	}
-
-	for _, c := range chips {
-		chip, err := gpiod.NewChip(c)
-		if err != nil {
-			continue
-		}
-		_ = chip.Close()
 	}
 }
 
