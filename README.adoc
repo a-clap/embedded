@@ -1,17 +1,24 @@
-= Beaglebone package
+= IoT
 :toc: preamble
 :toclevels: 3
 
-Beaglebone package for personal use.
+IoT package (developed for https://wiki.banana-pi.org/Banana_Pi_BPI-M2_ZERO[BananaPi Zero]) for personal use.
 
-== Why? There are packages like gobot...
+== Why?
 
-The Beaglebone adaptor provided by Gobot assumes that you use official Debian image for BBB.
+Currently, I am developing project on BananaPi that require few packages. Here is a repository to keep my work tracked.
 
-Well, I am not. I am going to use https://github.com/a-clap/bbb_go[yocto image]. Furthermore, there are more reasons:
+== Distro
 
-* use gpio char device, instead of legacy sysfs interface,
-* more...
+Linux distro is developed with Yocto support. Distro repository You can find right here: https://github.com/a-clap/iot-distro:[IoT-distro]
+
+=== Packages
+
+== GPIO
+
+== DS18B20
+
+== MAX31865
 
 
 
