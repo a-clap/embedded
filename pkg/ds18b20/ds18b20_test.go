@@ -2,7 +2,7 @@ package ds18b20_test
 
 import (
 	"fmt"
-	"github.com/a-clap/beaglebone/pkg/ds18b20"
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
 	"io/fs"

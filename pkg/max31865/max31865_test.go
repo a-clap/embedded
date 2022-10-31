@@ -2,7 +2,7 @@ package max31865_test
 
 import (
 	"fmt"
-	"github.com/a-clap/beaglebone/pkg/max31865"
+	"github.com/a-clap/iot/pkg/max31865"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/a-clap/beaglebone/pkg/gpio"
+	"github.com/a-clap/iot/pkg/gpio"
 	"log"
 	"time"
 )

@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/a-clap/beaglebone/pkg/ds18b20"
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/a-clap/logger"
 	"go.uber.org/zap/zapcore"
 	"time"

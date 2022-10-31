@@ -2,7 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/a-clap/beaglebone/pkg/max31865"
+	"github.com/a-clap/iot/pkg/max31865"
 	"log"
 	"time"
 )
