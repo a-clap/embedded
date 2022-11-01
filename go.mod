@@ -6,7 +6,7 @@ require (
 	fyne.io/fyne/v2 v2.2.3
 	github.com/a-clap/logger v0.0.3
 	github.com/spf13/afero v1.9.2
-	github.com/stretchr/testify v1.8.0
+	github.com/stretchr/testify v1.8.1
 	github.com/warthog618/gpiod v0.8.0
 	go.uber.org/zap v1.22.0
 	periph.io/x/conn/v3 v3.6.10
@@ -30,6 +30,7 @@ require (
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/srwiley/oksvg v0.0.0-20200311192757-870daf9aa564 // indirect
 	github.com/srwiley/rasterx v0.0.0-20200120212402-85cb7272f5e9 // indirect
+	github.com/stretchr/objx v0.5.0 // indirect
 	github.com/tevino/abool v1.2.0 // indirect
 	github.com/yuin/goldmark v1.4.0 // indirect
 	go.uber.org/atomic v1.7.0 // indirect

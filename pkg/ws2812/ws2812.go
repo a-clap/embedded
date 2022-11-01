@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/a-clap/iot/pkg/spidev"
-	"io"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 )
@@ -19,25 +18,26 @@ var (
 	ErrLedNotExist = errors.New("specified led number doesn't exist")
 )
 
+type Writer interface {
+	Write([]byte) error
+}
+
 type led struct {
 	r, g, b uint8
 }
 
 type WS2812 struct {
 	size   uint
-	writer io.Writer
+	writer Writer
 	leds   []led
 }
 type wsSpidevWriter struct {
 	spi.Conn
 }
 
-func (w wsSpidevWriter) Write(p []byte) (n int, err error) {
+func (w wsSpidevWriter) Write(p []byte) (err error) {
 	r := make([]byte, len(p))
-	if err := w.Tx(p, r); err != nil {
-		return 0, err
-	}
-	return len(p), nil
+	return w.Tx(p, r)
 }
 
 func NewDefault(filename string, size uint) (*WS2812, error) {
@@ -48,7 +48,7 @@ func NewDefault(filename string, size uint) (*WS2812, error) {
 	return New(size, wsSpidevWriter{s}), nil
 }
 
-func New(size uint, w io.Writer) *WS2812 {
+func New(size uint, w Writer) *WS2812 {
 	return &WS2812{
 		size:   size,
 		writer: w,
@@ -93,7 +93,7 @@ func (w *WS2812) Refresh() error {
 
 // write is a wrapper for interface Writer
 func (w *WS2812) write(buf []byte) error {
-	if n, err := w.writer.Write(buf); err != nil && n != len(buf) {
+	if err := w.writer.Write(buf); err != nil {
 		return fmt.Errorf("%w: %v", ErrInterface, err)
 	}
 	return nil
