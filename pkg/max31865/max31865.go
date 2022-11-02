@@ -2,8 +2,11 @@ package max31865
 
 import (
 	"fmt"
+	"github.com/a-clap/iot/pkg/spidev"
 	"io"
 	"math"
+	"periph.io/x/conn/v3/physic"
+	"periph.io/x/conn/v3/spi"
 )
 
 const (
@@ -29,6 +32,16 @@ type Transfer interface {
 	ReadWrite(write []byte) (read []byte, err error)
 }
 
+type maxSpidevTransfer struct {
+	*spidev.Spidev
+}
+
+func (m maxSpidevTransfer) ReadWrite(write []byte) (read []byte, err error) {
+	read = make([]byte, len(write))
+	err = m.Spidev.Tx(write, read)
+	return read, err
+}
+
 type Dev struct {
 	Transfer
 	io.Closer
@@ -44,11 +57,11 @@ type Config struct {
 }
 
 func NewDefault(devFile string, c Config) (*Dev, error) {
-	t, err := newSpi(devFile)
+	t, err := spidev.New(devFile, 5*physic.MegaHertz, spi.Mode1, 8)
 	if err != nil {
 		return nil, err
 	}
-	return New(t, c)
+	return New(&maxSpidevTransfer{t}, c)
 }
 
 func New(t Transfer, c Config) (*Dev, error) {
