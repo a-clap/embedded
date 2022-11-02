@@ -100,18 +100,21 @@ func TestWS2812_Refresh(t *testing.T) {
 	t.Run("SetColor affects specified led", func(t *testing.T) {
 		writer := WS2821Writer{}
 		w := ws2812.New(5, &writer)
-
 		require.Nil(t, w.Refresh())
+
 		// get buffer written, no matter what is inside
-		b := writer.bytes
+		b := make([]byte, 0, len(writer.bytes))
+		_ = copy(b, writer.bytes)
 		for i := uint(0); i < 5; i++ {
+
 			require.Nil(t, w.SetColor(i, 255, 255, 255))
 			require.Nil(t, w.Refresh())
 
 			touchedLedStart := int(i*24 + 3)
 			touchedLedEnd := int((i+1)*24 + 3)
 
-			newBuf := writer.bytes
+			newBuf := make([]byte, 0, len(writer.bytes))
+			_ = copy(newBuf, writer.bytes)
 			for pos, elem := range newBuf {
 				switch {
 				// first three elements are 0
@@ -126,7 +129,6 @@ func TestWS2812_Refresh(t *testing.T) {
 				default:
 					require.Equal(t, b[pos], elem)
 				}
-
 			}
 			// update b with new values
 			b = newBuf
