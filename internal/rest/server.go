@@ -20,17 +20,13 @@ const (
 	JSONIndent
 )
 
-type GetSensors interface {
-	Get()
-}
-
 func New(args ...any) *Server {
 	s := &Server{
 		fmt:    JSONP,
 		Engine: gin.Default(),
 	}
 
-	s.parse(args)
+	s.parse(args...)
 	s.routes()
 	return s
 }
