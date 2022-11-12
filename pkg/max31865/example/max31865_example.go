@@ -8,11 +8,7 @@ import (
 )
 
 func main() {
-	dev, err := max31865.NewDefault("/dev/spidev0.0", max31865.Config{
-		Wiring:   max31865.ThreeWire,
-		RefRes:   430.0,
-		RNominal: 100.0,
-	})
+	dev, err := max31865.NewDefault("/dev/spidev0.0", max31865.ThreeWire, max31865.RefRes(430.0), max31865.RNominal(100.0))
 	if err != nil {
 		panic(err)
 	}

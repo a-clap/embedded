@@ -62,7 +62,7 @@ func (h *Handler) updateIDs() error {
 	}
 	for _, maybeOnewire := range files {
 		if name := maybeOnewire.Name(); len(name) > 0 {
-			// Onewire ID starts with digit
+			// Onewire id starts with digit
 			if name[0] >= '0' && name[0] <= '9' {
 				h.ids = append(h.ids, name)
 			}

@@ -17,11 +17,12 @@ func main() {
 	ds := ds18b20.NewDefault()
 
 	ids, err := ds.IDs()
-	if err != nil {
+	if err != nil && len(ids) == 0 {
 		log.Fatal(err)
 	}
+	sensor, _ := ds.NewSensor(ids[0])
 
-	finCh, errCh, errs := ds.Poll(ids, reads, exitCh, 750*time.Millisecond)
+	finCh, errCh, errs := sensor.Poll(reads, exitCh, 750*time.Millisecond)
 	if errs != nil {
 		log.Fatal(err)
 	}
@@ -47,7 +48,7 @@ func main() {
 				return
 			case sensor := <-reads:
 				id, tmp, stamp := sensor.Get()
-				fmt.Printf("ID: %s, Temperature: %s. Time: %s\n", id, tmp, stamp)
+				fmt.Printf("id: %s, Temperature: %s. Time: %s\n", id, tmp, stamp)
 			case err := <-errCh:
 				fmt.Println("Error from ds18b20", err)
 			}

@@ -34,51 +34,35 @@ func TestNew(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		c        max31865.Config
+		args     []any
 		transfer max31865.Transfer
 		wantErr  bool
 		errType  error
 	}{
 		{
-			name: "all good",
-			c: max31865.Config{
-				Wiring:   max31865.FourWire,
-				RefRes:   430.0,
-				RNominal: 100.0,
-			},
+			name:     "all good",
+			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
 			transfer: transfer{val: 1, err: nil},
 			wantErr:  false,
 			errType:  nil,
 		},
 		{
-			name: "interface error",
-			c: max31865.Config{
-				Wiring:   max31865.FourWire,
-				RefRes:   430.0,
-				RNominal: 100.0,
-			},
+			name:     "interface error",
+			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
 			transfer: transfer{val: 1, err: fmt.Errorf("interface error")},
 			wantErr:  true,
 			errType:  max31865.ErrReadWrite,
 		},
 		{
-			name: "only zeroes",
-			c: max31865.Config{
-				Wiring:   max31865.FourWire,
-				RefRes:   430.0,
-				RNominal: 100.0,
-			},
+			name:     "only zeroes",
+			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
 			transfer: transfer{val: 0, err: nil},
 			wantErr:  true,
 			errType:  max31865.ErrReadZeroes,
 		},
 		{
-			name: "only ff",
-			c: max31865.Config{
-				Wiring:   max31865.FourWire,
-				RefRes:   430.0,
-				RNominal: 100.0,
-			},
+			name:     "only ff",
+			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
 			transfer: transfer{val: 0xff, err: nil},
 			wantErr:  true,
 			errType:  max31865.ErrReadFF,
@@ -87,7 +71,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := max31865.New(tt.transfer, tt.c)
+			_, err := max31865.New(tt.transfer, tt.args...)
 
 			if tt.wantErr {
 				require.NotNil(t, err)

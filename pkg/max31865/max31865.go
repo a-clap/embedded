@@ -1,30 +1,32 @@
 package max31865
 
 import (
+	"errors"
 	"fmt"
-	"github.com/a-clap/iot/pkg/spidev"
 	"io"
 	"math"
-	"periph.io/x/conn/v3/physic"
-	"periph.io/x/conn/v3/spi"
+	"time"
 )
 
 const (
-	REG_CONF = iota
-	REG_RTD_MSB
-	REG_RTD_LSB
-	REG_H_FAULT_MSB
-	REG_H_FAULT_LSB
-	REG_L_FAULT_MSB
-	REG_L_FAULT_LSB
-	REG_FAULT
+	regConf = iota
+	regRtdMsb
+	regRtdLsb
+	regHFaultMsb
+	regHFaultLsb
+	regLFaultMsb
+	regLFaultLsb
+	regFault
 )
 
 var (
-	ErrReadWrite  = fmt.Errorf("error on ReadWrite")
-	ErrReadZeroes = fmt.Errorf("read only zeroes from device")
-	ErrReadFF     = fmt.Errorf("read only 0xFF from device")
-	ErrRtd        = fmt.Errorf("rtd error")
+	ErrReadWrite        = errors.New("error on ReadWrite")
+	ErrReadZeroes       = errors.New("read only zeroes from device")
+	ErrReadFF           = errors.New("read only 0xFF from device")
+	ErrRtd              = errors.New("rtd error")
+	ErrAlreadyPolling   = errors.New("sensor is already polling")
+	ErrWrongArgs        = errors.New("wrong args passed to callback")
+	ErrNoReadyInterface = errors.New("lack of ready interface")
 )
 
 type Transfer interface {
@@ -32,89 +34,120 @@ type Transfer interface {
 	ReadWrite(write []byte) (read []byte, err error)
 }
 
-type maxSpidevTransfer struct {
-	*spidev.Spidev
-}
-
-func (m maxSpidevTransfer) ReadWrite(write []byte) (read []byte, err error) {
-	read = make([]byte, len(write))
-	err = m.Spidev.Tx(write, read)
-	return read, err
-}
-
-type Dev struct {
-	Transfer
+type Sensor interface {
 	io.Closer
-	cfg Config
-	c   *regConfig
-	r   *rtd
+	ID() string
+	Temperature() (float32, error)
 }
 
-type Config struct {
-	Wiring   Wiring
-	RefRes   float32
-	RNominal float32
+// Ready is an interface which allows to register a callback
+// max31865 has a pin DRDY, which goes low, when new conversion is ready, this interface should rely on that pin
+type Ready interface {
+	Open(callback func(any) error, args any) error
+	Close()
 }
 
-func NewDefault(devFile string, c Config) (*Dev, error) {
-	t, err := spidev.New(devFile, 5*physic.MegaHertz, spi.Mode1, 8)
+type Readings interface {
+	Get() (id string, temperature string, timestamp time.Time)
+}
+
+type sensor struct {
+	Transfer
+	cfg    config
+	regCfg *regConfig
+	r      *rtd
+}
+
+func NewDefault(devFile string, args ...any) (Sensor, error) {
+	dev, err := newMaxSpidev(devFile)
 	if err != nil {
 		return nil, err
 	}
-	return New(&maxSpidevTransfer{t}, c)
+	args = append([]any{ID(devFile)}, args...)
+	return New(dev, args...)
 }
 
-func New(t Transfer, c Config) (*Dev, error) {
+func New(t Transfer, args ...any) (Sensor, error) {
 	if err := checkTransfer(t); err != nil {
 		return nil, err
 	}
-	d := &Dev{
+
+	s := &sensor{
 		Transfer: t,
-		c:        newConfig(c.Wiring),
+		regCfg:   newRegConfig(),
 		r:        newRtd(),
-		cfg:      c,
+		cfg:      newConfig(),
 	}
+
+	s.parse(args...)
 	// Do initial regConfig
-	err := d.config()
+	err := s.config()
 	if err != nil {
 		return nil, err
 	}
 
-	return d, nil
+	return s, nil
 }
 
-func (d *Dev) Temperature() (tmp float32, err error) {
-	r, err := d.read(REG_CONF, REG_FAULT+1)
+func (s *sensor) parse(args ...any) {
+	for _, arg := range args {
+		switch arg := arg.(type) {
+		case Ready:
+			s.cfg.ready = arg
+		case ID:
+			s.cfg.id = arg
+		case Wiring:
+			s.cfg.wiring = arg
+			s.regCfg.setWiring(arg)
+		case RefRes:
+			s.cfg.refRes = arg
+		case RNominal:
+			s.cfg.rNominal = arg
+		}
+	}
+
+}
+
+func (s *sensor) ID() string {
+	return string(s.cfg.id)
+}
+
+func (s *sensor) Temperature() (tmp float32, err error) {
+	r, err := s.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it
 		return
 	}
-	err = d.r.update(r[REG_RTD_MSB], r[REG_RTD_LSB])
+	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
 	if err != nil {
 		// Not handling error here, should have happened on previous call
-		_ = d.clearFaults()
+		_ = s.clearFaults()
 		// make error more specific
-		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[REG_FAULT], errorCauses(r[REG_FAULT], d.cfg.Wiring))
+		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.cfg.wiring))
 		return
 	}
-	rtd := d.r.rtd()
-	return rtdToTemperature(rtd, d.cfg.RefRes, d.cfg.RNominal), nil
+	rtd := s.r.rtd()
+	return rtdToTemperature(rtd, s.cfg.refRes, s.cfg.rNominal), nil
 }
 
-func (d *Dev) clearFaults() error {
-	return d.write(REG_CONF, []byte{d.c.clearFaults()})
+func (s *sensor) Close() error {
+	return s.Transfer.Close()
 }
 
-func (d *Dev) config() error {
-	err := d.write(REG_CONF, []byte{d.c.reg()})
+func (s *sensor) clearFaults() error {
+	return s.write(regConf, []byte{s.regCfg.clearFaults()})
+}
+
+func (s *sensor) config() error {
+	err := s.write(regConf, []byte{s.regCfg.reg()})
 	return err
 }
 
-func (d *Dev) read(addr byte, len int) ([]byte, error) {
+func (s *sensor) read(addr byte, len int) ([]byte, error) {
 	// We need to create slice with 1 byte more
 	w := make([]byte, len+1)
 	w[0] = addr
-	r, err := d.ReadWrite(w)
+	r, err := s.ReadWrite(w)
 	if err != nil {
 		return nil, err
 	}
@@ -122,17 +155,17 @@ func (d *Dev) read(addr byte, len int) ([]byte, error) {
 	return r[1:], nil
 }
 
-func (d *Dev) write(addr byte, w []byte) error {
+func (s *sensor) write(addr byte, w []byte) error {
 	buf := []byte{addr | 0x80}
 	buf = append(buf, w...)
-	_, err := d.ReadWrite(buf)
+	_, err := s.ReadWrite(buf)
 	return err
 }
 
 func checkTransfer(t Transfer) error {
-	const size = REG_FAULT + 1
+	const size = regFault + 1
 	buf := make([]byte, size)
-	buf[0] = REG_CONF
+	buf[0] = regConf
 	r, err := t.ReadWrite(buf)
 	if err != nil {
 		return ErrReadWrite
@@ -156,7 +189,9 @@ func checkTransfer(t Transfer) error {
 	return nil
 }
 
-func rtdToTemperature(rtd uint16, refRes float32, rNominal float32) float32 {
+func rtdToTemperature(rtd uint16, refResT RefRes, rNominalT RNominal) float32 {
+	refRes := float32(refResT)
+	rNominal := float32(rNominalT)
 	const (
 		RtdA float32 = 3.9083e-3
 		RtdB float32 = -5.775e-7
@@ -194,8 +229,4 @@ func rtdToTemperature(rtd uint16, refRes float32, rNominal float32) float32 {
 	temp += 1.5243e-10 * rpoly
 
 	return temp
-}
-
-func (d *Dev) Close() error {
-	return d.Transfer.Close()
 }
