@@ -119,7 +119,7 @@ func TestHandler_Devices(t *testing.T) {
 			wantErr: false,
 		},
 		{
-			name: "multiple devices",
+			name: "multiple ids",
 			handler: &iAfero{
 				path: multipleDevicesPath,
 				a:    &af,
@@ -131,7 +131,7 @@ func TestHandler_Devices(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			h := ds18b20.New(tt.handler)
-			got, err := h.Devices()
+			got, err := h.IDs()
 
 			if tt.wantErr {
 				require.NotNil(t, err)
@@ -288,6 +288,47 @@ func TestHandler_SensorTemperature(t *testing.T) {
 	})
 }
 
+func TestSensor_PollTwice(t *testing.T) {
+	af := afero.Afero{Fs: afero.NewMemMapFs()}
+	defer af.RemoveAll("/")
+	// Prepare sensor
+	expectedID := "281ab"
+	tmp := "12345"
+	require.Nil(t, af.Mkdir("/"+expectedID, 0777))
+	f, err := af.Create("/" + expectedID + "/temperature")
+	require.Nil(t, err)
+
+	f.Write([]byte(tmp))
+	f.Close()
+
+	o := &iAfero{
+		path: "/",
+		a:    &af,
+	}
+
+	readings := make(chan ds18b20.Readings)
+	exitCh := make(chan struct{})
+	interval := 5 * time.Millisecond
+	h := ds18b20.New(o)
+	s, _ := h.NewSensor(expectedID)
+
+	finChan, _, errs := s.Poll(readings, exitCh, interval)
+	require.Nil(t, errs)
+
+	_, _, err = s.Poll(readings, exitCh, interval)
+	require.ErrorIs(t, err, ds18b20.ErrAlreadyPolling)
+
+	exitCh <- struct{}{}
+	for _ = range readings {
+	}
+	select {
+	case <-finChan:
+	case <-time.After(2 * interval):
+		require.Fail(t, "should be done after this time")
+	}
+
+}
+
 func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
 	defer af.RemoveAll("/")
@@ -311,9 +352,10 @@ func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 	exitCh := make(chan struct{})
 	interval := 5 * time.Millisecond
 	h := ds18b20.New(o)
+	s, _ := h.NewSensor(expectedID)
 
-	finChan, errch, errs := h.Poll([]string{expectedID}, readings, exitCh, interval)
-	require.Len(t, errs, 0)
+	finChan, errch, errs := s.Poll(readings, exitCh, interval)
+	require.Nil(t, errs)
 
 	for i := 0; i < 10; i++ {
 		now := time.Now()
@@ -338,21 +380,4 @@ func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 		require.Fail(t, "should be done after this time")
 	}
 
-}
-
-func TestHandler_Poll_WrongsIDs(t *testing.T) {
-	af := afero.Afero{Fs: afero.NewMemMapFs()}
-
-	o := &iAfero{
-		path: "/",
-		a:    &af,
-	}
-	readings := make(chan ds18b20.Readings)
-	exitCh := make(chan struct{})
-	interval := 5 * time.Millisecond
-	finChan, errch, errs := ds18b20.New(o).Poll([]string{"not existing", "this one tooo"}, readings, exitCh, interval)
-
-	require.Len(t, errs, 2)
-	require.Nil(t, finChan)
-	require.Nil(t, errch)
 }

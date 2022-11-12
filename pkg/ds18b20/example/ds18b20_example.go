@@ -16,7 +16,7 @@ func main() {
 
 	ds := ds18b20.NewDefault()
 
-	ids, err := ds.Devices()
+	ids, err := ds.IDs()
 	if err != nil {
 		log.Fatal(err)
 	}
