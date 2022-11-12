@@ -18,7 +18,7 @@ type File interface {
 
 type Onewire interface {
 	Path() string
-	ReadDir(dirname string) ([]fs.FileInfo, error)
+	ReadDir(dirname string) ([]fs.DirEntry, error)
 	Open(name string) (File, error)
 }
 

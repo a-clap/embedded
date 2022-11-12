@@ -15,11 +15,11 @@ import (
 type iError struct {
 }
 
-func (i *iError) Open(name string) (ds18b20.File, error) {
+func (i *iError) Open(string) (ds18b20.File, error) {
 	panic("shouldn't be used")
 }
 
-func (i *iError) ReadDir(dirname string) ([]fs.FileInfo, error) {
+func (i *iError) ReadDir(string) ([]fs.DirEntry, error) {
 	return nil, fmt.Errorf("interfaceError")
 }
 
@@ -29,14 +29,17 @@ func (i *iError) Path() string {
 
 type iAfero struct {
 	path string
-	a    *afero.Afero
+	a    afero.IOFS
 }
 
-func (i *iAfero) ReadDir(dirname string) ([]fs.FileInfo, error) {
+func (i *iAfero) ReadDir(dirname string) ([]fs.DirEntry, error) {
 	return i.a.ReadDir(dirname)
 }
 
 func (i *iAfero) Open(name string) (ds18b20.File, error) {
+	if len(name) > 1 && name[0] == '/' {
+		name = name[1:]
+	}
 	return i.a.Open(name)
 }
 
@@ -75,7 +78,7 @@ func TestHandler_Devices(t *testing.T) {
 
 	require.Nil(t, err)
 
-	defer af.RemoveAll("/*")
+	defer func() { _ = af.RemoveAll("") }()
 
 	tests := []struct {
 		name    string
@@ -95,7 +98,7 @@ func TestHandler_Devices(t *testing.T) {
 			name: "no onewire device",
 			handler: &iAfero{
 				path: nodevice,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			want:    nil,
 			wantErr: false,
@@ -104,7 +107,7 @@ func TestHandler_Devices(t *testing.T) {
 			name: "just master device",
 			handler: &iAfero{
 				path: justMasterDevice,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			want:    nil,
 			wantErr: false,
@@ -113,7 +116,7 @@ func TestHandler_Devices(t *testing.T) {
 			name: "single one wire device",
 			handler: &iAfero{
 				path: singleOneWireDevicePath,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			want:    []string{singleOneWireDevice},
 			wantErr: false,
@@ -122,7 +125,7 @@ func TestHandler_Devices(t *testing.T) {
 			name: "multiple ids",
 			handler: &iAfero{
 				path: multipleDevicesPath,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			want:    multipleDevices,
 			wantErr: false,
@@ -147,9 +150,9 @@ func TestHandler_Devices(t *testing.T) {
 
 func TestHandler_NewSensor(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer af.RemoveAll("/")
+	defer func() { _ = af.RemoveAll("") }()
 
-	sensorDoesntexist := "/not_exist"
+	sensorDoesntexist := "not_exist"
 
 	sensorIDWithoutTemperaturePath := "/exist"
 	sensorIDWithoutTemperature := "81-12131"
@@ -157,7 +160,7 @@ func TestHandler_NewSensor(t *testing.T) {
 	require.Nil(t, af.Mkdir(p, 0777))
 
 	sensorGoodID := "28-abcdefg"
-	sensorGoodPath := "/good"
+	sensorGoodPath := "good"
 	p = filepath.Join(sensorGoodPath, sensorGoodID)
 	require.Nil(t, af.Mkdir(p, 0777))
 
@@ -168,7 +171,7 @@ func TestHandler_NewSensor(t *testing.T) {
 
 	_, err = f.Write([]byte(sensorGoodTemperature))
 	require.Nil(t, err)
-	f.Close()
+	_ = f.Close()
 
 	tests := []struct {
 		name    string
@@ -181,7 +184,7 @@ func TestHandler_NewSensor(t *testing.T) {
 			name: "sensor doesn't exist",
 			o: &iAfero{
 				path: sensorDoesntexist,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			argsId:  "blabla",
 			wantErr: true,
@@ -191,7 +194,7 @@ func TestHandler_NewSensor(t *testing.T) {
 			name: "temperature file doesn't exist",
 			o: &iAfero{
 				path: sensorIDWithoutTemperaturePath,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			argsId:  sensorIDWithoutTemperature,
 			wantErr: true,
@@ -201,7 +204,7 @@ func TestHandler_NewSensor(t *testing.T) {
 			name: "working sensor",
 			o: &iAfero{
 				path: sensorGoodPath,
-				a:    &af,
+				a:    afero.NewIOFS(af),
 			},
 			argsId:  sensorGoodID,
 			wantErr: false,
@@ -227,18 +230,20 @@ func TestHandler_NewSensor(t *testing.T) {
 
 func TestHandler_SensorTemperature(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer af.RemoveAll("/")
+	defer func() { _ = af.RemoveAll("") }()
 	// Prepare files
 	id := "28-12313asb"
-	p := filepath.Join("/wire", id)
+	p := filepath.Join("wire", id)
 	require.Nil(t, af.Mkdir(p, 0777))
 	filePath := filepath.Join(p, "temperature")
 	_, err := af.Create(filePath)
 	require.Nil(t, err)
+	err = af.Chmod(filePath, 0777)
+	require.Nil(t, err)
 	// Prepare interface
 	o := &iAfero{
-		path: "/wire",
-		a:    &af,
+		path: "wire",
+		a:    afero.NewIOFS(af),
 	}
 	// Get sensor tested
 	s, err := ds18b20.New(o).NewSensor(id)
@@ -249,6 +254,10 @@ func TestHandler_SensorTemperature(t *testing.T) {
 		write    string
 		expected string
 	}{
+		{
+			write:    "1",
+			expected: "0.001",
+		},
 		{
 			write:    "988654\r\n",
 			expected: "988.654",
@@ -269,16 +278,16 @@ func TestHandler_SensorTemperature(t *testing.T) {
 			write:    "38\n",
 			expected: "0.038",
 		},
-		{
-			write:    "1",
-			expected: "0.001",
-		},
 	}
 
 	t.Run("proper conversions", func(t *testing.T) {
 		for _, test := range tests {
-			err := af.WriteFile(filePath, []byte(test.write), 0644)
+			f, err := af.OpenFile(filePath, os.O_WRONLY, 0777)
 			require.Nil(t, err)
+			n, err := f.Write([]byte(test.write))
+			require.Equal(t, len(test.write), n)
+			require.Nil(t, err)
+			_ = f.Close()
 
 			r, err := s.Temperature()
 			require.Nil(t, err)
@@ -290,20 +299,20 @@ func TestHandler_SensorTemperature(t *testing.T) {
 
 func TestSensor_PollTwice(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer af.RemoveAll("/")
+	defer func() { _ = af.RemoveAll("") }()
 	// Prepare sensor
 	expectedID := "281ab"
 	tmp := "12345"
-	require.Nil(t, af.Mkdir("/"+expectedID, 0777))
-	f, err := af.Create("/" + expectedID + "/temperature")
+	require.Nil(t, af.Mkdir(expectedID, 0777))
+	f, err := af.Create(expectedID + "/temperature")
 	require.Nil(t, err)
 
-	f.Write([]byte(tmp))
-	f.Close()
+	_, _ = f.Write([]byte(tmp))
+	_ = f.Close()
 
 	o := &iAfero{
-		path: "/",
-		a:    &af,
+		path: "",
+		a:    afero.NewIOFS(af),
 	}
 
 	readings := make(chan ds18b20.Readings)
@@ -319,7 +328,7 @@ func TestSensor_PollTwice(t *testing.T) {
 	require.ErrorIs(t, err, ds18b20.ErrAlreadyPolling)
 
 	exitCh <- struct{}{}
-	for _ = range readings {
+	for range readings {
 	}
 	select {
 	case <-finChan:
@@ -331,21 +340,21 @@ func TestSensor_PollTwice(t *testing.T) {
 
 func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer af.RemoveAll("/")
+	defer func() { _ = af.RemoveAll("") }()
 	// Prepare sensor
 	expectedID := "281ab"
 	expectedTemp := "12.345"
 	tmp := "12345"
-	require.Nil(t, af.Mkdir("/"+expectedID, 0777))
-	f, err := af.Create("/" + expectedID + "/temperature")
+	require.Nil(t, af.Mkdir(expectedID, 0777))
+	f, err := af.Create(expectedID + "/temperature")
 	require.Nil(t, err)
 
-	f.Write([]byte(tmp))
-	f.Close()
+	_, _ = f.Write([]byte(tmp))
+	_ = f.Close()
 
 	o := &iAfero{
-		path: "/",
-		a:    &af,
+		path: "",
+		a:    afero.NewIOFS(af),
 	}
 
 	readings := make(chan ds18b20.Readings)
