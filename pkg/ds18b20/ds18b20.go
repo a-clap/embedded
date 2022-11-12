@@ -190,8 +190,8 @@ func (s *ds) Temperature() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	// ds temperature file is just few bytes, ioutil.ReadAll is fine for that purpose
-	buf, err := ioutil.ReadAll(f)
+	// ds temperature file is just few bytes, io.ReadAll is fine for that purpose
+	buf, err := io.ReadAll(f)
 	if err != nil {
 		return "", err
 	}
