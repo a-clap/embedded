@@ -55,10 +55,6 @@ func (h *Handler) NewSensor(id string) (Sensor, error) {
 	return s, nil
 }
 
-func (h *Handler) Close(s Sensor) error {
-	return nil
-}
-
 func (h *Handler) updateIDs() error {
 	files, err := h.o.ReadDir(h.o.Path())
 	if err != nil {
