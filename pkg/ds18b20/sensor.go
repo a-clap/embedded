@@ -68,8 +68,7 @@ func (s *sensor) poll(readings chan<- Readings, stopCh <-chan struct{}, pollTime
 			tmp, err := s.Temperature()
 			if err != nil {
 				errCh <- err
-				s.polling = false
-				break
+				continue
 			}
 			r := readen{
 				id:          s.ID(),
@@ -81,7 +80,7 @@ func (s *sensor) poll(readings chan<- Readings, stopCh <-chan struct{}, pollTime
 	}
 	close(readings)
 	// For sure there won't be more data
-	// sensor created channel, so should close
+	// sensor created channel (and is the sender side), so should close
 	close(errCh)
 	// Notify user that we are done
 	finCh <- struct{}{}
