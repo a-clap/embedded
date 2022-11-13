@@ -57,7 +57,7 @@ func New(t Transfer, args ...any) (Sensor, error) {
 }
 
 func checkTransfer(t Transfer) error {
-	const size = regFault + 1
+	const size = regFault + 2
 	buf := make([]byte, size)
 	buf[0] = regConf
 	r, err := t.ReadWrite(buf)
