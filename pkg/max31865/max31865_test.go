@@ -1,85 +1,60 @@
 package max31865_test
 
 import (
-	"fmt"
+	"errors"
 	"github.com/a-clap/iot/pkg/max31865"
-	"github.com/stretchr/testify/require"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 	"testing"
 )
 
-type transfer struct {
-	val byte
-	err error
+type MaxSuite struct {
+	suite.Suite
 }
 
-func (t transfer) Close() error {
-	return nil
+type MaxTransferMock struct {
+	mock.Mock
 }
 
-func (t transfer) ReadWrite(write []byte) ([]byte, error) {
-	if t.err != nil {
-		return nil, t.err
-	}
-	size := len(write)
-	r := make([]byte, size)
-	for i := 0; i < size; i++ {
-		r[i] = t.val
-	}
-	return r, nil
+func (m *MaxTransferMock) Close() error {
+	args := m.Called()
+	return args.Error(0)
 }
 
-var _ max31865.Transfer = &transfer{}
+func (m *MaxTransferMock) ReadWrite(write []byte) (read []byte, err error) {
+	args := m.Called(write)
+	return args.Get(0).([]byte), args.Error(1)
+}
 
-func TestNew(t *testing.T) {
+var (
+	mocker *MaxTransferMock
+)
 
-	tests := []struct {
-		name     string
-		args     []any
-		transfer max31865.Transfer
-		wantErr  bool
-		errType  error
-	}{
-		{
-			name:     "all good",
-			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
-			transfer: transfer{val: 1, err: nil},
-			wantErr:  false,
-			errType:  nil,
-		},
-		{
-			name:     "interface error",
-			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
-			transfer: transfer{val: 1, err: fmt.Errorf("interface error")},
-			wantErr:  true,
-			errType:  max31865.ErrReadWrite,
-		},
-		{
-			name:     "only zeroes",
-			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
-			transfer: transfer{val: 0, err: nil},
-			wantErr:  true,
-			errType:  max31865.ErrReadZeroes,
-		},
-		{
-			name:     "only ff",
-			args:     []any{max31865.FourWire, max31865.RefRes(430.0), max31865.RNominal(100.0)},
-			transfer: transfer{val: 0xff, err: nil},
-			wantErr:  true,
-			errType:  max31865.ErrReadFF,
-		},
-	}
+func TestMax31865(t *testing.T) {
+	suite.Run(t, new(MaxSuite))
+}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			_, err := max31865.New(tt.transfer, tt.args...)
+func (m *MaxSuite) SetupTest() {
+	mocker = new(MaxTransferMock)
+}
 
-			if tt.wantErr {
-				require.NotNil(t, err)
-				require.ErrorIs(t, err, tt.errType)
-				return
-			}
-			require.Nil(t, err)
+func (m *MaxSuite) TestMaxInterfaceError() {
+	mocker.On("ReadWrite", mock.Anything).Return([]byte{}, errors.New("interface broken"))
+	max, err := max31865.New(mocker)
+	m.Equal(max31865.ErrInterface, err)
+	m.Equal(nil, max)
+}
 
-		})
-	}
+func (m *MaxSuite) TestMaxInterfaceReturnsZeroes() {
+	mocker.On("ReadWrite", mock.Anything).Return([]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, nil)
+	max, err := max31865.New(mocker)
+	m.Equal(max31865.ErrReadZeroes, err)
+	m.Equal(nil, max)
+}
+
+func (m *MaxSuite) TestMaxInterfaceReturnsFF() {
+	mocker.On("ReadWrite", mock.Anything).Return([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, nil)
+	max, err := max31865.New(mocker)
+	m.Equal(max31865.ErrReadFF, err)
+	m.Equal(nil, max)
 }

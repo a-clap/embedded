@@ -18,7 +18,7 @@ const (
 )
 
 var (
-	ErrReadWrite        = errors.New("error on ReadWrite")
+	ErrInterface        = errors.New("error on interface usage")
 	ErrReadZeroes       = errors.New("read only zeroes from device")
 	ErrReadFF           = errors.New("read only 0xFF from device")
 	ErrRtd              = errors.New("rtd error")
@@ -62,7 +62,7 @@ func checkTransfer(t Transfer) error {
 	buf[0] = regConf
 	r, err := t.ReadWrite(buf)
 	if err != nil {
-		return ErrReadWrite
+		return ErrInterface
 	}
 	checkReadings := func(expected byte) bool {
 		for _, elem := range r {
