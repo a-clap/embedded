@@ -22,6 +22,13 @@ const (
 	vBias
 )
 
+type pollType int
+
+const (
+	sync pollType = iota
+	async
+)
+
 type config struct {
 	id       ID
 	wiring   Wiring
@@ -29,6 +36,7 @@ type config struct {
 	rNominal RNominal
 	ready    Ready
 	polling  bool
+	pollType pollType
 }
 
 type regConfig struct {
@@ -43,6 +51,7 @@ func newConfig() config {
 		rNominal: 100.0,
 		ready:    nil,
 		polling:  false,
+		pollType: sync,
 	}
 }
 
