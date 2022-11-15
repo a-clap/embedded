@@ -316,25 +316,29 @@ func TestSensor_PollTwice(t *testing.T) {
 	}
 
 	readings := make(chan ds18b20.Readings)
-	exitCh := make(chan struct{})
 	interval := 5 * time.Millisecond
 	h := ds18b20.New(o)
 	s, _ := h.NewSensor(expectedID)
 
-	finChan, _, errs := s.Poll(readings, exitCh, interval)
+	errs := s.Poll(readings, interval)
 	require.Nil(t, errs)
 
-	_, _, err = s.Poll(readings, exitCh, interval)
+	err = s.Poll(readings, interval)
 	require.ErrorIs(t, err, ds18b20.ErrAlreadyPolling)
 
-	exitCh <- struct{}{}
-	for range readings {
-	}
+	wait := make(chan struct{})
+
+	go func() {
+		require.Nil(t, s.Close())
+		wait <- struct{}{}
+	}()
+
 	select {
-	case <-finChan:
+	case <-wait:
 	case <-time.After(2 * interval):
 		require.Fail(t, "should be done after this time")
 	}
+	close(wait)
 
 }
 
@@ -358,33 +362,38 @@ func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 	}
 
 	readings := make(chan ds18b20.Readings)
-	exitCh := make(chan struct{})
 	interval := 5 * time.Millisecond
 	h := ds18b20.New(o)
 	s, _ := h.NewSensor(expectedID)
 
-	finChan, errch, errs := s.Poll(readings, exitCh, interval)
+	errs := s.Poll(readings, interval)
 	require.Nil(t, errs)
 
 	for i := 0; i < 10; i++ {
 		now := time.Now()
 		select {
 		case r := <-readings:
-			rid, tmp, stamp := r.Get()
+			rid := r.ID()
+			tmp, stamp, err := r.Get()
 			require.EqualValues(t, expectedID, rid)
 			require.EqualValues(t, expectedTemp, tmp)
+			require.Nil(t, err)
 			diff := stamp.Sub(now)
 			require.Less(t, interval, diff)
 			require.InDelta(t, interval.Milliseconds(), diff.Milliseconds(), float64(interval.Milliseconds())/10)
-		case e := <-errch:
-			require.Fail(t, "received error ", e)
 		case <-time.After(2 * interval):
 			require.Fail(t, "failed, waiting for readings too long")
 		}
 	}
-	exitCh <- struct{}{}
+	wait := make(chan struct{})
+
+	go func() {
+		require.Nil(t, s.Close())
+		wait <- struct{}{}
+	}()
+
 	select {
-	case <-finChan:
+	case <-wait:
 	case <-time.After(2 * interval):
 		require.Fail(t, "should be done after this time")
 	}

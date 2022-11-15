@@ -7,18 +7,24 @@ import (
 )
 
 type Sensor interface {
+	io.Closer
 	ID() string
 	Temperature() (string, error)
-	Poll(readings chan<- Readings, stopCh <-chan struct{}, pollTime time.Duration) (finCh <-chan struct{}, errCh <-chan error, err error)
+	Poll(readings chan Readings, pollTime time.Duration) (err error)
 }
 
 type Readings interface {
-	Get() (id string, temperature string, timestamp time.Time)
+	ID() string
+	Get() (temperature string, timestamp time.Time, err error)
 }
 
-type readen struct {
+var _ Readings = readings{}
+var _ Sensor = &sensor{}
+
+type readings struct {
 	id, temperature string
 	timestamp       time.Time
+	err             error
 }
 
 type opener interface {
@@ -30,6 +36,9 @@ type sensor struct {
 	id      string
 	path    string
 	polling bool
+	fin     chan struct{}
+	stop    chan struct{}
+	data    chan Readings
 }
 
 func newSensor(o opener, id, basePath string) (*sensor, error) {
@@ -45,46 +54,59 @@ func newSensor(o opener, id, basePath string) (*sensor, error) {
 	return s, nil
 }
 
-func (s *sensor) Poll(readings chan<- Readings, stopCh <-chan struct{}, pollTime time.Duration) (finCh <-chan struct{}, errCh <-chan error, err error) {
+func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	if s.polling {
-		return nil, nil, ErrAlreadyPolling
+		return ErrAlreadyPolling
 	}
 
 	s.polling = true
-	finChan := make(chan struct{})
-	errChan := make(chan error)
+	s.fin = make(chan struct{})
+	s.stop = make(chan struct{})
+	s.data = data
+	go s.poll(pollTime)
 
-	go s.poll(readings, stopCh, pollTime, finChan, errChan)
-
-	return finChan, errChan, nil
+	return nil
 }
 
-func (s *sensor) poll(readings chan<- Readings, stopCh <-chan struct{}, pollTime time.Duration, finCh chan struct{}, errCh chan error) {
+func (s *sensor) Close() error {
+	if s.polling {
+		return nil
+	}
+	s.stop <- struct{}{}
+	// Close stop channel, not needed anymore
+	close(s.stop)
+	// Unblock poll
+	for range s.data {
+	}
+	// Wait until finish
+	for range s.fin {
+	}
+
+	return nil
+}
+
+func (s *sensor) poll(pollTime time.Duration) {
+
 	for s.polling {
 		select {
-		case <-stopCh:
+		case <-s.stop:
 			s.polling = false
 		case <-time.After(pollTime):
 			tmp, err := s.Temperature()
-			if err != nil {
-				errCh <- err
-				continue
-			}
-			r := readen{
+			r := readings{
 				id:          s.ID(),
 				temperature: tmp,
 				timestamp:   time.Now(),
+				err:         err,
 			}
-			readings <- r
+			s.data <- r
 		}
 	}
-	close(readings)
+	close(s.data)
 	// For sure there won't be more data
 	// sensor created channel (and is the sender side), so should close
-	close(errCh)
-	// Notify user that we are done
-	finCh <- struct{}{}
-	close(finCh)
+	s.fin <- struct{}{}
+	close(s.fin)
 }
 
 func (s *sensor) Temperature() (string, error) {
@@ -116,6 +138,10 @@ func (s *sensor) ID() string {
 	return s.id
 }
 
-func (r readen) Get() (id string, temperature string, timestamp time.Time) {
-	return r.id, r.temperature, r.timestamp
+func (r readings) ID() string {
+	return r.id
+}
+
+func (r readings) Get() (temperature string, timestamp time.Time, err error) {
+	return r.temperature, r.timestamp, r.err
 }
