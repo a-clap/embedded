@@ -2,14 +2,16 @@ package max31865
 
 import (
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 )
 
 type Sensor interface {
+	io.Closer
 	ID() string
 	Temperature() (float32, error)
-	Poll(data chan<- Readings, stopCh <-chan struct{}, pollTime time.Duration) (finCh <-chan struct{}, errCh <-chan error, err error)
+	Poll(data chan Readings, pollTime time.Duration) (err error)
 }
 
 var _ Sensor = &sensor{}
@@ -21,20 +23,25 @@ type sensor struct {
 	regCfg *regConfig
 	r      *rtd
 	trig   chan struct{}
+	fin    chan struct{}
+	stop   chan struct{}
+	data   chan Readings
 }
 
 type Readings interface {
-	Get() (id string, temperature string, timestamp time.Time)
+	ID() string
+	Get() (temperature string, timestamp time.Time, err error)
 }
 
 type readings struct {
 	id, temperature string
 	timestamp       time.Time
+	err             error
 }
 
-func (s *sensor) Poll(data chan<- Readings, stopCh <-chan struct{}, pollTime time.Duration) (finCh <-chan struct{}, errCh <-chan error, err error) {
+func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	if s.cfg.polling {
-		return nil, nil, ErrAlreadyPolling
+		return ErrAlreadyPolling
 	}
 
 	s.cfg.polling = true
@@ -46,15 +53,15 @@ func (s *sensor) Poll(data chan<- Readings, stopCh <-chan struct{}, pollTime tim
 
 	if err != nil {
 		s.cfg.polling = false
-		return nil, nil, err
+		return err
 	}
 
-	finChan := make(chan struct{})
-	errChan := make(chan error)
+	s.fin = make(chan struct{})
+	s.stop = make(chan struct{})
+	s.data = data
+	go s.poll()
 
-	go s.poll(data, stopCh, finChan, errChan)
-
-	return finChan, errChan, nil
+	return nil
 }
 
 func (s *sensor) prepareSyncPoll(pollTime time.Duration) error {
@@ -79,37 +86,36 @@ func (s *sensor) prepareAsyncPoll() error {
 	return s.cfg.ready.Open(callback, s)
 }
 
-func (s *sensor) poll(data chan<- Readings, stopCh <-chan struct{}, finCh chan struct{}, errCh chan error) {
+func (s *sensor) poll() {
 	for s.cfg.polling {
 		select {
-		case <-stopCh:
+		case <-s.stop:
 			s.cfg.polling = false
 		case <-s.trig:
 			tmp, err := s.Temperature()
-			if err != nil {
-				errCh <- err
-				continue
-			}
 			r := readings{
-				id:          s.ID(),
-				temperature: strconv.FormatFloat(float64(tmp), 'f', -1, 32),
-				timestamp:   time.Now(),
+				id:  s.ID(),
+				err: nil,
 			}
-			data <- r
+			if err != nil {
+				r.err = err
+			} else {
+				r.temperature = strconv.FormatFloat(float64(tmp), 'f', -1, 32)
+				r.timestamp = time.Now()
+			}
+			s.data <- r
 		}
 	}
 	// For sure there won't be more data
-	close(data)
+	close(s.data)
 	if s.cfg.pollType == async {
 		s.cfg.ready.Close()
 		close(s.trig)
 	}
 
-	// sensor created channel (and is the sender side), so should close
-	close(errCh)
 	// Notify user that we are done
-	finCh <- struct{}{}
-	close(finCh)
+	s.fin <- struct{}{}
+	close(s.fin)
 }
 
 func callback(args any) error {
@@ -145,6 +151,18 @@ func (s *sensor) Temperature() (tmp float32, err error) {
 }
 
 func (s *sensor) Close() error {
+	if s.cfg.polling {
+		s.stop <- struct{}{}
+		// Close stop channel, not needed anymore
+		close(s.stop)
+		// Unblock poll
+		for range s.data {
+		}
+		// Wait until finish
+		for range s.fin {
+		}
+	}
+
 	return s.Transfer.Close()
 }
 
@@ -216,6 +234,10 @@ func (s *sensor) write(addr byte, w []byte) error {
 	return err
 }
 
-func (r readings) Get() (id string, temperature string, timestamp time.Time) {
-	return r.id, r.temperature, r.timestamp
+func (r readings) ID() string {
+	return r.id
+}
+
+func (r readings) Get() (temperature string, timestamp time.Time, err error) {
+	return r.temperature, r.timestamp, r.err
 }

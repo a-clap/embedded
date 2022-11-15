@@ -155,12 +155,9 @@ func (s *SensorSuite) TestPollErrors() {
 	s.NotNil(max)
 
 	dataCh := make(chan max31865.Readings)
-	stopCh := make(chan struct{})
 	pollTime := time.Duration(-1)
 
-	finCh, errCh, err := max.Poll(dataCh, stopCh, pollTime)
-	s.Nil(finCh)
-	s.Nil(errCh)
+	err := max.Poll(dataCh, pollTime)
 	s.NotNil(err)
 	s.ErrorIs(err, max31865.ErrNoReadyInterface)
 }
@@ -175,10 +172,9 @@ func (s *SensorSuite) TestPollTime() {
 	s.NotNil(max)
 
 	dataCh := make(chan max31865.Readings)
-	stopCh := make(chan struct{})
 	pollTime := 5 * time.Millisecond
 
-	finCh, errCh, err := max.Poll(dataCh, stopCh, pollTime)
+	err := max.Poll(dataCh, pollTime)
 	s.Nil(err)
 
 	expectedTmp := []float32{
@@ -204,28 +200,32 @@ func (s *SensorSuite) TestPollTime() {
 		now := time.Now()
 		select {
 		case r := <-dataCh:
-			rid, tmp, stamp := r.Get()
+			rid := r.ID()
+			tmp, stamp, err := r.Get()
+			s.Nil(err)
 			s.EqualValues(id, rid)
 			val, _ := strconv.ParseFloat(tmp, 32)
 			s.InDelta(expectedTmp[i], float32(val), 1)
 			diff := stamp.Sub(now)
 			s.InDelta(pollTime.Milliseconds(), diff.Milliseconds(), 1)
-		case e := <-errCh:
-			s.Fail("received error ", e)
 		case <-time.After(2 * pollTime):
 			s.Fail("failed, waiting for readings too long")
 		}
 	}
+	sensorMock.On("Close").Return(nil)
+	wait := make(chan struct{})
 
-	stopCh <- struct{}{}
-	for range dataCh {
-	}
+	go func() {
+		s.Nil(max.Close())
+		wait <- struct{}{}
+	}()
 
 	select {
-	case <-finCh:
+	case <-wait:
 	case <-time.After(2 * pollTime):
 		s.Fail("should be done after this time")
 	}
+	close(wait)
 
 }
 
@@ -238,15 +238,25 @@ func (s *SensorSuite) TestPollTwice() {
 	s.NotNil(max)
 
 	dataCh := make(chan max31865.Readings)
-	stopCh := make(chan struct{})
 	pollTime := 5 * time.Millisecond
 
-	finCh, _, err := max.Poll(dataCh, stopCh, pollTime)
+	err := max.Poll(dataCh, pollTime)
 	s.Nil(err)
-	_, _, err = max.Poll(dataCh, stopCh, pollTime)
+	err = max.Poll(dataCh, pollTime)
 	s.ErrorIs(err, max31865.ErrAlreadyPolling)
-	stopCh <- struct{}{}
-	for range dataCh {
+
+	sensorMock.On("Close").Return(nil)
+	wait := make(chan struct{})
+
+	go func() {
+		s.Nil(max.Close())
+		wait <- struct{}{}
+	}()
+
+	select {
+	case <-wait:
+	case <-time.After(2 * pollTime):
+		s.Fail("should be done after this time")
 	}
-	<-finCh
+	close(wait)
 }
