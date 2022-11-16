@@ -12,7 +12,6 @@ func main() {
 	log := logger.NewDefaultZap(zapcore.DebugLevel)
 
 	reads := make(chan ds18b20.Readings)
-	exitCh := make(chan struct{})
 
 	ds := ds18b20.NewDefault()
 
@@ -22,38 +21,26 @@ func main() {
 	}
 	sensor, _ := ds.NewSensor(ids[0])
 
-	finCh, errCh, errs := sensor.Poll(reads, exitCh, 750*time.Millisecond)
+	errs := sensor.Poll(reads, 750*time.Millisecond)
 	if errs != nil {
 		log.Fatal(err)
 	}
-
-	ch := make(chan bool)
 
 	// Just to end this after time
 	go func() {
 		for {
 			select {
 			case <-time.After(10 * time.Second):
-				ch <- true
-				return
+				_ = sensor.Close()
 			}
 		}
 	}()
 
-	go func() {
-		for {
-			select {
-			case <-ch:
-				exitCh <- struct{}{}
-				return
-			case sensor := <-reads:
-				id, tmp, stamp := sensor.Get()
-				fmt.Printf("id: %s, Temperature: %s. Time: %s\n", id, tmp, stamp)
-			case err := <-errCh:
-				fmt.Println("Error from ds18b20", err)
-			}
-		}
-	}()
-	<-finCh
+	for readings := range reads {
+		id := readings.ID()
+		tmp, stamp, err := readings.Get()
+		fmt.Printf("id: %s, Temperature: %s. Time: %s, err: %v \n", id, tmp, stamp, err)
+	}
+
 	fmt.Println("finished")
 }
