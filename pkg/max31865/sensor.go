@@ -40,11 +40,11 @@ type readings struct {
 }
 
 func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
-	if s.cfg.polling {
+	if s.cfg.polling.Load() {
 		return ErrAlreadyPolling
 	}
 
-	s.cfg.polling = true
+	s.cfg.polling.Store(true)
 	if pollTime == -1 {
 		err = s.prepareAsyncPoll()
 	} else {
@@ -52,7 +52,7 @@ func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	}
 
 	if err != nil {
-		s.cfg.polling = false
+		s.cfg.polling.Store(false)
 		return err
 	}
 
@@ -67,9 +67,9 @@ func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 func (s *sensor) prepareSyncPoll(pollTime time.Duration) error {
 	s.trig = make(chan struct{})
 	go func(s *sensor, pollTime time.Duration) {
-		for s.cfg.polling {
+		for s.cfg.polling.Load() {
 			<-time.After(pollTime)
-			if s.cfg.polling {
+			if s.cfg.polling.Load() {
 				s.trig <- struct{}{}
 			}
 		}
@@ -83,14 +83,15 @@ func (s *sensor) prepareAsyncPoll() error {
 	if s.cfg.ready == nil {
 		return ErrNoReadyInterface
 	}
+	s.trig = make(chan struct{}, 1)
 	return s.cfg.ready.Open(callback, s)
 }
 
 func (s *sensor) poll() {
-	for s.cfg.polling {
+	for s.cfg.polling.Load() {
 		select {
 		case <-s.stop:
-			s.cfg.polling = false
+			s.cfg.polling.Store(false)
 		case <-s.trig:
 			tmp, err := s.Temperature()
 			r := readings{
@@ -151,7 +152,7 @@ func (s *sensor) Temperature() (tmp float32, err error) {
 }
 
 func (s *sensor) Close() error {
-	if s.cfg.polling {
+	if s.cfg.polling.Load() {
 		s.stop <- struct{}{}
 		// Close stop channel, not needed anymore
 		close(s.stop)

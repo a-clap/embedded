@@ -1,5 +1,7 @@
 package max31865
 
+import "sync/atomic"
+
 type Wiring string
 type RefRes float32
 type RNominal float32
@@ -35,7 +37,7 @@ type config struct {
 	refRes   RefRes
 	rNominal RNominal
 	ready    Ready
-	polling  bool
+	polling  atomic.Bool
 	pollType pollType
 }
 
@@ -50,7 +52,7 @@ func newConfig() config {
 		refRes:   430.0,
 		rNominal: 100.0,
 		ready:    nil,
-		polling:  false,
+		polling:  atomic.Bool{},
 		pollType: sync,
 	}
 }
