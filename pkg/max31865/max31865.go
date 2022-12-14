@@ -18,17 +18,18 @@ const (
 )
 
 var (
-	ErrInterface        = errors.New("error on interface usage")
-	ErrReadZeroes       = errors.New("read only zeroes from device")
-	ErrReadFF           = errors.New("read only 0xFF from device")
-	ErrRtd              = errors.New("rtd error")
-	ErrAlreadyPolling   = errors.New("sensor is already polling")
-	ErrWrongArgs        = errors.New("wrong args passed to callback")
-	ErrNoReadyInterface = errors.New("lack of ready interface")
-	ErrTooMuchTriggers  = errors.New("poll received too much triggers")
+	ErrInterface         = errors.New("error on interface usage")
+	ErrReadZeroes        = errors.New("read only zeroes from device")
+	ErrReadFF            = errors.New("read only 0xFF from device")
+	ErrRtd               = errors.New("rtd error")
+	ErrAlreadyPolling    = errors.New("max is already polling")
+	ErrWrongArgs         = errors.New("wrong args passed to callback")
+	ErrNoReadyInterface  = errors.New("lack of Ready interface")
+	ErrNoReadWriteCloser = errors.New("lack of ReadWriterCloser interface")
+	ErrTooMuchTriggers   = errors.New("poll received too much triggers")
 )
 
-type Transfer interface {
+type ReadWriteCloser interface {
 	io.Closer
 	ReadWrite(write []byte) (read []byte, err error)
 }
@@ -40,52 +41,11 @@ type Ready interface {
 	Close()
 }
 
-func NewDefault(devFile string, args ...any) (Sensor, error) {
-	dev, err := newMaxSpidev(devFile)
-	if err != nil {
-		return nil, err
-	}
-	args = append([]any{ID(devFile)}, args...)
-	return New(dev, args...)
+func New(options ...Option) (*Max, error) {
+	return newSensor(options...)
 }
 
-func New(t Transfer, args ...any) (Sensor, error) {
-	if err := checkTransfer(t); err != nil {
-		return nil, err
-	}
-	return newSensor(t, args...)
-}
-
-func checkTransfer(t Transfer) error {
-	const size = regFault + 2
-	buf := make([]byte, size)
-	buf[0] = regConf
-	r, err := t.ReadWrite(buf)
-	if err != nil {
-		return ErrInterface
-	}
-	checkReadings := func(expected byte) bool {
-		for _, elem := range r {
-			if elem != expected {
-				return false
-			}
-		}
-		return true
-	}
-
-	if onlyZeroes := checkReadings(0); onlyZeroes {
-		return ErrReadZeroes
-	}
-
-	if onlyFF := checkReadings(0xff); onlyFF {
-		return ErrReadFF
-	}
-	return nil
-}
-
-func rtdToTemperature(rtd uint16, refResT RefRes, rNominalT RNominal) float32 {
-	refRes := float32(refResT)
-	rNominal := float32(rNominalT)
+func rtdToTemperature(rtd uint16, refRes float32, rNominal float32) float32 {
 	const (
 		RtdA float32 = 3.9083e-3
 		RtdB float32 = -5.775e-7

@@ -2,6 +2,7 @@ package max31865
 
 import (
 	"fmt"
+	"github.com/a-clap/iot/internal/models"
 	"io"
 	"strconv"
 	"time"
@@ -10,63 +11,50 @@ import (
 type Sensor interface {
 	io.Closer
 	ID() string
-	Temperature() (float32, error)
-	Poll(data chan Readings, pollTime time.Duration) (err error)
+	Temperature() (string, error)
+	Poll(data chan models.SensorReadings, pollTime time.Duration) (err error)
 }
 
-var _ Sensor = &sensor{}
-var _ Readings = &readings{}
+var _ Sensor = &Max{}
 
-type sensor struct {
-	Transfer
-	cfg    config
-	regCfg *regConfig
-	r      *rtd
-	trig   chan struct{}
-	fin    chan struct{}
-	stop   chan struct{}
-	data   chan Readings
+type Max struct {
+	ReadWriteCloser
+	cfg  *config
+	r    *rtd
+	trig chan struct{}
+	fin  chan struct{}
+	stop chan struct{}
+	data chan models.SensorReadings
 }
 
-type Readings interface {
-	ID() string
-	Get() (temperature string, timestamp time.Time, err error)
-}
-
-type readings struct {
-	id, temperature string
-	timestamp       time.Time
-	err             error
-}
-
-func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
-	if s.cfg.polling.Load() {
+func (m *Max) Poll(data chan models.SensorReadings, pollTime time.Duration) (err error) {
+	if m.cfg.polling.Load() {
 		return ErrAlreadyPolling
 	}
 
-	s.cfg.polling.Store(true)
+	m.cfg.polling.Store(true)
 	if pollTime == -1 {
-		err = s.prepareAsyncPoll()
+		err = m.prepareAsyncPoll()
 	} else {
-		err = s.prepareSyncPoll(pollTime)
+		err = m.prepareSyncPoll(pollTime)
 	}
 
 	if err != nil {
-		s.cfg.polling.Store(false)
+		m.cfg.polling.Store(false)
 		return err
 	}
 
-	s.fin = make(chan struct{})
-	s.stop = make(chan struct{})
-	s.data = data
-	go s.poll()
+	m.fin = make(chan struct{})
+	m.stop = make(chan struct{})
+	m.data = data
+	go m.poll()
 
 	return nil
 }
 
-func (s *sensor) prepareSyncPoll(pollTime time.Duration) error {
-	s.trig = make(chan struct{})
-	go func(s *sensor, pollTime time.Duration) {
+func (m *Max) prepareSyncPoll(pollTime time.Duration) error {
+	m.trig = make(chan struct{})
+	go func(s *Max, pollTime time.Duration) {
 		for s.cfg.polling.Load() {
 			<-time.After(pollTime)
 			if s.cfg.polling.Load() {
@@ -74,53 +62,48 @@ func (s *sensor) prepareSyncPoll(pollTime time.Duration) error {
 			}
 		}
 		close(s.trig)
-	}(s, pollTime)
+	}(m, pollTime)
 
 	return nil
 }
 
-func (s *sensor) prepareAsyncPoll() error {
-	if s.cfg.ready == nil {
+func (m *Max) prepareAsyncPoll() error {
+	if m.cfg.ready == nil {
 		return ErrNoReadyInterface
 	}
-	s.trig = make(chan struct{}, 1)
-	return s.cfg.ready.Open(callback, s)
+	m.trig = make(chan struct{}, 1)
+	return m.cfg.ready.Open(callback, m)
 }
 
-func (s *sensor) poll() {
-	for s.cfg.polling.Load() {
+func (m *Max) poll() {
+	for m.cfg.polling.Load() {
 		select {
-		case <-s.stop:
-			s.cfg.polling.Store(false)
-		case <-s.trig:
-			tmp, err := s.Temperature()
-			r := readings{
-				id:  s.ID(),
-				err: nil,
+		case <-m.stop:
+			m.cfg.polling.Store(false)
+		case <-m.trig:
+			tmp, err := m.Temperature()
+			m.data <- models.SensorReadings{
+				ID:          m.ID(),
+				Temperature: tmp,
+				Stamp:       time.Now(),
+				Error:       err,
 			}
-			if err != nil {
-				r.err = err
-			} else {
-				r.temperature = strconv.FormatFloat(float64(tmp), 'f', -1, 32)
-				r.timestamp = time.Now()
-			}
-			s.data <- r
 		}
 	}
 	// For sure there won't be more data
-	close(s.data)
-	if s.cfg.pollType == async {
-		s.cfg.ready.Close()
-		close(s.trig)
+	close(m.data)
+	if m.cfg.pollType == async {
+		m.cfg.ready.Close()
+		close(m.trig)
 	}
 
 	// Notify user that we are done
-	s.fin <- struct{}{}
-	close(s.fin)
+	m.fin <- struct{}{}
+	close(m.fin)
 }
 
 func callback(args any) error {
-	s, ok := args.(*sensor)
+	s, ok := args.(*Max)
 	if !ok {
 		return ErrWrongArgs
 	}
@@ -133,94 +116,84 @@ func callback(args any) error {
 	}
 }
 
-func (s *sensor) Temperature() (tmp float32, err error) {
-	r, err := s.read(regConf, regFault+1)
+func (m *Max) Temperature() (string, error) {
+	r, err := m.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it
-		return
+		return "", err
 	}
-	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
+	err = m.r.update(r[regRtdMsb], r[regRtdLsb])
 	if err != nil {
 		// Not handling error here, should have happened on previous call
-		_ = s.clearFaults()
+		_ = m.clearFaults()
 		// make error more specific
-		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.cfg.wiring))
-		return
+		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], m.cfg.wiring))
+		return "", err
 	}
-	rtd := s.r.rtd()
-	return rtdToTemperature(rtd, s.cfg.refRes, s.cfg.rNominal), nil
+	rtd := m.r.rtd()
+	tmp := rtdToTemperature(rtd, m.cfg.refRes, m.cfg.rNominal)
+
+	return strconv.FormatFloat(float64(tmp), 'f', -1, 32), nil
 }
 
-func (s *sensor) Close() error {
-	if s.cfg.polling.Load() {
-		s.stop <- struct{}{}
+func (m *Max) Close() error {
+	if m.cfg.polling.Load() {
+		m.stop <- struct{}{}
 		// Close stop channel, not needed anymore
-		close(s.stop)
+		close(m.stop)
 		// Unblock poll
-		for range s.data {
+		for range m.data {
 		}
 		// Wait until finish
-		for range s.fin {
+		for range m.fin {
 		}
 	}
 
-	return s.Transfer.Close()
+	return m.ReadWriteCloser.Close()
 }
 
-func (s *sensor) ID() string {
-	return string(s.cfg.id)
+func (m *Max) ID() string {
+	return string(m.cfg.id)
 }
 
-func newSensor(t Transfer, args ...any) (*sensor, error) {
-	s := &sensor{
-		Transfer: t,
-		regCfg:   newRegConfig(),
-		r:        newRtd(),
-		cfg:      newConfig(),
+func newSensor(options ...Option) (*Max, error) {
+	max := &Max{
+		ReadWriteCloser: nil,
+		r:               newRtd(),
+		cfg:             newConfig(),
 	}
-
-	s.parse(args...)
-	// Do initial regConfig
-	err := s.config()
-	if err != nil {
+	for _, opt := range options {
+		if err := opt(max); err != nil {
+			return nil, err
+		}
+	}
+	// verify after parsing opts
+	if err := max.verify(); err != nil {
 		return nil, err
 	}
 
-	return s, nil
-}
-
-func (s *sensor) parse(args ...any) {
-	for _, arg := range args {
-		switch arg := arg.(type) {
-		case Ready:
-			s.cfg.ready = arg
-		case ID:
-			s.cfg.id = arg
-		case Wiring:
-			s.cfg.wiring = arg
-			s.regCfg.setWiring(arg)
-		case RefRes:
-			s.cfg.refRes = arg
-		case RNominal:
-			s.cfg.rNominal = arg
-		}
+	// Do initial regConfig
+	if err := max.config(); err != nil {
+		return nil, err
 	}
+
+	return max, nil
 }
 
-func (s *sensor) clearFaults() error {
-	return s.write(regConf, []byte{s.regCfg.clearFaults()})
+func (m *Max) clearFaults() error {
+	return m.write(regConf, []byte{m.cfg.clearFaults()})
 }
 
-func (s *sensor) config() error {
-	err := s.write(regConf, []byte{s.regCfg.reg()})
+func (m *Max) config() error {
+	err := m.write(regConf, []byte{m.cfg.reg()})
 	return err
 }
 
-func (s *sensor) read(addr byte, len int) ([]byte, error) {
+func (m *Max) read(addr byte, len int) ([]byte, error) {
 	// We need to create slice with 1 byte more
 	w := make([]byte, len+1)
 	w[0] = addr
-	r, err := s.ReadWrite(w)
+	r, err := m.ReadWrite(w)
 	if err != nil {
 		return nil, err
 	}
@@ -228,17 +201,41 @@ func (s *sensor) read(addr byte, len int) ([]byte, error) {
 	return r[1:], nil
 }
 
-func (s *sensor) write(addr byte, w []byte) error {
+func (m *Max) write(addr byte, w []byte) error {
 	buf := []byte{addr | 0x80}
 	buf = append(buf, w...)
-	_, err := s.ReadWrite(buf)
+	_, err := m.ReadWrite(buf)
 	return err
 }
 
-func (r readings) ID() string {
-	return r.id
-}
+func (m *Max) verify() error {
+	// Check if interface exists
+	if m.ReadWriteCloser == nil {
+		return ErrNoReadWriteCloser
+	}
+	// Check interface itself
+	const size = regFault + 2
+	buf := make([]byte, size)
+	buf[0] = regConf
+	r, err := m.ReadWrite(buf)
+	if err != nil {
+		return ErrInterface
+	}
+	checkReadings := func(expected byte) bool {
+		for _, elem := range r {
+			if elem != expected {
+				return false
+			}
+		}
+		return true
+	}
 
-func (r readings) Get() (temperature string, timestamp time.Time, err error) {
-	return r.temperature, r.timestamp, r.err
+	if onlyZeroes := checkReadings(0); onlyZeroes {
+		return ErrReadZeroes
+	}
+
+	if onlyFF := checkReadings(0xff); onlyFF {
+		return ErrReadFF
+	}
+	return nil
 }
