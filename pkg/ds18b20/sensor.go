@@ -1,6 +1,7 @@
 package ds18b20
 
 import (
+	"github.com/a-clap/iot/internal/models"
 	"io"
 	"strings"
 	"time"
@@ -10,22 +11,10 @@ type Sensor interface {
 	io.Closer
 	ID() string
 	Temperature() (string, error)
-	Poll(readings chan Readings, pollTime time.Duration) (err error)
+	Poll(readings chan models.SensorReadings, pollTime time.Duration) (err error)
 }
 
-type Readings interface {
-	ID() string
-	Get() (temperature string, timestamp time.Time, err error)
-}
-
-var _ Readings = readings{}
 var _ Sensor = &sensor{}
-
-type readings struct {
-	id, temperature string
-	timestamp       time.Time
-	err             error
-}
 
 type opener interface {
 	Open(name string) (File, error)
@@ -38,7 +27,7 @@ type sensor struct {
 	polling bool
 	fin     chan struct{}
 	stop    chan struct{}
-	data    chan Readings
+	data    chan models.SensorReadings
 }
 
 func newSensor(o opener, id, basePath string) (*sensor, error) {
@@ -54,7 +43,7 @@ func newSensor(o opener, id, basePath string) (*sensor, error) {
 	return s, nil
 }
 
-func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
+func (s *sensor) Poll(data chan models.SensorReadings, pollTime time.Duration) (err error) {
 	if s.polling {
 		return ErrAlreadyPolling
 	}
@@ -72,8 +61,7 @@ func (s *sensor) Close() error {
 	if s.polling {
 		return nil
 	}
-	s.stop <- struct{}{}
-	// Close stop channel, not needed anymore
+	// Close stop channel to signal finish of polling
 	close(s.stop)
 	// Unblock poll
 	for range s.data {
@@ -93,19 +81,17 @@ func (s *sensor) poll(pollTime time.Duration) {
 			s.polling = false
 		case <-time.After(pollTime):
 			tmp, err := s.Temperature()
-			r := readings{
-				id:          s.ID(),
-				temperature: tmp,
-				timestamp:   time.Now(),
-				err:         err,
+			s.data <- models.SensorReadings{
+				ID:          s.id,
+				Temperature: tmp,
+				Stamp:       time.Now(),
+				Error:       err,
 			}
-			s.data <- r
 		}
 	}
 	close(s.data)
 	// For sure there won't be more data
 	// sensor created channel (and is the sender side), so should close
-	s.fin <- struct{}{}
 	close(s.fin)
 }
 
@@ -136,12 +122,4 @@ func (s *sensor) Temperature() (string, error) {
 
 func (s *sensor) ID() string {
 	return s.id
-}
-
-func (r readings) ID() string {
-	return r.id
-}
-
-func (r readings) Get() (temperature string, timestamp time.Time, err error) {
-	return r.temperature, r.timestamp, r.err
 }

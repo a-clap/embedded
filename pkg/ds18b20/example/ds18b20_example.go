@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/a-clap/logger"
 	"go.uber.org/zap/zapcore"
@@ -10,10 +11,12 @@ import (
 
 func main() {
 	log := logger.NewDefaultZap(zapcore.DebugLevel)
+	ds, err := ds18b20.NewBus(ds18b20.WithOnewire())
+	if err != nil {
+		log.Panic(err)
+	}
 
-	reads := make(chan ds18b20.Readings)
-
-	ds := ds18b20.NewDefault()
+	reads := make(chan models.SensorReadings)
 
 	ids, err := ds.IDs()
 	if err != nil && len(ids) == 0 {
@@ -37,9 +40,7 @@ func main() {
 	}()
 
 	for readings := range reads {
-		id := readings.ID()
-		tmp, stamp, err := readings.Get()
-		fmt.Printf("id: %s, Temperature: %s. Time: %s, err: %v \n", id, tmp, stamp, err)
+		fmt.Printf("id: %s, Temperature: %s. Time: %s, err: %v \n", readings.ID, readings.Temperature, readings.Stamp, readings.Error)
 	}
 
 	fmt.Println("finished")

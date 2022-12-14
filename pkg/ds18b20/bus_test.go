@@ -2,6 +2,7 @@ package ds18b20_test
 
 import (
 	"fmt"
+	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -133,7 +134,7 @@ func TestHandler_Devices(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := ds18b20.New(tt.handler)
+			h, _ := ds18b20.NewBus(ds18b20.WithInterface(tt.handler))
 			got, err := h.IDs()
 
 			if tt.wantErr {
@@ -213,7 +214,7 @@ func TestHandler_NewSensor(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			h := ds18b20.New(tt.o)
+			h, _ := ds18b20.NewBus(ds18b20.WithInterface(tt.o))
 			s, err := h.NewSensor(tt.argsId)
 
 			if tt.wantErr {
@@ -246,7 +247,8 @@ func TestHandler_SensorTemperature(t *testing.T) {
 		a:    afero.NewIOFS(af),
 	}
 	// Get sensor tested
-	s, err := ds18b20.New(o).NewSensor(id)
+	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
+	s, err := h.NewSensor(id)
 	require.Nil(t, err)
 	require.Equal(t, id, s.ID())
 
@@ -315,9 +317,9 @@ func TestSensor_PollTwice(t *testing.T) {
 		a:    afero.NewIOFS(af),
 	}
 
-	readings := make(chan ds18b20.Readings)
+	readings := make(chan models.SensorReadings)
 	interval := 5 * time.Millisecond
-	h := ds18b20.New(o)
+	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
 	s, _ := h.NewSensor(expectedID)
 
 	errs := s.Poll(readings, interval)
@@ -361,9 +363,9 @@ func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 		a:    afero.NewIOFS(af),
 	}
 
-	readings := make(chan ds18b20.Readings)
+	readings := make(chan models.SensorReadings)
 	interval := 5 * time.Millisecond
-	h := ds18b20.New(o)
+	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
 	s, _ := h.NewSensor(expectedID)
 
 	errs := s.Poll(readings, interval)
@@ -373,12 +375,10 @@ func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 		now := time.Now()
 		select {
 		case r := <-readings:
-			rid := r.ID()
-			tmp, stamp, err := r.Get()
-			require.EqualValues(t, expectedID, rid)
-			require.EqualValues(t, expectedTemp, tmp)
-			require.Nil(t, err)
-			diff := stamp.Sub(now)
+			require.EqualValues(t, expectedID, r.ID)
+			require.EqualValues(t, expectedTemp, r.Temperature)
+			require.Nil(t, r.Error)
+			diff := r.Stamp.Sub(now)
 			require.Less(t, interval, diff)
 			require.InDelta(t, interval.Milliseconds(), diff.Milliseconds(), float64(interval.Milliseconds())/10)
 		case <-time.After(2 * interval):
