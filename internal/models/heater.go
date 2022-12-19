@@ -1,6 +1,7 @@
 package models
 
-type HeaterStatus struct {
-	Enable bool
-	Power  uint
+type Heater struct {
+	Name   string `json:"name"`
+	Enable bool   `json:"enable"`
+	Power  uint   `json:"power"`
 }
