@@ -2,12 +2,12 @@ package rest
 
 import (
 	"github.com/gin-gonic/gin"
-	"log"
 )
 
 type Server struct {
 	fmt Format
-	GetSensors
+	SensorHandler
+	WifiHandler
 	*gin.Engine
 }
 
@@ -20,29 +20,26 @@ const (
 	JSONIndent
 )
 
-func New(args ...any) *Server {
+func New(opts ...Option) (*Server, error) {
 	s := &Server{
 		fmt:    JSONP,
 		Engine: gin.Default(),
 	}
 
-	s.parse(args...)
+	if err := s.parse(opts...); err != nil {
+		return nil, err
+	}
 	s.routes()
-	return s
+	return s, nil
 }
 
-func (s *Server) parse(args ...any) {
-	for _, arg := range args {
-		switch arg := arg.(type) {
-		case GetSensors:
-			s.GetSensors = arg
-		case Format:
-			s.fmt = arg
-		default:
-			log.Printf("Unknown argument passed: {\"%T\": \"%v\"}\n", arg, arg)
+func (s *Server) parse(opts ...Option) error {
+	for _, opt := range opts {
+		if err := opt(s); err != nil {
+			return err
 		}
 	}
-
+	return nil
 }
 
 func (s *Server) write(c *gin.Context, code int, obj any) {

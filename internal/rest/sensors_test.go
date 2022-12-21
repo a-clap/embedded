@@ -12,12 +12,16 @@ import (
 	"testing"
 )
 
-type SensorsSuite struct {
-	suite.Suite
-}
-
 type GetSensorMock struct {
 	mock.Mock
+}
+
+type SensorsSuite struct {
+	suite.Suite
+	mocker *GetSensorMock
+	srv    *rest.Server
+	req    *http.Request
+	resp   *httptest.ResponseRecorder
 }
 
 func (g *GetSensorMock) Sensors() ([]rest.Sensor, error) {
@@ -25,43 +29,36 @@ func (g *GetSensorMock) Sensors() ([]rest.Sensor, error) {
 	return args.Get(0).([]rest.Sensor), args.Error(1)
 }
 
-var (
-	mocker *GetSensorMock
-	srv    *rest.Server
-	req    *http.Request
-	resp   *httptest.ResponseRecorder
-)
-
 func TestSensorsSuite(t *testing.T) {
 	suite.Run(t, new(SensorsSuite))
 }
 
 func (s *SensorsSuite) SetupTest() {
-	mocker = new(GetSensorMock)
-	srv = rest.New(rest.JSON, mocker)
-	req, _ = http.NewRequest(http.MethodGet, rest.RoutesGetSensor, nil)
-	resp = httptest.NewRecorder()
+	s.mocker = new(GetSensorMock)
+	s.srv, _ = rest.New(rest.WithFormat(rest.JSON), rest.WithSensorHandler(s.mocker))
+	s.req, _ = http.NewRequest(http.MethodGet, rest.RoutesGetSensor, nil)
+	s.resp = httptest.NewRecorder()
 }
 
 func (s *SensorsSuite) TestLackOfInterface() {
-	srv = rest.New(rest.JSON)
+	s.srv, _ = rest.New(rest.WithFormat(rest.JSON))
 
-	srv.ServeHTTP(resp, req)
+	s.srv.ServeHTTP(s.resp, s.req)
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(s.resp.Body)
 
-	s.Equal(http.StatusInternalServerError, resp.Code)
+	s.Equal(http.StatusInternalServerError, s.resp.Code)
 	s.JSONEq(rest.ErrNotImplemented.JSON(), string(body))
 }
 
 func (s *SensorsSuite) TestErrorOnInterfaceAccess() {
-	mocker.On("Sensors").Return([]rest.Sensor{}, errors.New("lol nope"))
+	s.mocker.On("Sensors").Return([]rest.Sensor{}, errors.New("lol nope"))
 
-	srv.ServeHTTP(resp, req)
+	s.srv.ServeHTTP(s.resp, s.req)
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(s.resp.Body)
 
-	s.Equal(http.StatusInternalServerError, resp.Code)
+	s.Equal(http.StatusInternalServerError, s.resp.Code)
 	s.JSONEq(rest.ErrNotFound.JSON(), string(body))
 }
 
@@ -73,13 +70,13 @@ func (s *SensorsSuite) TestCorrectSensors() {
 	}
 	expected, _ := json.Marshal(sensors)
 
-	mocker.On("Sensors").Return(sensors, nil)
+	s.mocker.On("Sensors").Return(sensors, nil)
 
-	srv.ServeHTTP(resp, req)
+	s.srv.ServeHTTP(s.resp, s.req)
 
-	body, _ := io.ReadAll(resp.Body)
+	body, _ := io.ReadAll(s.resp.Body)
 
-	s.Equal(http.StatusOK, resp.Code)
+	s.Equal(http.StatusOK, s.resp.Code)
 
 	s.JSONEq(string(expected), string(body))
 }

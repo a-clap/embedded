@@ -11,17 +11,17 @@ type Sensor struct {
 	Temperature float32 `json:"temperature"`
 }
 
-type GetSensors interface {
+type SensorHandler interface {
 	Sensors() ([]Sensor, error)
 }
 
 func (s *Server) getSensors() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if s.GetSensors == nil {
+		if s.SensorHandler == nil {
 			s.write(c, http.StatusInternalServerError, ErrNotImplemented)
 			return
 		}
-		sensors, err := s.GetSensors.Sensors()
+		sensors, err := s.SensorHandler.Sensors()
 		if err != nil {
 			s.write(c, http.StatusInternalServerError, ErrNotFound)
 			return

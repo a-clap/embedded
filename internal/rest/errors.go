@@ -9,24 +9,32 @@ type Error struct {
 	Desc      string `json:"description"`
 }
 
-var _ error = &Error{}
+var _ error = Error{}
 
-func (e *Error) Error() string {
+func (e Error) Error() string {
 	return e.Desc
 }
 
-func (e *Error) JSON() string {
+func (e Error) JSON() string {
 	b, _ := json.Marshal(e)
 	return string(b)
+}
+
+func errorInterface(e error) Error {
+	err := ErrInterface
+	err.Desc = e.Error()
+	return err
 }
 
 const (
 	_ = -iota
 	NotImplemented
 	NotFound
+	Interface
 )
 
 var (
 	ErrNotImplemented = Error{ErrorCode: NotImplemented, Desc: "not implemented"}
 	ErrNotFound       = Error{ErrorCode: NotFound, Desc: "not found"}
+	ErrInterface      = Error{ErrorCode: Interface, Desc: ""}
 )

@@ -113,16 +113,17 @@ func (w *Wifi) APs() ([]AP, error) {
 
 	return aps, nil
 }
-func (w *Wifi) Connected() (bool, error) {
+
+func (w *Wifi) Connected() (Status, error) {
 	s, err := w.client.Status()
 	if err != nil {
-		return false, err
+		return s, err
 	}
-	return s.Connected, nil
+	return s, nil
 }
 
 func (w *Wifi) Disconnect() error {
-	if c, err := w.Connected(); !c || err != nil {
+	if c, err := w.Connected(); !c.Connected || err != nil {
 		if err != nil {
 			return err
 		}
