@@ -6,20 +6,11 @@ import (
 	"time"
 )
 
-type Sensor interface {
-	io.Closer
-	ID() string
-	Temperature() (string, error)
-	Poll(readings chan Readings, pollTime time.Duration) (err error)
-}
-
-var _ Sensor = &sensor{}
-
 type opener interface {
 	Open(name string) (File, error)
 }
 
-type sensor struct {
+type Sensor struct {
 	opener
 	id      string
 	path    string
@@ -29,8 +20,8 @@ type sensor struct {
 	data    chan Readings
 }
 
-func newSensor(o opener, id, basePath string) (*sensor, error) {
-	s := &sensor{
+func newSensor(o opener, id, basePath string) (*Sensor, error) {
+	s := &Sensor{
 		opener:  o,
 		id:      id,
 		path:    basePath + "/" + id + "/temperature",
@@ -42,7 +33,7 @@ func newSensor(o opener, id, basePath string) (*sensor, error) {
 	return s, nil
 }
 
-func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
+func (s *Sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	if s.polling {
 		return ErrAlreadyPolling
 	}
@@ -56,7 +47,7 @@ func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	return nil
 }
 
-func (s *sensor) Close() error {
+func (s *Sensor) Close() error {
 	if s.polling {
 		return nil
 	}
@@ -72,7 +63,7 @@ func (s *sensor) Close() error {
 	return nil
 }
 
-func (s *sensor) poll(pollTime time.Duration) {
+func (s *Sensor) poll(pollTime time.Duration) {
 
 	for s.polling {
 		select {
@@ -90,16 +81,16 @@ func (s *sensor) poll(pollTime time.Duration) {
 	}
 	close(s.data)
 	// For sure there won't be more data
-	// sensor created channel (and is the sender side), so should close
+	// Sensor created channel (and is the sender side), so should close
 	close(s.fin)
 }
 
-func (s *sensor) Temperature() (string, error) {
+func (s *Sensor) Temperature() (string, error) {
 	f, err := s.Open(s.path)
 	if err != nil {
 		return "", err
 	}
-	// sensor temperature file is just few bytes, io.ReadAll is fine for that purpose
+	// Sensor temperature file is just few bytes, io.ReadAll is fine for that purpose
 	buf, err := io.ReadAll(f)
 	if err != nil {
 		return "", err
@@ -119,6 +110,6 @@ func (s *sensor) Temperature() (string, error) {
 	return conv, nil
 }
 
-func (s *sensor) ID() string {
+func (s *Sensor) ID() string {
 	return s.id
 }

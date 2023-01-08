@@ -10,7 +10,7 @@ import (
 
 var (
 	ErrInterface      = errors.New("interface")
-	ErrAlreadyPolling = errors.New("sensor is already polling")
+	ErrAlreadyPolling = errors.New("Sensor is already polling")
 )
 
 type File interface {
@@ -57,8 +57,8 @@ func (b *Bus) IDs() ([]string, error) {
 	return b.ids, err
 }
 
-func (b *Bus) NewSensor(id string) (Sensor, error) {
-	// delegate creation of sensor to newSensor
+func (b *Bus) NewSensor(id string) (*Sensor, error) {
+	// delegate creation of Sensor to newSensor
 	s, err := newSensor(b.o, id, b.o.Path())
 	if err != nil {
 		return nil, err
@@ -82,12 +82,12 @@ func (b *Bus) updateIDs() error {
 	return nil
 }
 
-func (b *Bus) Discover() ([]Sensor, error) {
+func (b *Bus) Discover() ([]*Sensor, error) {
 	ids, err := b.IDs()
 	if err != nil {
 		return nil, err
 	}
-	s := make([]Sensor, 0, len(ids))
+	s := make([]*Sensor, 0, len(ids))
 	for _, id := range ids {
 		ds, err := b.NewSensor(id)
 		if err == nil {

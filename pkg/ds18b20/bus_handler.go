@@ -9,7 +9,7 @@ import (
 
 type BusHandler struct {
 	discover Discover
-	sensors  []Sensor
+	sensors  []*Sensor
 	polling  atomic.Bool
 
 	channels   []chan Readings
@@ -18,7 +18,7 @@ type BusHandler struct {
 }
 
 type Discover interface {
-	Discover() ([]Sensor, error)
+	Discover() ([]*Sensor, error)
 }
 
 type BusHandlerOption func(*BusHandler) error
@@ -95,7 +95,7 @@ func (b *BusHandler) handle(readings chan<- Readings) {
 		// wait until closed
 		for range b.close {
 		}
-		// then close every sensor
+		// then close every Sensor
 		for _, s := range b.sensors {
 			_ = s.Close()
 		}

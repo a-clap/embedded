@@ -181,7 +181,7 @@ func TestHandler_NewSensor(t *testing.T) {
 		errType error
 	}{
 		{
-			name: "sensor doesn't exist",
+			name: "Sensor doesn't exist",
 			o: &iAfero{
 				path: sensorDoesntexist,
 				a:    afero.NewIOFS(af),
@@ -201,7 +201,7 @@ func TestHandler_NewSensor(t *testing.T) {
 			errType: os.ErrNotExist,
 		},
 		{
-			name: "working sensor",
+			name: "working Sensor",
 			o: &iAfero{
 				path: sensorGoodPath,
 				a:    afero.NewIOFS(af),
@@ -245,7 +245,7 @@ func TestHandler_SensorTemperature(t *testing.T) {
 		path: "wire",
 		a:    afero.NewIOFS(af),
 	}
-	// Get sensor tested
+	// Get Sensor tested
 	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
 	s, err := h.NewSensor(id)
 	require.Nil(t, err)
@@ -301,7 +301,7 @@ func TestHandler_SensorTemperature(t *testing.T) {
 func TestSensor_PollTwice(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
 	defer func() { _ = af.RemoveAll("") }()
-	// Prepare sensor
+	// Prepare Sensor
 	expectedID := "281ab"
 	tmp := "12345"
 	require.Nil(t, af.Mkdir(expectedID, 0777))
@@ -346,7 +346,7 @@ func TestSensor_PollTwice(t *testing.T) {
 func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 	af := afero.Afero{Fs: afero.NewMemMapFs()}
 	defer func() { _ = af.RemoveAll("") }()
-	// Prepare sensor
+	// Prepare Sensor
 	expectedID := "281ab"
 	expectedTemp := "12.345"
 	tmp := "12345"
