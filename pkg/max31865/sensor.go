@@ -2,7 +2,6 @@ package max31865
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/internal/models"
 	"io"
 	"strconv"
 	"time"
@@ -12,7 +11,7 @@ type Sensor interface {
 	io.Closer
 	ID() string
 	Temperature() (string, error)
-	Poll(data chan models.SensorReadings, pollTime time.Duration) (err error)
+	Poll(data chan Readings, pollTime time.Duration) (err error)
 }
 
 var _ Sensor = &Max{}
@@ -24,10 +23,10 @@ type Max struct {
 	trig chan struct{}
 	fin  chan struct{}
 	stop chan struct{}
-	data chan models.SensorReadings
+	data chan Readings
 }
 
-func (m *Max) Poll(data chan models.SensorReadings, pollTime time.Duration) (err error) {
+func (m *Max) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	if m.cfg.polling.Load() {
 		return ErrAlreadyPolling
 	}
@@ -82,7 +81,7 @@ func (m *Max) poll() {
 			m.cfg.polling.Store(false)
 		case <-m.trig:
 			tmp, err := m.Temperature()
-			m.data <- models.SensorReadings{
+			m.data <- Readings{
 				ID:          m.ID(),
 				Temperature: tmp,
 				Stamp:       time.Now(),

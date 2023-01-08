@@ -9,9 +9,9 @@ func WithSensorHandler(s SensorHandler) Option {
 	}
 }
 
-func WithWifiHandler(w WifiHandler) Option {
+func WithWifiHandler(w WIFIHandler) Option {
 	return func(server *Server) error {
-		server.WifiHandler = w
+		server.WIFIHandler = w
 		return nil
 	}
 }

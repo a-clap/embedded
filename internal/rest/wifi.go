@@ -1,25 +1,34 @@
 package rest
 
 import (
-	"github.com/a-clap/iot/internal/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
-type WifiHandler interface {
-	APs() ([]models.WifiNetwork, error)
-	Connect(n models.WifiNetwork) error
+type WIFINetwork struct {
+	SSID     string `json:"ssid"`
+	Password string `json:"password"`
+}
+
+type WIFIStatus struct {
+	Connected bool   `json:"connected"`
+	SSID      string `json:"ssid"`
+}
+
+type WIFIHandler interface {
+	APs() ([]WIFINetwork, error)
+	Connect(n WIFINetwork) error
 	Disconnect() error
-	Status() (models.WifiStatus, error)
+	Status() (WIFIStatus, error)
 }
 
 func (s *Server) getWifiAps() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if s.WifiHandler == nil {
+		if s.WIFIHandler == nil {
 			s.write(c, http.StatusInternalServerError, ErrNotImplemented)
 			return
 		}
-		aps, err := s.WifiHandler.APs()
+		aps, err := s.WIFIHandler.APs()
 		if err != nil {
 			s.write(c, http.StatusInternalServerError, errorInterface(err))
 			return
@@ -30,11 +39,11 @@ func (s *Server) getWifiAps() gin.HandlerFunc {
 
 func (s *Server) connectToAP() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if s.WifiHandler == nil {
+		if s.WIFIHandler == nil {
 			s.write(c, http.StatusInternalServerError, ErrNotImplemented)
 			return
 		}
-		ap := models.WifiNetwork{}
+		ap := WIFINetwork{}
 		if err := c.ShouldBind(&ap); err != nil {
 			s.write(c, http.StatusBadRequest, ErrInterface)
 			return

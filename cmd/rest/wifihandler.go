@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/internal/rest"
 	"github.com/a-clap/iot/internal/wifi"
 )
@@ -10,7 +9,7 @@ type WifiHandler struct {
 	*wifi.Wifi
 }
 
-var _ rest.WifiHandler = (*WifiHandler)(nil)
+var _ rest.WIFIHandler = (*WifiHandler)(nil)
 
 func New() (*WifiHandler, error) {
 	w, err := wifi.New()
@@ -20,12 +19,12 @@ func New() (*WifiHandler, error) {
 	return &WifiHandler{w}, nil
 }
 
-func (w *WifiHandler) APs() ([]models.WifiNetwork, error) {
+func (w *WifiHandler) APs() ([]rest.WIFINetwork, error) {
 	aps, err := w.Wifi.APs()
 	if err != nil {
 		return nil, err
 	}
-	restAps := make([]models.WifiNetwork, len(aps))
+	restAps := make([]rest.WIFINetwork, len(aps))
 	for i, ap := range aps {
 		restAps[i].SSID = ap.SSID
 	}
@@ -33,7 +32,7 @@ func (w *WifiHandler) APs() ([]models.WifiNetwork, error) {
 	return restAps, nil
 }
 
-func (w *WifiHandler) Connect(n models.WifiNetwork) error {
+func (w *WifiHandler) Connect(n rest.WIFINetwork) error {
 	if c, err := w.Connected(); err != nil {
 		return err
 	} else if c.Connected {
@@ -50,12 +49,12 @@ func (w *WifiHandler) Connect(n models.WifiNetwork) error {
 	return w.Wifi.Connect(net)
 }
 
-func (w *WifiHandler) Status() (models.WifiStatus, error) {
+func (w *WifiHandler) Status() (rest.WIFIStatus, error) {
 	c, err := w.Wifi.Connected()
 	if err != nil {
-		return models.WifiStatus{}, err
+		return rest.WIFIStatus{}, err
 	}
-	return models.WifiStatus{
+	return rest.WIFIStatus{
 		Connected: c.Connected,
 		SSID:      c.SSID,
 	}, nil

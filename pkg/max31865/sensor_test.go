@@ -2,7 +2,6 @@ package max31865_test
 
 import (
 	"errors"
-	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/pkg/max31865"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -167,7 +166,7 @@ func (s *SensorSuite) TestPollErrors() {
 	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
 	s.NotNil(max)
 
-	dataCh := make(chan models.SensorReadings)
+	dataCh := make(chan max31865.Readings)
 	pollTime := time.Duration(-1)
 
 	err := max.Poll(dataCh, pollTime)
@@ -184,7 +183,7 @@ func (s *SensorSuite) TestPollTime() {
 	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithID(id))
 	s.NotNil(max)
 
-	dataCh := make(chan models.SensorReadings)
+	dataCh := make(chan max31865.Readings)
 	pollTime := 5 * time.Millisecond
 
 	err := max.Poll(dataCh, pollTime)
@@ -248,7 +247,7 @@ func (s *SensorSuite) TestPollTwice() {
 	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
 	s.NotNil(max)
 
-	dataCh := make(chan models.SensorReadings)
+	dataCh := make(chan max31865.Readings)
 	pollTime := 5 * time.Millisecond
 
 	// Will call once at least
@@ -282,7 +281,7 @@ func (s *SensorSuite) TestPollTriggerReturnsCorrectErrors() {
 	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
 	s.NotNil(max)
 
-	dataCh := make(chan models.SensorReadings)
+	dataCh := make(chan max31865.Readings)
 	triggerErr := errors.New("broken")
 	triggerMock.On("Open", mock.Anything).Return(triggerErr).Once()
 	err := max.Poll(dataCh, -1)

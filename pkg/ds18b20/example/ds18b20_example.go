@@ -2,7 +2,6 @@ package main
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/a-clap/logger"
 	"go.uber.org/zap/zapcore"
@@ -16,7 +15,7 @@ func main() {
 		log.Panic(err)
 	}
 
-	reads := make(chan models.SensorReadings)
+	reads := make(chan ds18b20.Readings)
 
 	ids, err := ds.IDs()
 	if err != nil && len(ids) == 0 {

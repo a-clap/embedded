@@ -2,7 +2,6 @@ package ds18b20
 
 import (
 	"errors"
-	"github.com/a-clap/iot/internal/models"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -13,7 +12,7 @@ type BusHandler struct {
 	sensors  []Sensor
 	polling  atomic.Bool
 
-	channels   []chan models.SensorReadings
+	channels   []chan Readings
 	close      chan struct{}
 	waitClosed chan struct{}
 }
@@ -38,7 +37,7 @@ func NewBusHandler(option ...BusHandlerOption) (*BusHandler, error) {
 	return b, nil
 }
 
-func (b *BusHandler) Handle(readings chan<- models.SensorReadings, interval time.Duration) (int, error) {
+func (b *BusHandler) Handle(readings chan<- Readings, interval time.Duration) (int, error) {
 	if b.polling.Load() {
 		return 0, errors.New("already polling")
 	}
@@ -56,14 +55,14 @@ func (b *BusHandler) Close() error {
 	return nil
 }
 
-func (b *BusHandler) prepare(readings chan<- models.SensorReadings, interval time.Duration) (int, error) {
+func (b *BusHandler) prepare(readings chan<- Readings, interval time.Duration) (int, error) {
 	var err error
 	b.sensors, err = b.discover.Discover()
 	if err != nil {
 		return 0, err
 	}
 
-	b.channels = make([]chan models.SensorReadings, len(b.sensors))
+	b.channels = make([]chan Readings, len(b.sensors))
 	good := len(b.sensors)
 	for i, ds := range b.sensors {
 		if err := ds.Poll(b.channels[i], interval); err != nil {
@@ -78,12 +77,12 @@ func (b *BusHandler) prepare(readings chan<- models.SensorReadings, interval tim
 	return good, nil
 }
 
-func (b *BusHandler) handle(readings chan<- models.SensorReadings) {
+func (b *BusHandler) handle(readings chan<- Readings) {
 	wait := sync.WaitGroup{}
 
 	// Pass data to readings from each channel
 	for _, ch := range b.channels {
-		go func(ch chan models.SensorReadings, group *sync.WaitGroup) {
+		go func(ch chan Readings, group *sync.WaitGroup) {
 			wait.Add(1)
 			for data := range ch {
 				readings <- data

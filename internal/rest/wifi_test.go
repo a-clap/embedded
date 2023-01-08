@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/internal/rest"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -18,9 +17,9 @@ type WifiHandlerMock struct {
 	mock.Mock
 }
 
-func (w *WifiHandlerMock) Status() (models.WifiStatus, error) {
+func (w *WifiHandlerMock) Status() (rest.WIFIStatus, error) {
 	args := w.Called()
-	return args.Get(0).(models.WifiStatus), args.Error(1)
+	return args.Get(0).(rest.WIFIStatus), args.Error(1)
 }
 
 func (w *WifiHandlerMock) Disconnect() error {
@@ -28,7 +27,7 @@ func (w *WifiHandlerMock) Disconnect() error {
 	return args.Error(0)
 }
 
-var _ rest.WifiHandler = (*WifiHandlerMock)(nil)
+var _ rest.WIFIHandler = (*WifiHandlerMock)(nil)
 
 type WifiRestTestSuite struct {
 	suite.Suite
@@ -38,15 +37,15 @@ type WifiRestTestSuite struct {
 	resp   *httptest.ResponseRecorder
 }
 
-func (w *WifiHandlerMock) Connect(n models.WifiNetwork) error {
+func (w *WifiHandlerMock) Connect(n rest.WIFINetwork) error {
 	args := w.Called(n)
 	return args.Error(0)
 
 }
 
-func (w *WifiHandlerMock) APs() ([]models.WifiNetwork, error) {
+func (w *WifiHandlerMock) APs() ([]rest.WIFINetwork, error) {
 	args := w.Called()
-	aps, _ := args.Get(0).([]models.WifiNetwork)
+	aps, _ := args.Get(0).([]rest.WIFINetwork)
 	return aps, args.Error(1)
 }
 
@@ -76,7 +75,7 @@ func (t *WifiRestTestSuite) TestGetAps() {
 	t.req, _ = http.NewRequest(http.MethodGet, rest.RoutesGetWifiAps, nil)
 	t.srv, _ = rest.New(rest.WithFormat(rest.JSON), rest.WithWifiHandler(t.mocker))
 
-	aps := []models.WifiNetwork{{SSID: "hello"}}
+	aps := []rest.WIFINetwork{{SSID: "hello"}}
 	t.mocker.On("APs").Return(aps, nil).Once()
 
 	t.srv.ServeHTTP(t.resp, t.req)
@@ -107,7 +106,7 @@ func (t *WifiRestTestSuite) TestHandleError() {
 func (t *WifiRestTestSuite) TestConnectToAp() {
 
 	t.srv, _ = rest.New(rest.WithFormat(rest.JSON), rest.WithWifiHandler(t.mocker))
-	ap := models.WifiNetwork{
+	ap := rest.WIFINetwork{
 		SSID:     "blah",
 		Password: "123",
 	}

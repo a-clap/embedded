@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io"
 	"math"
+	"time"
 )
 
 const (
@@ -39,6 +40,13 @@ type ReadWriteCloser interface {
 type Ready interface {
 	Open(callback func(any) error, args any) error
 	Close()
+}
+
+type Readings struct {
+	ID          string    `json:"id"`
+	Temperature string    `json:"temperature"`
+	Stamp       time.Time `json:"stamp"`
+	Error       error     `json:"error"`
 }
 
 func New(options ...Option) (*Max, error) {

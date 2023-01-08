@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
+	"time"
 )
 
 var (
@@ -25,6 +26,13 @@ type Onewire interface {
 type Bus struct {
 	ids []string
 	o   Onewire
+}
+
+type Readings struct {
+	ID          string    `json:"id"`
+	Temperature string    `json:"temperature"`
+	Stamp       time.Time `json:"stamp"`
+	Error       error     `json:"error"`
 }
 
 var _ Discover = (*Bus)(nil)

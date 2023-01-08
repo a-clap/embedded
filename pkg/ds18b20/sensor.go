@@ -1,7 +1,6 @@
 package ds18b20
 
 import (
-	"github.com/a-clap/iot/internal/models"
 	"io"
 	"strings"
 	"time"
@@ -11,7 +10,7 @@ type Sensor interface {
 	io.Closer
 	ID() string
 	Temperature() (string, error)
-	Poll(readings chan models.SensorReadings, pollTime time.Duration) (err error)
+	Poll(readings chan Readings, pollTime time.Duration) (err error)
 }
 
 var _ Sensor = &sensor{}
@@ -27,7 +26,7 @@ type sensor struct {
 	polling bool
 	fin     chan struct{}
 	stop    chan struct{}
-	data    chan models.SensorReadings
+	data    chan Readings
 }
 
 func newSensor(o opener, id, basePath string) (*sensor, error) {
@@ -43,7 +42,7 @@ func newSensor(o opener, id, basePath string) (*sensor, error) {
 	return s, nil
 }
 
-func (s *sensor) Poll(data chan models.SensorReadings, pollTime time.Duration) (err error) {
+func (s *sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	if s.polling {
 		return ErrAlreadyPolling
 	}
@@ -81,7 +80,7 @@ func (s *sensor) poll(pollTime time.Duration) {
 			s.polling = false
 		case <-time.After(pollTime):
 			tmp, err := s.Temperature()
-			s.data <- models.SensorReadings{
+			s.data <- Readings{
 				ID:          s.id,
 				Temperature: tmp,
 				Stamp:       time.Now(),

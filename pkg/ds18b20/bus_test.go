@@ -2,7 +2,6 @@ package ds18b20_test
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/internal/models"
 	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/spf13/afero"
 	"github.com/stretchr/testify/require"
@@ -317,7 +316,7 @@ func TestSensor_PollTwice(t *testing.T) {
 		a:    afero.NewIOFS(af),
 	}
 
-	readings := make(chan models.SensorReadings)
+	readings := make(chan ds18b20.Readings)
 	interval := 5 * time.Millisecond
 	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
 	s, _ := h.NewSensor(expectedID)
@@ -363,7 +362,7 @@ func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
 		a:    afero.NewIOFS(af),
 	}
 
-	readings := make(chan models.SensorReadings)
+	readings := make(chan ds18b20.Readings)
 	interval := 5 * time.Millisecond
 	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
 	s, _ := h.NewSensor(expectedID)

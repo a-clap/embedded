@@ -7,7 +7,7 @@ import (
 type Server struct {
 	fmt Format
 	SensorHandler
-	WifiHandler
+	WIFIHandler
 	*gin.Engine
 }
 
