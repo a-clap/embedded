@@ -49,7 +49,7 @@ type Readings struct {
 	Error       error     `json:"error"`
 }
 
-func New(options ...Option) (*Max, error) {
+func New(options ...Option) (*Sensor, error) {
 	return newSensor(options...)
 }
 

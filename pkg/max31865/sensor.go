@@ -2,21 +2,11 @@ package max31865
 
 import (
 	"fmt"
-	"io"
 	"strconv"
 	"time"
 )
 
-type Sensor interface {
-	io.Closer
-	ID() string
-	Temperature() (string, error)
-	Poll(data chan Readings, pollTime time.Duration) (err error)
-}
-
-var _ Sensor = &Max{}
-
-type Max struct {
+type Sensor struct {
 	ReadWriteCloser
 	cfg  *config
 	r    *rtd
@@ -26,34 +16,34 @@ type Max struct {
 	data chan Readings
 }
 
-func (m *Max) Poll(data chan Readings, pollTime time.Duration) (err error) {
-	if m.cfg.polling.Load() {
+func (s *Sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
+	if s.cfg.polling.Load() {
 		return ErrAlreadyPolling
 	}
 
-	m.cfg.polling.Store(true)
+	s.cfg.polling.Store(true)
 	if pollTime == -1 {
-		err = m.prepareAsyncPoll()
+		err = s.prepareAsyncPoll()
 	} else {
-		err = m.prepareSyncPoll(pollTime)
+		err = s.prepareSyncPoll(pollTime)
 	}
 
 	if err != nil {
-		m.cfg.polling.Store(false)
+		s.cfg.polling.Store(false)
 		return err
 	}
 
-	m.fin = make(chan struct{})
-	m.stop = make(chan struct{})
-	m.data = data
-	go m.poll()
+	s.fin = make(chan struct{})
+	s.stop = make(chan struct{})
+	s.data = data
+	go s.poll()
 
 	return nil
 }
 
-func (m *Max) prepareSyncPoll(pollTime time.Duration) error {
-	m.trig = make(chan struct{})
-	go func(s *Max, pollTime time.Duration) {
+func (s *Sensor) prepareSyncPoll(pollTime time.Duration) error {
+	s.trig = make(chan struct{})
+	go func(s *Sensor, pollTime time.Duration) {
 		for s.cfg.polling.Load() {
 			<-time.After(pollTime)
 			if s.cfg.polling.Load() {
@@ -61,28 +51,28 @@ func (m *Max) prepareSyncPoll(pollTime time.Duration) error {
 			}
 		}
 		close(s.trig)
-	}(m, pollTime)
+	}(s, pollTime)
 
 	return nil
 }
 
-func (m *Max) prepareAsyncPoll() error {
-	if m.cfg.ready == nil {
+func (s *Sensor) prepareAsyncPoll() error {
+	if s.cfg.ready == nil {
 		return ErrNoReadyInterface
 	}
-	m.trig = make(chan struct{}, 1)
-	return m.cfg.ready.Open(callback, m)
+	s.trig = make(chan struct{}, 1)
+	return s.cfg.ready.Open(callback, s)
 }
 
-func (m *Max) poll() {
-	for m.cfg.polling.Load() {
+func (s *Sensor) poll() {
+	for s.cfg.polling.Load() {
 		select {
-		case <-m.stop:
-			m.cfg.polling.Store(false)
-		case <-m.trig:
-			tmp, err := m.Temperature()
-			m.data <- Readings{
-				ID:          m.ID(),
+		case <-s.stop:
+			s.cfg.polling.Store(false)
+		case <-s.trig:
+			tmp, err := s.Temperature()
+			s.data <- Readings{
+				ID:          s.ID(),
 				Temperature: tmp,
 				Stamp:       time.Now(),
 				Error:       err,
@@ -90,19 +80,19 @@ func (m *Max) poll() {
 		}
 	}
 	// For sure there won't be more data
-	close(m.data)
-	if m.cfg.pollType == async {
-		m.cfg.ready.Close()
-		close(m.trig)
+	close(s.data)
+	if s.cfg.pollType == async {
+		s.cfg.ready.Close()
+		close(s.trig)
 	}
 
 	// Notify user that we are done
-	m.fin <- struct{}{}
-	close(m.fin)
+	s.fin <- struct{}{}
+	close(s.fin)
 }
 
 func callback(args any) error {
-	s, ok := args.(*Max)
+	s, ok := args.(*Sensor)
 	if !ok {
 		return ErrWrongArgs
 	}
@@ -115,84 +105,84 @@ func callback(args any) error {
 	}
 }
 
-func (m *Max) Temperature() (string, error) {
-	r, err := m.read(regConf, regFault+1)
+func (s *Sensor) Temperature() (string, error) {
+	r, err := s.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it
 		return "", err
 	}
-	err = m.r.update(r[regRtdMsb], r[regRtdLsb])
+	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
 	if err != nil {
 		// Not handling error here, should have happened on previous call
-		_ = m.clearFaults()
+		_ = s.clearFaults()
 		// make error more specific
-		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], m.cfg.wiring))
+		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.cfg.wiring))
 		return "", err
 	}
-	rtd := m.r.rtd()
-	tmp := rtdToTemperature(rtd, m.cfg.refRes, m.cfg.rNominal)
+	rtd := s.r.rtd()
+	tmp := rtdToTemperature(rtd, s.cfg.refRes, s.cfg.rNominal)
 
 	return strconv.FormatFloat(float64(tmp), 'f', -1, 32), nil
 }
 
-func (m *Max) Close() error {
-	if m.cfg.polling.Load() {
-		m.stop <- struct{}{}
+func (s *Sensor) Close() error {
+	if s.cfg.polling.Load() {
+		s.stop <- struct{}{}
 		// Close stop channel, not needed anymore
-		close(m.stop)
+		close(s.stop)
 		// Unblock poll
-		for range m.data {
+		for range s.data {
 		}
 		// Wait until finish
-		for range m.fin {
+		for range s.fin {
 		}
 	}
 
-	return m.ReadWriteCloser.Close()
+	return s.ReadWriteCloser.Close()
 }
 
-func (m *Max) ID() string {
-	return string(m.cfg.id)
+func (s *Sensor) ID() string {
+	return string(s.cfg.id)
 }
 
-func newSensor(options ...Option) (*Max, error) {
-	max := &Max{
+func newSensor(options ...Option) (*Sensor, error) {
+	s := &Sensor{
 		ReadWriteCloser: nil,
 		r:               newRtd(),
 		cfg:             newConfig(),
 	}
 	for _, opt := range options {
-		if err := opt(max); err != nil {
+		if err := opt(s); err != nil {
 			return nil, err
 		}
 	}
 	// verify after parsing opts
-	if err := max.verify(); err != nil {
+	if err := s.verify(); err != nil {
 		return nil, err
 	}
 
 	// Do initial regConfig
-	if err := max.config(); err != nil {
+	if err := s.config(); err != nil {
 		return nil, err
 	}
 
-	return max, nil
+	return s, nil
 }
 
-func (m *Max) clearFaults() error {
-	return m.write(regConf, []byte{m.cfg.clearFaults()})
+func (s *Sensor) clearFaults() error {
+	return s.write(regConf, []byte{s.cfg.clearFaults()})
 }
 
-func (m *Max) config() error {
-	err := m.write(regConf, []byte{m.cfg.reg()})
+func (s *Sensor) config() error {
+	err := s.write(regConf, []byte{s.cfg.reg()})
 	return err
 }
 
-func (m *Max) read(addr byte, len int) ([]byte, error) {
+func (s *Sensor) read(addr byte, len int) ([]byte, error) {
 	// We need to create slice with 1 byte more
 	w := make([]byte, len+1)
 	w[0] = addr
-	r, err := m.ReadWrite(w)
+	r, err := s.ReadWrite(w)
 	if err != nil {
 		return nil, err
 	}
@@ -200,23 +190,23 @@ func (m *Max) read(addr byte, len int) ([]byte, error) {
 	return r[1:], nil
 }
 
-func (m *Max) write(addr byte, w []byte) error {
+func (s *Sensor) write(addr byte, w []byte) error {
 	buf := []byte{addr | 0x80}
 	buf = append(buf, w...)
-	_, err := m.ReadWrite(buf)
+	_, err := s.ReadWrite(buf)
 	return err
 }
 
-func (m *Max) verify() error {
+func (s *Sensor) verify() error {
 	// Check if interface exists
-	if m.ReadWriteCloser == nil {
+	if s.ReadWriteCloser == nil {
 		return ErrNoReadWriteCloser
 	}
 	// Check interface itself
 	const size = regFault + 2
 	buf := make([]byte, size)
 	buf[0] = regConf
-	r, err := m.ReadWrite(buf)
+	r, err := s.ReadWrite(buf)
 	if err != nil {
 		return ErrInterface
 	}
