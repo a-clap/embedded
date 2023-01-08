@@ -9,7 +9,7 @@ type onewire struct {
 }
 
 func (h *onewire) Path() string {
-	return "/sys/bus/w1/ids"
+	return "/sys/bus/w1/devices/w1_bus_master1"
 }
 
 func (h *onewire) ReadDir(dirname string) ([]fs.DirEntry, error) {
