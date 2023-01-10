@@ -4,13 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/fs"
 	"time"
 )
 
 var (
 	ErrInterface      = errors.New("interface")
-	ErrAlreadyPolling = errors.New("Sensor is already polling")
+	ErrAlreadyPolling = errors.New("sensor is already polling")
+	ErrNoSuchID       = errors.New("there is no sensor with provided ID")
 )
 
 type File interface {
@@ -19,7 +19,7 @@ type File interface {
 
 type Onewire interface {
 	Path() string
-	ReadDir(dirname string) ([]fs.DirEntry, error)
+	ReadDir(dirname string) ([]string, error)
 	Open(name string) (File, error)
 }
 
@@ -58,6 +58,22 @@ func (b *Bus) IDs() ([]string, error) {
 }
 
 func (b *Bus) NewSensor(id string) (*Sensor, error) {
+	ids, err := b.IDs()
+	if err != nil {
+		return nil, err
+	}
+
+	found := false
+	for _, elem := range ids {
+		if elem == id {
+			found = true
+			break
+		}
+	}
+	if !found {
+		return nil, ErrNoSuchID
+	}
+
 	// delegate creation of Sensor to newSensor
 	s, err := newSensor(b.o, id, b.o.Path())
 	if err != nil {
@@ -67,12 +83,12 @@ func (b *Bus) NewSensor(id string) (*Sensor, error) {
 }
 
 func (b *Bus) updateIDs() error {
-	files, err := b.o.ReadDir(b.o.Path())
+	fileNames, err := b.o.ReadDir(b.o.Path())
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrInterface, err)
 	}
-	for _, maybeOnewire := range files {
-		if name := maybeOnewire.Name(); len(name) > 0 {
+	for _, name := range fileNames {
+		if len(name) > 0 {
 			// Onewire id starts with digit
 			if name[0] >= '0' && name[0] <= '9' {
 				b.ids = append(b.ids, name)

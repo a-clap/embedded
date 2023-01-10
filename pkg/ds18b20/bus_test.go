@@ -1,400 +1,391 @@
 package ds18b20_test
 
 import (
-	"fmt"
+	"errors"
 	"github.com/a-clap/iot/pkg/ds18b20"
-	"github.com/spf13/afero"
-	"github.com/stretchr/testify/require"
-	"io/fs"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+	"io"
 	"os"
-	"path/filepath"
+	"path"
 	"testing"
 	"time"
 )
 
-type iError struct {
+type DSOnewireMock struct {
+	mock.Mock
+}
+type DSFileMock struct {
+	mock.Mock
 }
 
-func (i *iError) Open(string) (ds18b20.File, error) {
-	panic("shouldn't be used")
+type DSTestSuite struct {
+	suite.Suite
+	onewire *DSOnewireMock
+	file    []*DSFileMock
 }
 
-func (i *iError) ReadDir(string) ([]fs.DirEntry, error) {
-	return nil, fmt.Errorf("interfaceError")
+func TestDS8B20Run(t *testing.T) {
+	suite.Run(t, new(DSTestSuite))
 }
 
-func (i *iError) Path() string {
-	return ""
+func (t *DSTestSuite) SetupTest() {
+	t.onewire = new(DSOnewireMock)
+	t.file = make([]*DSFileMock, 0)
 }
 
-type iAfero struct {
-	path string
-	a    afero.IOFS
-}
-
-func (i *iAfero) ReadDir(dirname string) ([]fs.DirEntry, error) {
-	return i.a.ReadDir(dirname)
-}
-
-func (i *iAfero) Open(name string) (ds18b20.File, error) {
-	if len(name) > 1 && name[0] == '/' {
-		name = name[1:]
+func (t *DSTestSuite) TearDownTest() {
+	t.onewire.AssertExpectations(t.T())
+	for _, f := range t.file {
+		f.AssertExpectations(t.T())
 	}
-	return i.a.Open(name)
 }
 
-func (i *iAfero) Path() string {
-	return i.path
-}
-
-var _ ds18b20.Onewire = &iError{}
-var _ ds18b20.Onewire = &iAfero{}
-
-func TestHandler_Devices(t *testing.T) {
-	var err error
-	af := afero.Afero{Fs: afero.NewMemMapFs()}
-
-	nodevice := "/empty"
-	require.Nil(t, af.Mkdir(nodevice, 0777))
-
-	justMasterDevice := "/just/master/device"
-
-	require.Nil(t, af.Mkdir(justMasterDevice, 0777))
-	_, err = af.Create(justMasterDevice + "/w1_bus_master")
-	require.Nil(t, err)
-
-	singleOneWireDevicePath := "/onewire/single_device"
-	singleOneWireDevice := "28-05169397aeff"
-	require.Nil(t, af.Mkdir(singleOneWireDevicePath, 0777))
-	_, err = af.Create(singleOneWireDevicePath + "/" + singleOneWireDevice)
-	require.Nil(t, err)
-
-	multipleDevicesPath := "/onewire/multiple_devices"
-	multipleDevices := []string{"1234", "182-2313123", "999996696"}
-	require.Nil(t, af.Mkdir(multipleDevicesPath, 0777))
-	for _, device := range multipleDevices {
-		_, err = af.Create(multipleDevicesPath + "/" + device)
-	}
-
-	require.Nil(t, err)
-
-	defer func() { _ = af.RemoveAll("") }()
-
-	tests := []struct {
-		name    string
-		handler ds18b20.Onewire
-		want    []string
-		wantErr bool
-		err     error
+func (t *DSTestSuite) TestIDs() {
+	args := []struct {
+		name     string
+		path     string
+		err      error
+		dirEntry []string
+		ids      []string
 	}{
 		{
-			name:    "handle interface error",
-			handler: &iError{},
-			want:    nil,
-			wantErr: true,
-			err:     ds18b20.ErrInterface,
+			name:     "handle interface error",
+			path:     "expectedPath",
+			err:      errors.New("interface error"),
+			dirEntry: nil,
+			ids:      nil,
 		},
 		{
-			name: "no onewire device",
-			handler: &iAfero{
-				path: nodevice,
-				a:    afero.NewIOFS(af),
-			},
-			want:    nil,
-			wantErr: false,
+			name:     "no devices on bus",
+			path:     "new path",
+			err:      nil,
+			dirEntry: nil,
+			ids:      nil,
 		},
 		{
-			name: "just master device",
-			handler: &iAfero{
-				path: justMasterDevice,
-				a:    afero.NewIOFS(af),
-			},
-			want:    nil,
-			wantErr: false,
+			name:     "single device on bus",
+			path:     "another path",
+			err:      nil,
+			dirEntry: []string{"28-05169397aeff"},
+			ids:      []string{"28-05169397aeff"},
 		},
 		{
-			name: "single one wire device",
-			handler: &iAfero{
-				path: singleOneWireDevicePath,
-				a:    afero.NewIOFS(af),
-			},
-			want:    []string{singleOneWireDevice},
-			wantErr: false,
-		},
-		{
-			name: "multiple ids",
-			handler: &iAfero{
-				path: multipleDevicesPath,
-				a:    afero.NewIOFS(af),
-			},
-			want:    multipleDevices,
-			wantErr: false,
+			name: "ignore other files",
+			path: "another path",
+			err:  nil,
+			dirEntry: []string{"28-051693848dff", "w1_master_name", "28-05169397aeff", "w1_master_pointer", "driver", "w1_master_pullup", "power", "w1_master_remove", "subsystem", "w1_master_search",
+				"therm_bulk_read", "w1_master_slave_count", "uevent", "w1_master_slaves", "w1_master_add", "w1_master_timeout", "w1_master_attempts", "w1_master_timeout_us", "w1_master_max_slave_count"},
+			ids: []string{"28-051693848dff", "28-05169397aeff"},
 		},
 	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h, _ := ds18b20.NewBus(ds18b20.WithInterface(tt.handler))
-			got, err := h.IDs()
+	for _, arg := range args {
+		t.onewire.On("Path").Return(arg.path).Once()
+		t.onewire.On("ReadDir", arg.path).Return(arg.dirEntry, arg.err).Once()
 
-			if tt.wantErr {
-				require.NotNil(t, err)
-				require.ErrorIs(t, err, tt.err)
-				return
-			}
+		h, err := ds18b20.NewBus(
+			ds18b20.WithInterface(t.onewire),
+		)
 
-			require.Nil(t, err)
-			require.EqualValues(t, tt.want, got)
-		})
+		t.NotNil(h, arg.name)
+		t.Nil(err, arg.name)
+
+		ids, err := h.IDs()
+		t.EqualValues(arg.ids, ids, arg.name)
+
+		if arg.err != nil {
+			t.ErrorContains(err, arg.err.Error(), arg.name)
+		} else {
+			t.Nil(err, arg.name)
+		}
 	}
 }
 
-func TestHandler_NewSensor(t *testing.T) {
-	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer func() { _ = af.RemoveAll("") }()
+func (t *DSTestSuite) TestSensor_Poll() {
+	id := "28-05169397aeff"
+	w1path := "some path"
+	dirEntry := []string{"28-05169397aeff"}
 
-	sensorDoesntexist := "not_exist"
+	t.file = make([]*DSFileMock, 1)
+	t.file[0] = &DSFileMock{}
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 
-	sensorIDWithoutTemperaturePath := "/exist"
-	sensorIDWithoutTemperature := "81-12131"
-	p := filepath.Join(sensorIDWithoutTemperaturePath, sensorIDWithoutTemperature)
-	require.Nil(t, af.Mkdir(p, 0777))
+	data := t.file[0].TestData()
+	data["buf"] = []byte("123")
+	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
+	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
 
-	sensorGoodID := "28-abcdefg"
-	sensorGoodPath := "good"
-	p = filepath.Join(sensorGoodPath, sensorGoodID)
-	require.Nil(t, af.Mkdir(p, 0777))
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+	sensor, _ := bus.NewSensor(id)
 
-	p = filepath.Join(p, "temperature")
-	f, err := af.Create(p)
-	require.Nil(t, err)
-	sensorGoodTemperature := "98121"
+	interval := 10 * time.Millisecond
+	readings := make(chan ds18b20.Readings)
 
-	_, err = f.Write([]byte(sensorGoodTemperature))
-	require.Nil(t, err)
-	_ = f.Close()
-
-	tests := []struct {
-		name    string
-		o       ds18b20.Onewire
-		argsId  string
-		wantErr bool
-		errType error
-	}{
-		{
-			name: "Sensor doesn't exist",
-			o: &iAfero{
-				path: sensorDoesntexist,
-				a:    afero.NewIOFS(af),
-			},
-			argsId:  "blabla",
-			wantErr: true,
-			errType: os.ErrNotExist,
-		},
-		{
-			name: "temperature file doesn't exist",
-			o: &iAfero{
-				path: sensorIDWithoutTemperaturePath,
-				a:    afero.NewIOFS(af),
-			},
-			argsId:  sensorIDWithoutTemperature,
-			wantErr: true,
-			errType: os.ErrNotExist,
-		},
-		{
-			name: "working Sensor",
-			o: &iAfero{
-				path: sensorGoodPath,
-				a:    afero.NewIOFS(af),
-			},
-			argsId:  sensorGoodID,
-			wantErr: false,
-			errType: nil,
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			h, _ := ds18b20.NewBus(ds18b20.WithInterface(tt.o))
-			s, err := h.NewSensor(tt.argsId)
-
-			if tt.wantErr {
-				require.NotNil(t, err)
-				require.ErrorIs(t, err, tt.errType)
-				return
-			}
-
-			require.Nil(t, err)
-			require.EqualValues(t, tt.argsId, s.ID())
-		})
-	}
-}
-
-func TestHandler_SensorTemperature(t *testing.T) {
-	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer func() { _ = af.RemoveAll("") }()
-	// Prepare files
-	id := "28-12313asb"
-	p := filepath.Join("wire", id)
-	require.Nil(t, af.Mkdir(p, 0777))
-	filePath := filepath.Join(p, "temperature")
-	_, err := af.Create(filePath)
-	require.Nil(t, err)
-	err = af.Chmod(filePath, 0777)
-	require.Nil(t, err)
-	// Prepare interface
-	o := &iAfero{
-		path: "wire",
-		a:    afero.NewIOFS(af),
-	}
-	// Get Sensor tested
-	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
-	s, err := h.NewSensor(id)
-	require.Nil(t, err)
-	require.Equal(t, id, s.ID())
-
-	tests := []struct {
-		write    string
+	args := []struct {
+		buf      []byte
 		expected string
 	}{
 		{
-			write:    "1",
+			buf:      []byte("1"),
 			expected: "0.001",
 		},
 		{
-			write:    "988654\r\n",
+			buf:      []byte("988654\r\n"),
 			expected: "988.654",
 		},
 		{
-			write:    "12355\r\n",
+			buf:      []byte("12355\r\n"),
 			expected: "12.355",
 		},
 		{
-			write:    "1230\r",
+			buf:      []byte("1230\r"),
 			expected: "1.230",
 		},
 		{
-			write:    "456\n",
+			buf:      []byte("456\n"),
 			expected: "0.456",
 		},
 		{
-			write:    "38\n",
+			buf:      []byte("38\n"),
 			expected: "0.038",
 		},
 	}
 
-	t.Run("proper conversions", func(t *testing.T) {
-		for _, test := range tests {
-			f, err := af.OpenFile(filePath, os.O_WRONLY, 0777)
-			require.Nil(t, err)
-			n, err := f.Write([]byte(test.write))
-			require.Equal(t, len(test.write), n)
-			require.Nil(t, err)
-			_ = f.Close()
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Times(len(args))
+	_ = sensor.Poll(readings, interval)
 
-			r, err := s.Temperature()
-			require.Nil(t, err)
-
-			require.EqualValues(t, test.expected, r)
-		}
-	})
-}
-
-func TestSensor_PollTwice(t *testing.T) {
-	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer func() { _ = af.RemoveAll("") }()
-	// Prepare Sensor
-	expectedID := "281ab"
-	tmp := "12345"
-	require.Nil(t, af.Mkdir(expectedID, 0777))
-	f, err := af.Create(expectedID + "/temperature")
-	require.Nil(t, err)
-
-	_, _ = f.Write([]byte(tmp))
-	_ = f.Close()
-
-	o := &iAfero{
-		path: "",
-		a:    afero.NewIOFS(af),
-	}
-
-	readings := make(chan ds18b20.Readings)
-	interval := 5 * time.Millisecond
-	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
-	s, _ := h.NewSensor(expectedID)
-
-	errs := s.Poll(readings, interval)
-	require.Nil(t, errs)
-
-	err = s.Poll(readings, interval)
-	require.ErrorIs(t, err, ds18b20.ErrAlreadyPolling)
-
-	wait := make(chan struct{})
-
-	go func() {
-		require.Nil(t, s.Close())
-		wait <- struct{}{}
-	}()
-
-	select {
-	case <-wait:
-	case <-time.After(2 * interval):
-		require.Fail(t, "should be done after this time")
-	}
-	close(wait)
-
-}
-
-func TestHandler_Poll_IntervalsTemperatureUpdate(t *testing.T) {
-	af := afero.Afero{Fs: afero.NewMemMapFs()}
-	defer func() { _ = af.RemoveAll("") }()
-	// Prepare Sensor
-	expectedID := "281ab"
-	expectedTemp := "12.345"
-	tmp := "12345"
-	require.Nil(t, af.Mkdir(expectedID, 0777))
-	f, err := af.Create(expectedID + "/temperature")
-	require.Nil(t, err)
-
-	_, _ = f.Write([]byte(tmp))
-	_ = f.Close()
-
-	o := &iAfero{
-		path: "",
-		a:    afero.NewIOFS(af),
-	}
-
-	readings := make(chan ds18b20.Readings)
-	interval := 5 * time.Millisecond
-	h, _ := ds18b20.NewBus(ds18b20.WithInterface(o))
-	s, _ := h.NewSensor(expectedID)
-
-	errs := s.Poll(readings, interval)
-	require.Nil(t, errs)
-
-	for i := 0; i < 10; i++ {
+	for _, arg := range args {
+		t.file[0].TestData()["buf"] = arg.buf
+		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
+		t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
 		now := time.Now()
 		select {
 		case r := <-readings:
-			require.EqualValues(t, expectedID, r.ID)
-			require.EqualValues(t, expectedTemp, r.Temperature)
-			require.Nil(t, r.Error)
+			t.EqualValues(id, r.ID)
+			t.EqualValues(arg.expected, r.Temperature)
+			t.Nil(r.Error)
 			diff := r.Stamp.Sub(now)
-			require.Less(t, interval, diff)
-			require.InDelta(t, interval.Milliseconds(), diff.Milliseconds(), float64(interval.Milliseconds())/10)
+			t.Less(interval, diff)
 		case <-time.After(2 * interval):
-			require.Fail(t, "failed, waiting for readings too long")
+			t.Fail("failed, waiting for readings too long")
 		}
 	}
 	wait := make(chan struct{})
 
 	go func() {
-		require.Nil(t, s.Close())
+		t.Nil(sensor.Close())
 		wait <- struct{}{}
 	}()
 
 	select {
 	case <-wait:
 	case <-time.After(2 * interval):
-		require.Fail(t, "should be done after this time")
+		t.Fail("should be done after this time")
 	}
 
+}
+
+func (t *DSTestSuite) TestSensor_PollTwice() {
+	id := "28-05169397aeff"
+	w1path := "some path"
+	dirEntry := []string{"28-05169397aeff"}
+
+	t.file = make([]*DSFileMock, 1)
+	t.file[0] = &DSFileMock{}
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+
+	data := t.file[0].TestData()
+	data["buf"] = []byte("123")
+	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
+	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+	sensor, _ := bus.NewSensor(id)
+
+	t.file[0].On("Read", mock.Anything).Return(0, io.EOF)
+
+	interval := 5 * time.Millisecond
+	readings := make(chan ds18b20.Readings)
+	err := sensor.Poll(readings, interval)
+	t.Nil(err)
+
+	err = sensor.Poll(readings, interval)
+	t.ErrorIs(err, ds18b20.ErrAlreadyPolling)
+
+	wait := make(chan struct{})
+
+	go func() {
+		t.Nil(sensor.Close())
+		wait <- struct{}{}
+	}()
+
+	select {
+	case <-wait:
+	case <-time.After(2 * interval):
+		t.Fail("should be done after this time")
+	}
+	close(wait)
+}
+
+func (t *DSTestSuite) TestSensor_TemperatureConversions() {
+	id := "28-05169397aeff"
+	w1path := "some path"
+	dirEntry := []string{"28-05169397aeff"}
+
+	t.file = make([]*DSFileMock, 1)
+	t.file[0] = &DSFileMock{}
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+
+	data := t.file[0].TestData()
+	data["buf"] = []byte("123")
+	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
+	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+	sensor, _ := bus.NewSensor(id)
+	args := []struct {
+		buf      []byte
+		expected string
+	}{
+		{
+			buf:      []byte("1"),
+			expected: "0.001",
+		},
+		{
+			buf:      []byte("988654\r\n"),
+			expected: "988.654",
+		},
+		{
+			buf:      []byte("12355\r\n"),
+			expected: "12.355",
+		},
+		{
+			buf:      []byte("1230\r"),
+			expected: "1.230",
+		},
+		{
+			buf:      []byte("456\n"),
+			expected: "0.456",
+		},
+		{
+			buf:      []byte("38\n"),
+			expected: "0.038",
+		},
+	}
+	for i, arg := range args {
+		data := t.file[0].TestData()
+		data["buf"] = arg.buf
+
+		t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
+		t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+
+		temp, err := sensor.Temperature()
+		t.Nil(err)
+		t.EqualValues(arg.expected, temp, i)
+
+	}
+
+}
+
+func (t *DSTestSuite) TestNewSensor_Good() {
+	id := "28-05169397aeff"
+	w1path := "some path"
+	dirEntry := []string{"28-05169397aeff"}
+
+	t.file = make([]*DSFileMock, 1)
+	t.file[0] = &DSFileMock{}
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+
+	data := t.file[0].TestData()
+	data["buf"] = []byte("123")
+
+	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
+	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+
+	sensor, err := bus.NewSensor(id)
+	t.NotNil(sensor)
+	t.Nil(err)
+	t.EqualValues(id, sensor.ID())
+}
+
+func (t *DSTestSuite) TestNewSensor_ErrorOnOpenTempeatureFile() {
+	id := "28-05169397aeff"
+	w1path := "some path"
+	dirEntry := []string{"28-05169397aeff"}
+	expectedErr := os.ErrNotExist
+
+	t.file = make([]*DSFileMock, 1)
+	t.file[0] = &DSFileMock{}
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], expectedErr).Once()
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+
+	sensor, err := bus.NewSensor(id)
+	t.Nil(sensor)
+	t.NotNil(err)
+	t.ErrorIs(err, expectedErr)
+
+}
+
+func (t *DSTestSuite) TestNewSensor_WrongID() {
+	id := "hello world"
+	w1path := "some w1path"
+	dirEntry := []string{"28-05169397aeff"}
+	expectedErr := ds18b20.ErrNoSuchID
+
+	t.onewire.On("Path").Return(w1path).Once()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+
+	sensor, err := bus.NewSensor(id)
+	t.Nil(sensor)
+	t.NotNil(err)
+	t.ErrorIs(err, expectedErr)
+
+}
+
+func (d *DSOnewireMock) Path() string {
+	args := d.Called()
+	return args.String(0)
+}
+
+func (d *DSOnewireMock) ReadDir(dirname string) ([]string, error) {
+	args := d.Called(dirname)
+	return args.Get(0).([]string), args.Error(1)
+
+}
+
+func (d *DSOnewireMock) Open(name string) (ds18b20.File, error) {
+	args := d.Called(name)
+	return args.Get(0).(ds18b20.File), args.Error(1)
+}
+
+func (d *DSFileMock) Read(p []byte) (n int, err error) {
+	args := d.Called(p)
+	if maybeData, ok := d.TestData()["buf"]; ok {
+		copy(p, maybeData.([]byte))
+	}
+	return args.Int(0), args.Error(1)
 }
