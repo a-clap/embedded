@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"strconv"
 	"testing"
 	"time"
 )
@@ -58,21 +59,21 @@ func (t *DSTestSuite) TestIDs() {
 		},
 		{
 			name:     "no devices on bus",
-			path:     "new path",
+			path:     "new temperaturePath",
 			err:      nil,
 			dirEntry: nil,
 			ids:      nil,
 		},
 		{
 			name:     "single device on bus",
-			path:     "another path",
+			path:     "another temperaturePath",
 			err:      nil,
 			dirEntry: []string{"28-05169397aeff"},
 			ids:      []string{"28-05169397aeff"},
 		},
 		{
 			name: "ignore other files",
-			path: "another path",
+			path: "another temperaturePath",
 			err:  nil,
 			dirEntry: []string{"28-051693848dff", "w1_master_name", "28-05169397aeff", "w1_master_pointer", "driver", "w1_master_pullup", "power", "w1_master_remove", "subsystem", "w1_master_search",
 				"therm_bulk_read", "w1_master_slave_count", "uevent", "w1_master_slaves", "w1_master_add", "w1_master_timeout", "w1_master_attempts", "w1_master_timeout_us", "w1_master_max_slave_count"},
@@ -100,20 +101,132 @@ func (t *DSTestSuite) TestIDs() {
 		}
 	}
 }
+func (t *DSTestSuite) TestResolution_Set() {
+	id := "28-05169397aeff"
+	w1path := "some temperaturePath"
+	dirEntry := []string{"28-05169397aeff"}
 
+	t.file = make([]*DSFileMock, 2)
+	for i := range t.file {
+		t.file[i] = new(DSFileMock)
+	}
+
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+
+	data := t.file[0].TestData()
+	data["writeBuf"] = []byte("567")
+	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
+	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+	sensor, _ := bus.NewSensor(id)
+
+	resFile := t.file[1]
+	args := []struct {
+		writeBuf []byte
+		res      ds18b20.Resolution
+	}{
+		{
+			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_9_BIT, 10)),
+			res:      ds18b20.Resolution_9_BIT,
+		},
+		{
+			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_10_BIT, 10)),
+			res:      ds18b20.Resolution_10_BIT,
+		}, {
+			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_11_BIT, 10)),
+			res:      ds18b20.Resolution_11_BIT,
+		},
+		{
+			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_12_BIT, 10)),
+			res:      ds18b20.Resolution_12_BIT,
+		},
+	}
+	for _, arg := range args {
+		openCall := t.onewire.On("Open", path.Join(w1path, id, "resolution")).Return(resFile, nil).Once()
+		writeCall := resFile.On("Write", arg.writeBuf).Return(len(arg.writeBuf), nil).Once().NotBefore(openCall)
+		resFile.On("Close").Return(nil).Once().NotBefore(writeCall)
+		err := sensor.SetResolution(arg.res)
+		t.Nil(err)
+	}
+}
+func (t *DSTestSuite) TestResolution_Read() {
+	id := "28-05169397aeff"
+	w1path := "some temperaturePath"
+	dirEntry := []string{"28-05169397aeff"}
+
+	t.file = make([]*DSFileMock, 2)
+	for i := range t.file {
+		t.file[i] = new(DSFileMock)
+	}
+
+	t.onewire.On("Path").Return(w1path).Twice()
+	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+
+	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+
+	data := t.file[0].TestData()
+	data["writeBuf"] = []byte("567")
+	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
+	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
+	bus, _ := ds18b20.NewBus(
+		ds18b20.WithInterface(t.onewire),
+	)
+	sensor, _ := bus.NewSensor(id)
+
+	resFile := t.file[1]
+	args := []struct {
+		buf      []byte
+		expected ds18b20.Resolution
+	}{
+		{
+			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_9_BIT, 10)),
+			expected: ds18b20.Resolution_9_BIT,
+		},
+		{
+			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_10_BIT, 10)),
+			expected: ds18b20.Resolution_10_BIT,
+		}, {
+			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_11_BIT, 10)),
+			expected: ds18b20.Resolution_11_BIT,
+		},
+		{
+			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_12_BIT, 10)),
+			expected: ds18b20.Resolution_12_BIT,
+		},
+	}
+	for _, arg := range args {
+		openCall := t.onewire.On("Open", path.Join(w1path, id, "resolution")).Return(resFile, nil).Once()
+		dataResolution := resFile.TestData()
+		dataResolution["writeBuf"] = arg.buf
+		resReadCall := resFile.On("Read", mock.Anything).Return(len(arg.buf), nil).Once().NotBefore(openCall)
+		resReadEOFcall := resFile.On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(resReadCall)
+		resFile.On("Close").Return(nil).Once().NotBefore(resReadEOFcall)
+		res, err := sensor.Resolution()
+		t.Nil(err)
+		t.EqualValues(arg.expected, res)
+	}
+
+}
 func (t *DSTestSuite) TestSensor_Poll() {
 	id := "28-05169397aeff"
-	w1path := "some path"
+	w1path := "some temperaturePath"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
-	t.file[0] = &DSFileMock{}
+	t.file[0] = new(DSFileMock)
 	t.onewire.On("Path").Return(w1path).Twice()
 	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 
 	data := t.file[0].TestData()
-	data["buf"] = []byte("123")
+	data["writeBuf"] = []byte("123")
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
 	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
 	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
@@ -160,7 +273,7 @@ func (t *DSTestSuite) TestSensor_Poll() {
 	_ = sensor.Poll(readings, interval)
 
 	for _, arg := range args {
-		t.file[0].TestData()["buf"] = arg.buf
+		t.file[0].TestData()["writeBuf"] = arg.buf
 		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
 		readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
 		t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
@@ -193,17 +306,17 @@ func (t *DSTestSuite) TestSensor_Poll() {
 
 func (t *DSTestSuite) TestSensor_PollTwice() {
 	id := "28-05169397aeff"
-	w1path := "some path"
+	w1path := "some temperaturePath"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
-	t.file[0] = &DSFileMock{}
+	t.file[0] = new(DSFileMock)
 	t.onewire.On("Path").Return(w1path).Twice()
 	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 
 	data := t.file[0].TestData()
-	data["buf"] = []byte("123")
+	data["writeBuf"] = []byte("123")
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
 	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
 	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
@@ -240,17 +353,17 @@ func (t *DSTestSuite) TestSensor_PollTwice() {
 
 func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 	id := "28-05169397aeff"
-	w1path := "some path"
+	w1path := "some temperaturePath"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
-	t.file[0] = &DSFileMock{}
+	t.file[0] = new(DSFileMock)
 	t.onewire.On("Path").Return(w1path).Twice()
 	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 
 	data := t.file[0].TestData()
-	data["buf"] = []byte("123")
+	data["writeBuf"] = []byte("123")
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
 	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
 	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
@@ -289,7 +402,7 @@ func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 	}
 	for i, arg := range args {
 		data := t.file[0].TestData()
-		data["buf"] = arg.buf
+		data["writeBuf"] = arg.buf
 
 		t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
@@ -305,17 +418,17 @@ func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 
 func (t *DSTestSuite) TestNewSensor_Good() {
 	id := "28-05169397aeff"
-	w1path := "some path"
+	w1path := "some temperaturePath"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
-	t.file[0] = &DSFileMock{}
+	t.file[0] = new(DSFileMock)
 	t.onewire.On("Path").Return(w1path).Twice()
 	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 
 	data := t.file[0].TestData()
-	data["buf"] = []byte("123")
+	data["writeBuf"] = []byte("123")
 
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
 	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
@@ -332,12 +445,12 @@ func (t *DSTestSuite) TestNewSensor_Good() {
 
 func (t *DSTestSuite) TestNewSensor_ErrorOnOpenTempeatureFile() {
 	id := "28-05169397aeff"
-	w1path := "some path"
+	w1path := "some temperaturePath"
 	dirEntry := []string{"28-05169397aeff"}
 	expectedErr := os.ErrNotExist
 
 	t.file = make([]*DSFileMock, 1)
-	t.file[0] = &DSFileMock{}
+	t.file[0] = new(DSFileMock)
 	t.onewire.On("Path").Return(w1path).Twice()
 	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 	t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], expectedErr).Once()
@@ -390,7 +503,7 @@ func (d *DSOnewireMock) Open(name string) (ds18b20.File, error) {
 
 func (d *DSFileMock) Read(p []byte) (n int, err error) {
 	args := d.Called(p)
-	if maybeData, ok := d.TestData()["buf"]; ok {
+	if maybeData, ok := d.TestData()["writeBuf"]; ok {
 		copy(p, maybeData.([]byte))
 	}
 	return args.Int(0), args.Error(1)

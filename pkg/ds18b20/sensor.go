@@ -2,6 +2,8 @@ package ds18b20
 
 import (
 	"io"
+	"path"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -12,20 +14,31 @@ type opener interface {
 
 type Sensor struct {
 	opener
-	id      string
-	path    string
-	polling bool
-	fin     chan struct{}
-	stop    chan struct{}
-	data    chan Readings
+	id              string
+	temperaturePath string
+	resolutionPath  string
+	polling         bool
+	fin             chan struct{}
+	stop            chan struct{}
+	data            chan Readings
 }
+
+type Resolution int
+
+const (
+	Resolution_9_BIT  = 9
+	Resolution_10_BIT = 10
+	Resolution_11_BIT = 11
+	Resolution_12_BIT = 12
+)
 
 func newSensor(o opener, id, basePath string) (*Sensor, error) {
 	s := &Sensor{
-		opener:  o,
-		id:      id,
-		path:    basePath + "/" + id + "/temperature",
-		polling: false,
+		opener:          o,
+		id:              id,
+		temperaturePath: path.Join(basePath, id, "temperature"),
+		resolutionPath:  path.Join(basePath, id, "resolution"),
+		polling:         false,
 	}
 	if _, err := s.Temperature(); err != nil {
 		return nil, err
@@ -44,6 +57,41 @@ func (s *Sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	s.data = data
 	go s.poll(pollTime)
 
+	return nil
+}
+
+func (s *Sensor) Resolution() (r Resolution, err error) {
+	r = Resolution_12_BIT
+
+	res, err := s.Open(s.resolutionPath)
+	if err != nil {
+		return
+	}
+	defer res.Close()
+	buf, err := io.ReadAll(res)
+	if err != nil {
+		return
+	}
+	maybeR, err := strconv.ParseInt(string(buf), 10, 32)
+	if err != nil {
+		return
+	}
+
+	r = Resolution(maybeR)
+	return
+}
+
+func (s *Sensor) SetResolution(res Resolution) error {
+	resFile, err := s.Open(s.resolutionPath)
+	if err != nil {
+		return err
+	}
+	defer resFile.Close()
+
+	buf := strconv.FormatInt(int64(res), 10)
+	if _, err := resFile.Write([]byte(buf)); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -86,7 +134,7 @@ func (s *Sensor) poll(pollTime time.Duration) {
 }
 
 func (s *Sensor) Temperature() (string, error) {
-	f, err := s.Open(s.path)
+	f, err := s.Open(s.temperaturePath)
 	if err != nil {
 		return "", err
 	}
