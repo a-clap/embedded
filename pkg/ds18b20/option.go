@@ -11,7 +11,13 @@ func WithInterface(o Onewire) BusOption {
 
 func WithOnewire() BusOption {
 	return func(bus *Bus) error {
-		bus.o = &onewire{}
+		return WithOnewireOnPath("/sys/bus/w1/devices/w1_bus_master1")(bus)
+	}
+}
+
+func WithOnewireOnPath(path string) BusOption {
+	return func(bus *Bus) error {
+		bus.o = &onewire{path: path}
 		return nil
 	}
 }

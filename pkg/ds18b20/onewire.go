@@ -5,13 +5,14 @@ import (
 )
 
 type onewire struct {
+	path string
 }
 
-func (h *onewire) Path() string {
-	return "/sys/bus/w1/devices/w1_bus_master1"
+func (o *onewire) Path() string {
+	return o.path
 }
 
-func (h *onewire) ReadDir(dirname string) ([]string, error) {
+func (o *onewire) ReadDir(dirname string) ([]string, error) {
 	entries, err := os.ReadDir(dirname)
 	if err != nil {
 		return nil, err
@@ -24,6 +25,6 @@ func (h *onewire) ReadDir(dirname string) ([]string, error) {
 	return dirs, nil
 }
 
-func (h *onewire) Open(name string) (File, error) {
+func (o *onewire) Open(name string) (File, error) {
 	return os.Open(name)
 }

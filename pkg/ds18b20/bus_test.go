@@ -103,7 +103,7 @@ func (t *DSTestSuite) TestIDs() {
 }
 func (t *DSTestSuite) TestResolution_Set() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestResolution_Set"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 2)
@@ -157,7 +157,7 @@ func (t *DSTestSuite) TestResolution_Set() {
 }
 func (t *DSTestSuite) TestResolution_Read() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestResolution_Read"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 2)
@@ -216,7 +216,7 @@ func (t *DSTestSuite) TestResolution_Read() {
 }
 func (t *DSTestSuite) TestSensor_Poll() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestSensor_Poll"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
@@ -306,7 +306,7 @@ func (t *DSTestSuite) TestSensor_Poll() {
 
 func (t *DSTestSuite) TestSensor_PollTwice() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestSensor_PollTwice"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
@@ -328,7 +328,8 @@ func (t *DSTestSuite) TestSensor_PollTwice() {
 
 	t.file[0].On("Read", mock.Anything).Return(0, io.EOF)
 
-	interval := 5 * time.Millisecond
+	// We don't want to test Poll, just error handling
+	interval := 1 * time.Second
 	readings := make(chan ds18b20.Readings)
 	err := sensor.Poll(readings, interval)
 	t.Nil(err)
@@ -353,7 +354,7 @@ func (t *DSTestSuite) TestSensor_PollTwice() {
 
 func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestSensor_TemperatureConversions"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
@@ -404,10 +405,10 @@ func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 		data := t.file[0].TestData()
 		data["writeBuf"] = arg.buf
 
-		t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
-		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
-		readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
-		t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
+		openCall := t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
+		readCall := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once().NotBefore(openCall)
+		readEOFCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(readCall)
+		t.file[0].On("Close").Return(nil).Once().NotBefore(readEOFCall)
 		temp, err := sensor.Temperature()
 		t.Nil(err)
 		t.EqualValues(arg.expected, temp, i)
@@ -418,7 +419,7 @@ func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 
 func (t *DSTestSuite) TestNewSensor_Good() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestNewSensor_Good"
 	dirEntry := []string{"28-05169397aeff"}
 
 	t.file = make([]*DSFileMock, 1)
@@ -445,7 +446,7 @@ func (t *DSTestSuite) TestNewSensor_Good() {
 
 func (t *DSTestSuite) TestNewSensor_ErrorOnOpenTempeatureFile() {
 	id := "28-05169397aeff"
-	w1path := "some temperaturePath"
+	w1path := "TestNewSensor_ErrorOnOpenTempeatureFile"
 	dirEntry := []string{"28-05169397aeff"}
 	expectedErr := os.ErrNotExist
 
