@@ -115,7 +115,8 @@ func (t *DSTestSuite) TestSensor_Poll() {
 	data := t.file[0].TestData()
 	data["buf"] = []byte("123")
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
-	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
 
 	bus, _ := ds18b20.NewBus(
 		ds18b20.WithInterface(t.onewire),
@@ -161,7 +162,8 @@ func (t *DSTestSuite) TestSensor_Poll() {
 	for _, arg := range args {
 		t.file[0].TestData()["buf"] = arg.buf
 		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
-		t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+		readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+		t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
 		now := time.Now()
 		select {
 		case r := <-readings:
@@ -203,7 +205,9 @@ func (t *DSTestSuite) TestSensor_PollTwice() {
 	data := t.file[0].TestData()
 	data["buf"] = []byte("123")
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
-	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
+
 	bus, _ := ds18b20.NewBus(
 		ds18b20.WithInterface(t.onewire),
 	)
@@ -248,7 +252,8 @@ func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 	data := t.file[0].TestData()
 	data["buf"] = []byte("123")
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
-	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
 	bus, _ := ds18b20.NewBus(
 		ds18b20.WithInterface(t.onewire),
 	)
@@ -288,8 +293,8 @@ func (t *DSTestSuite) TestSensor_TemperatureConversions() {
 
 		t.onewire.On("Open", path.Join(w1path, id, "temperature")).Return(t.file[0], nil).Once()
 		call := t.file[0].On("Read", mock.Anything).Return(len(arg.buf), nil).Once()
-		t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
-
+		readCall := t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+		t.file[0].On("Close").Return(nil).Once().NotBefore(readCall)
 		temp, err := sensor.Temperature()
 		t.Nil(err)
 		t.EqualValues(arg.expected, temp, i)
@@ -314,6 +319,7 @@ func (t *DSTestSuite) TestNewSensor_Good() {
 
 	call := t.file[0].On("Read", mock.Anything).Return(3, nil).Once()
 	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).Once().NotBefore(call)
+	t.file[0].On("Close").Return(nil).Once()
 	bus, _ := ds18b20.NewBus(
 		ds18b20.WithInterface(t.onewire),
 	)
@@ -388,4 +394,13 @@ func (d *DSFileMock) Read(p []byte) (n int, err error) {
 		copy(p, maybeData.([]byte))
 	}
 	return args.Int(0), args.Error(1)
+}
+
+func (d *DSFileMock) Write(p []byte) (n int, err error) {
+	args := d.Called(p)
+	return args.Int(0), args.Error(1)
+}
+
+func (d *DSFileMock) Close() error {
+	return d.Called().Error(0)
 }

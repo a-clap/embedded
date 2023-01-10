@@ -90,6 +90,7 @@ func (s *Sensor) Temperature() (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer f.Close()
 	// Sensor temperature file is just few bytes, io.ReadAll is fine for that purpose
 	buf, err := io.ReadAll(f)
 	if err != nil {

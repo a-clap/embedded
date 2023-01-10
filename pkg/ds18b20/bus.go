@@ -14,7 +14,7 @@ var (
 )
 
 type File interface {
-	io.Reader
+	io.ReadWriteCloser
 }
 
 type Onewire interface {
