@@ -11,7 +11,14 @@ type Config struct {
 
 type ConfigHeater struct {
 	HardwareID `json:"hardware_id"`
-	gpio.Pin   `json:"gpioPin"`
+	gpio.Pin   `json:"gpio_pin"`
+}
+
+type ConfigDS18B20 struct {
+	BusName        OnewireBusName    `json:"bus_name"`
+	PollTimeMillis uint              `json:"poll_time_millis"`
+	Resolution     DS18B20Resolution `json:"resolution"`
+	Samples        uint              `json:"samples"`
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
@@ -30,3 +37,14 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 	}
 	return WithHeaters(heaters), errs
 }
+
+//func parseDS18B20(config []ConfigDS18B20) (Option, error) {
+//	ds := make(map[OnewireBusName][]DS18B20Sensor)
+//	var errs []error
+//
+//	for _, maybeOnewire := range config {
+//
+//	}
+//
+//}
+//

@@ -6,7 +6,14 @@ type HardwareID string
 
 func WithHeaters(heaters map[HardwareID]Heater) Option {
 	return func(h *Handler) error {
-		h.heaters = heaters
+		h.Heaters.heaters = heaters
+		return nil
+	}
+}
+
+func WithDS18B20(ds map[OnewireBusName][]DS18B20Sensor) Option {
+	return func(h *Handler) error {
+		h.DS.sensors = ds
 		return nil
 	}
 }

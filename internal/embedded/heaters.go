@@ -13,18 +13,20 @@ type Heater interface {
 }
 
 type HeaterConfig struct {
-	HardwareID string `json:"hardware_id"`
-	Enabled    bool   `json:"enabled"`
-	Power      uint   `json:"power"`
+	HardwareID HardwareID `json:"hardware_id"`
+	Enabled    bool       `json:"enabled"`
+	Power      uint       `json:"power"`
+}
+
+type HeaterHandler struct {
+	heaters map[HardwareID]Heater
 }
 
 func (h *Handler) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		hwid := ctx.Param("hardware_id")
-		heater, err := h.heaterBy(HardwareID(hwid))
-
-		if err != nil {
-			h.respond(ctx, http.StatusNotFound, ErrHeaterDoesntExist)
+		hwid := HardwareID(ctx.Param("hardware_id"))
+		if _, err := h.Heaters.StatusBy(hwid); err != nil {
+			h.respond(ctx, http.StatusNotFound, err)
 			return
 		}
 
@@ -34,46 +36,42 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 			return
 		}
 
-		if err := heater.SetPower(cfg.Power); err != nil {
+		if err := h.Heaters.Config(cfg); err != nil {
 			h.respond(ctx, http.StatusInternalServerError, toError(err))
 			return
 		}
 
-		heater.Enable(cfg.Enabled)
-		s, err := h.HeaterStatusBy(HardwareID(hwid))
-		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, toError(err))
-			return
-		}
-
+		s, _ := h.Heaters.StatusBy(hwid)
 		h.respond(ctx, http.StatusOK, s)
-
 	}
 }
 
 func (h *Handler) getHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if len(h.heaters) == 0 {
+		heaters := h.Heaters.Status()
+		if len(heaters) == 0 {
 			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
 			return
 		}
-
-		heaters := make([]HeaterConfig, len(h.heaters))
-		var i int
-		for k, v := range h.heaters {
-			heaters[i].HardwareID = string(k)
-			heaters[i].Enabled = v.Enabled()
-			heaters[i].Power = v.Power()
-			i++
-		}
-
 		h.respond(ctx, http.StatusOK, heaters)
-
 	}
 }
 
-func (h *Handler) HeaterEnable(hwid HardwareID, ena bool) error {
-	heat, err := h.heaterBy(hwid)
+func (h *HeaterHandler) Config(cfg HeaterConfig) error {
+	heater, err := h.by(HardwareID(cfg.HardwareID))
+	if err != nil {
+		return err
+	}
+
+	if err := heater.SetPower(cfg.Power); err != nil {
+		return err
+	}
+	heater.Enable(cfg.Enabled)
+	return nil
+}
+
+func (h *HeaterHandler) Enable(hwid HardwareID, ena bool) error {
+	heat, err := h.by(hwid)
 	if err != nil {
 		return err
 	}
@@ -82,32 +80,32 @@ func (h *Handler) HeaterEnable(hwid HardwareID, ena bool) error {
 	return nil
 }
 
-func (h *Handler) HeaterPower(hwid HardwareID, pwr uint) error {
-	heat, err := h.heaterBy(hwid)
+func (h *HeaterHandler) Power(hwid HardwareID, pwr uint) error {
+	heat, err := h.by(hwid)
 	if err != nil {
 		return err
 	}
 	return heat.SetPower(pwr)
 }
 
-func (h *Handler) HeaterStatusBy(hwid HardwareID) (HeaterConfig, error) {
-	heat, err := h.heaterBy(hwid)
+func (h *HeaterHandler) StatusBy(hwid HardwareID) (HeaterConfig, error) {
+	heat, err := h.by(hwid)
 	if err != nil {
 		return HeaterConfig{}, err
 	}
 	return HeaterConfig{
-		HardwareID: string(hwid),
+		HardwareID: hwid,
 		Enabled:    heat.Enabled(),
 		Power:      heat.Power(),
 	}, nil
 }
 
-func (h *Handler) HeatersStatus() []HeaterConfig {
+func (h *HeaterHandler) Status() []HeaterConfig {
 	status := make([]HeaterConfig, len(h.heaters))
 	pos := 0
-	for key, heat := range h.heaters {
+	for hwid, heat := range h.heaters {
 		status[pos] = HeaterConfig{
-			HardwareID: string(key),
+			HardwareID: hwid,
 			Enabled:    heat.Enabled(),
 			Power:      heat.Power(),
 		}
@@ -116,11 +114,14 @@ func (h *Handler) HeatersStatus() []HeaterConfig {
 	return status
 }
 
-func (h *Handler) heaterBy(hwid HardwareID) (Heater, error) {
+func (h *HeaterHandler) by(hwid HardwareID) (Heater, error) {
 	maybeHeater, ok := h.heaters[hwid]
 	if !ok {
 		log.Debug("requested heater doesn't exist: ", hwid)
 		return nil, ErrHeaterDoesntExist
 	}
 	return maybeHeater, nil
+}
+
+func (h *HeaterHandler) init() {
 }
