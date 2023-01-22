@@ -39,7 +39,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 }
 
 //func parseDS18B20(config []ConfigDS18B20) (Option, error) {
-//	ds := make(map[OnewireBusName][]DS18B20Sensor)
+//	ds := make(map[OnewireBusName][]DSSensorHandler)
 //	var errs []error
 //
 //	for _, maybeOnewire := range config {

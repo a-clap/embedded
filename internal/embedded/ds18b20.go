@@ -2,45 +2,35 @@ package embedded
 
 import (
 	"errors"
-	"time"
-)
-
-const (
-	DS18B20Resolution_9BIT  = 9
-	DS18B20Resolution_10BIT = 10
-	DS18B20Resolution_11BIT = 11
-	DS18B20Resolution_12BIT = 12
-)
-
-var (
-	ErrInvalidBus = errors.New("specified bus doesn't exist")
+	"sync/atomic"
 )
 
 type DS18B20Resolution int
 type OnewireBusName string
 
-type TemperatureReadings interface {
-	ID() string
-	Temperature() float32
-	Stamp() time.Time
-	Error() error
-}
+const (
+	DS18B20Resolution_9BIT  DS18B20Resolution = 9
+	DS18B20Resolution_10BIT DS18B20Resolution = 10
+	DS18B20Resolution_11BIT DS18B20Resolution = 11
+	DS18B20Resolution_12BIT DS18B20Resolution = 12
+)
 
-type DS18B20Sensor interface {
-	ID() string
-	Resolution() (DS18B20Resolution, error)
-	SetResolution(resolution DS18B20Resolution) error
-	Poll(data chan TemperatureReadings, pollTimeMillis uint64) error
-	StopPoll() error
-}
+var (
+	ErrNoSuchSensor   = errors.New("specified handler doesnt' exist")
+	ErrAlreadyPolling = errors.New("already polling")
+	ErrNotPolling     = errors.New("not polling")
+)
 
-type DSConfig struct {
-	sensor         DS18B20Sensor
-	ID             string            `json:"id"`
-	Enabled        bool              `json:"enabled"`
+type BusConfig struct {
 	Resolution     DS18B20Resolution `json:"resolution"`
 	PollTimeMillis uint              `json:"poll_time_millis"`
 	Samples        uint              `json:"samples"`
+}
+
+type DSConfig struct {
+	ID      string `json:"id"`
+	Enabled bool   `json:"enabled"`
+	BusConfig
 }
 
 type OnewireSensors struct {
@@ -49,8 +39,8 @@ type OnewireSensors struct {
 }
 
 type DSHandler struct {
-	sensors map[OnewireBusName][]DS18B20Sensor
-	cfg     map[string]DSConfig
+	sensors map[OnewireBusName][]DSSensorHandler
+	cfg     map[string]*dsSensor
 }
 
 func (d *DSHandler) defaultPollTime(r DS18B20Resolution) uint {
@@ -69,45 +59,33 @@ func (d *DSHandler) defaultPollTime(r DS18B20Resolution) uint {
 	}
 }
 
-func (d *DSHandler) init() {
-	if d.sensors == nil {
+func (d *DSHandler) ConfigSensor(cfg DSConfig) (newConfig DSConfig, err error) {
+	ds, err := d.sensorBy(cfg.ID)
+	if err != nil {
 		return
 	}
 
-	d.cfg = make(map[string]DSConfig)
-	for _, sensors := range d.sensors {
-		for _, sensor := range sensors {
-			id := sensor.ID()
-			res, err := sensor.Resolution()
-			if err != nil {
-				log.Debug("resolution read failed on sensor: ", id, ", error: ", err)
-				res = DS18B20Resolution_11BIT
-			}
-			d.cfg[id] = DSConfig{
-				ID:             id,
-				Enabled:        false,
-				Resolution:     res,
-				PollTimeMillis: d.defaultPollTime(res),
-				Samples:        1,
-			}
-		}
+	if err = ds.setConfig(cfg); err != nil {
+		return
 	}
+
+	return ds.config(), nil
 }
 
-//func (h *Handler) SetResolutionForBus(name OnewireBusName, resolution DS18B20Resolution) error {
-//	sensors, ok := h.ds.sensors[name]
-//	if !ok {
-//		return ErrInvalidBus
-//	}
-//	for _, sensor := range sensors {
-//		id := sensor.ID()
-//		ds, ok := h.ds.cfg[id]
-//		if !ok {
-//			log.Debug("unknown sensor ", id)
-//		}
-//	}
-//
-//}
+func (d *DSHandler) SensorStatus(id string) (DSConfig, error) {
+	s, err := d.sensorBy(id)
+	if err != nil {
+		return DSConfig{}, err
+	}
+	return s.config(), nil
+}
+
+func (d *DSHandler) sensorBy(id string) (*dsSensor, error) {
+	if s, ok := d.cfg[id]; ok {
+		return s, nil
+	}
+	return nil, ErrNoSuchSensor
+}
 
 func (d *DSHandler) Status() ([]OnewireSensors, error) {
 	onewireSensors := make([]OnewireSensors, len(d.sensors))
@@ -119,7 +97,7 @@ func (d *DSHandler) Status() ([]OnewireSensors, error) {
 		for _, sensor := range v {
 			id := sensor.ID()
 			if cfg, ok := d.cfg[id]; ok {
-				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg)
+				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg.config())
 			} else {
 				log.Debug("id not found before: ", id)
 			}
@@ -127,4 +105,43 @@ func (d *DSHandler) Status() ([]OnewireSensors, error) {
 		pos++
 	}
 	return onewireSensors, nil
+}
+
+func (d *DSHandler) Open() {
+	if d.sensors == nil {
+		return
+	}
+
+	d.cfg = make(map[string]*dsSensor)
+	for _, sensors := range d.sensors {
+		for _, sensor := range sensors {
+			id := sensor.ID()
+			res, err := sensor.Resolution()
+			if err != nil {
+				log.Debug("resolution read failed on handler: ", id, ", error: ", err)
+				res = DS18B20Resolution_11BIT
+			}
+			d.cfg[id] = &dsSensor{
+				polling: atomic.Bool{},
+				handler: sensor,
+				cfg: DSConfig{
+					ID:      id,
+					Enabled: false,
+					BusConfig: BusConfig{
+						Resolution:     res,
+						PollTimeMillis: d.defaultPollTime(res),
+						Samples:        1,
+					},
+				},
+			}
+		}
+	}
+
+}
+
+func (d *DSHandler) Close() {
+	for _, s := range d.cfg {
+		_ = s.stopPoll()
+	}
+
 }

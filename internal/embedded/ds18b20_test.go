@@ -35,10 +35,10 @@ func (t *DS18B20TestSuite) TearDownTest() {
 	}
 }
 
-func (t *DS18B20TestSuite) sensors() map[embedded.OnewireBusName][]embedded.DS18B20Sensor {
-	sensors := make(map[embedded.OnewireBusName][]embedded.DS18B20Sensor)
+func (t *DS18B20TestSuite) sensors() map[embedded.OnewireBusName][]embedded.DSSensorHandler {
+	sensors := make(map[embedded.OnewireBusName][]embedded.DSSensorHandler)
 	for k, v := range t.mock {
-		part := make([]embedded.DS18B20Sensor, len(v))
+		part := make([]embedded.DSSensorHandler, len(v))
 		for i, s := range v {
 			part[i] = s
 		}
@@ -47,24 +47,89 @@ func (t *DS18B20TestSuite) sensors() map[embedded.OnewireBusName][]embedded.DS18
 	return sensors
 }
 
+func (t *DS18B20TestSuite) TestDSConfig() {
+	retSensors := []embedded.OnewireSensors{
+		{
+			Bus: "first",
+			DSConfig: []embedded.DSConfig{
+				{
+					ID:      "first_1",
+					Enabled: false,
+					BusConfig: embedded.BusConfig{
+						Resolution:     embedded.DS18B20Resolution_11BIT,
+						PollTimeMillis: 375,
+						Samples:        1,
+					},
+				},
+				{
+					ID:      "first_2",
+					Enabled: false,
+					BusConfig: embedded.BusConfig{
+						Resolution:     embedded.DS18B20Resolution_9BIT,
+						PollTimeMillis: 94,
+						Samples:        1,
+					},
+				},
+			},
+		},
+	}
+	for _, bus := range retSensors {
+		mocks := make([]*DS18B20SensorMock, len(bus.DSConfig))
+		for i, cfg := range bus.DSConfig {
+			mocks[i] = new(DS18B20SensorMock)
+			mocks[i].On("ID").Return(cfg.ID).Once()
+			mocks[i].On("Resolution").Return(cfg.Resolution, nil).Once()
+
+		}
+		t.mock[string(bus.Bus)] = mocks
+	}
+
+	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
+	ds := mainHandler.DS
+
+	toCfg := embedded.DSConfig{
+		ID:      "first_1",
+		Enabled: true,
+		BusConfig: embedded.BusConfig{
+			Resolution:     embedded.DS18B20Resolution_10BIT,
+			PollTimeMillis: 100,
+			Samples:        10,
+		},
+	}
+
+	t.mock["first"][0].On("SetResolution", embedded.DS18B20Resolution_10BIT).Return(nil).Once()
+	t.mock["first"][0].On("SetPollTime", uint(100)).Return(nil).Once()
+	t.mock["first"][0].On("Poll", mock.Anything, mock.Anything).Return(nil).Once()
+	t.mock["first"][0].On("StopPoll").Return(nil).Once()
+
+	_, err := ds.ConfigSensor(toCfg)
+	t.Nil(err)
+	ds.Close()
+
+}
+
 func (t *DS18B20TestSuite) TestDSStatus() {
 	expected := []embedded.OnewireSensors{
 		{
 			Bus: "first",
 			DSConfig: []embedded.DSConfig{
 				{
-					ID:             "first_1",
-					Enabled:        false,
-					Resolution:     embedded.DS18B20Resolution_11BIT,
-					PollTimeMillis: 375,
-					Samples:        1,
+					ID:      "first_1",
+					Enabled: false,
+					BusConfig: embedded.BusConfig{
+						Resolution:     embedded.DS18B20Resolution_11BIT,
+						PollTimeMillis: 375,
+						Samples:        1,
+					},
 				},
 				{
-					ID:             "first_2",
-					Enabled:        false,
-					Resolution:     embedded.DS18B20Resolution_9BIT,
-					PollTimeMillis: 94,
-					Samples:        1,
+					ID:      "first_2",
+					Enabled: false,
+					BusConfig: embedded.BusConfig{
+						Resolution:     embedded.DS18B20Resolution_9BIT,
+						PollTimeMillis: 94,
+						Samples:        1,
+					},
 				},
 			},
 		},
@@ -72,18 +137,22 @@ func (t *DS18B20TestSuite) TestDSStatus() {
 			Bus: "second",
 			DSConfig: []embedded.DSConfig{
 				{
-					ID:             "second_1",
-					Enabled:        false,
-					Resolution:     embedded.DS18B20Resolution_12BIT,
-					PollTimeMillis: 750,
-					Samples:        1,
+					ID:      "second_1",
+					Enabled: false,
+					BusConfig: embedded.BusConfig{
+						Resolution:     embedded.DS18B20Resolution_12BIT,
+						PollTimeMillis: 750,
+						Samples:        1,
+					},
 				},
 				{
-					ID:             "second_2",
-					Enabled:        false,
-					Resolution:     embedded.DS18B20Resolution_10BIT,
-					PollTimeMillis: 188,
-					Samples:        1,
+					ID:      "second_2",
+					Enabled: false,
+					BusConfig: embedded.BusConfig{
+						Resolution:     embedded.DS18B20Resolution_10BIT,
+						PollTimeMillis: 188,
+						Samples:        1,
+					},
 				},
 			},
 		},
@@ -119,9 +188,16 @@ func (m *DS18B20SensorMock) Resolution() (embedded.DS18B20Resolution, error) {
 func (m *DS18B20SensorMock) SetResolution(resolution embedded.DS18B20Resolution) error {
 	return m.Called(resolution).Error(0)
 }
+func (m *DS18B20SensorMock) PollTime() uint {
+	return m.Called().Get(0).(uint)
+}
 
-func (m *DS18B20SensorMock) Poll(data chan embedded.TemperatureReadings, pollTimeMillis uint64) error {
-	return m.Called(data, pollTimeMillis).Error(0)
+func (m *DS18B20SensorMock) SetPollTime(duration uint) error {
+	return m.Called(duration).Error(0)
+}
+
+func (m *DS18B20SensorMock) Poll(data chan embedded.TemperatureReadings, t uint) error {
+	return m.Called(data, t).Error(0)
 }
 
 func (m *DS18B20SensorMock) StopPoll() error {

@@ -35,8 +35,6 @@ type Readings struct {
 	Error       error     `json:"error"`
 }
 
-var _ Discover = (*Bus)(nil)
-
 func NewBus(options ...BusOption) (*Bus, error) {
 	b := &Bus{}
 	for _, opt := range options {

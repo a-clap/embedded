@@ -23,10 +23,15 @@ func New(options ...Option) (*Handler, error) {
 		}
 	}
 	h.Heaters.init()
-	h.DS.init()
+	h.DS.Open()
 
 	h.routes()
 	return h, nil
+}
+
+func (h *Handler) Close() {
+
+	h.DS.Close()
 }
 
 func NewFromConfig(c Config) (*Handler, error) {
