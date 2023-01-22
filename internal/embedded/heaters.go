@@ -1,6 +1,7 @@
 package embedded
 
 import (
+	. "github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -117,7 +118,7 @@ func (h *HeaterHandler) Status() []HeaterConfig {
 func (h *HeaterHandler) by(hwid HardwareID) (Heater, error) {
 	maybeHeater, ok := h.heaters[hwid]
 	if !ok {
-		log.Debug("requested heater doesn't exist: ", hwid)
+		Log.Debug("requested heater doesn't exist: ", hwid)
 		return nil, ErrHeaterDoesntExist
 	}
 	return maybeHeater, nil

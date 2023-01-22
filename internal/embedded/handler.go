@@ -1,6 +1,7 @@
 package embedded
 
 import (
+	. "github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -39,7 +40,7 @@ func NewFromConfig(c Config) (*Handler, error) {
 
 	heaterOpts, err := parseHeaters(c.Heaters)
 	if err != nil {
-		log.Error("parsing ConfigHeaters resulted with errors: ", err)
+		Log.Error("parsing ConfigHeaters resulted with errors: ", err)
 	}
 	if heaterOpts != nil {
 		opts = append(opts, heaterOpts)

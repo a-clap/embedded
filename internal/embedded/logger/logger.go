@@ -1,4 +1,4 @@
-package embedded
+package logger
 
 import (
 	"go.uber.org/zap"
@@ -38,4 +38,4 @@ func NewNopLogger() *zap.SugaredLogger {
 	return zap.NewNop().Sugar()
 }
 
-var log Logger = NewDefaultLogger(zapcore.DebugLevel)
+var Log Logger = NewDefaultLogger(zapcore.DebugLevel)

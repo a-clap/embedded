@@ -2,68 +2,54 @@ package embedded
 
 import (
 	"errors"
+	"github.com/a-clap/iot/internal/embedded/dsSensor"
+	. "github.com/a-clap/iot/internal/embedded/logger"
 )
 
-type DS18B20Resolution int
 type OnewireBusName string
 
-const (
-	DS18B20Resolution_9BIT  DS18B20Resolution = 9
-	DS18B20Resolution_10BIT DS18B20Resolution = 10
-	DS18B20Resolution_11BIT DS18B20Resolution = 11
-	DS18B20Resolution_12BIT DS18B20Resolution = 12
-)
-
 var (
-	ErrNoSuchSensor   = errors.New("specified handler doesnt' exist")
-	ErrAlreadyPolling = errors.New("already polling")
-	ErrNotPolling     = errors.New("not polling")
+	ErrNoSuchSensor = errors.New("specified handler doesnt' exist")
 )
 
 type BusConfig struct {
-	Resolution     DS18B20Resolution `json:"resolution"`
-	PollTimeMillis uint              `json:"poll_time_millis"`
-	Samples        uint              `json:"samples"`
-}
-
-type DSConfig struct {
-	ID      string `json:"id"`
-	Enabled bool   `json:"enabled"`
-	BusConfig
+	Resolution     dsSensor.Resolution `json:"resolution"`
+	PollTimeMillis uint                `json:"poll_time_millis"`
+	Samples        uint                `json:"samples"`
 }
 
 type OnewireSensors struct {
-	Bus      OnewireBusName `json:"bus"`
-	DSConfig []DSConfig     `json:"ds18b20"`
+	Bus      OnewireBusName    `json:"bus"`
+	DSConfig []dsSensor.Config `json:"ds18b20"`
 }
 
 type DSHandler struct {
-	sensors map[OnewireBusName][]DSSensorHandler
-	cfg     map[string]*dsSensor
+	sensors map[OnewireBusName][]dsSensor.Handler
+	cfg     map[string]*dsSensor.Sensor
 }
 
-func (d *DSHandler) ConfigSensor(cfg DSConfig) (newConfig DSConfig, err error) {
+func (d *DSHandler) ConfigSensor(cfg dsSensor.Config) (newConfig dsSensor.Config, err error) {
 	ds, err := d.sensorBy(cfg.ID)
 	if err != nil {
 		return
 	}
 
-	if err = ds.setConfig(cfg); err != nil {
+	if err = ds.SetConfig(cfg); err != nil {
 		return
 	}
 
-	return ds.config(), nil
+	return ds.Config(), nil
 }
 
-func (d *DSHandler) SensorStatus(id string) (DSConfig, error) {
+func (d *DSHandler) SensorStatus(id string) (dsSensor.Config, error) {
 	s, err := d.sensorBy(id)
 	if err != nil {
-		return DSConfig{}, err
+		return dsSensor.Config{}, err
 	}
-	return s.config(), nil
+	return s.Config(), nil
 }
 
-func (d *DSHandler) sensorBy(id string) (*dsSensor, error) {
+func (d *DSHandler) sensorBy(id string) (*dsSensor.Sensor, error) {
 	if s, ok := d.cfg[id]; ok {
 		return s, nil
 	}
@@ -76,13 +62,13 @@ func (d *DSHandler) Status() ([]OnewireSensors, error) {
 	pos := 0
 	for k, v := range d.sensors {
 		onewireSensors[pos].Bus = k
-		onewireSensors[pos].DSConfig = make([]DSConfig, 0, len(v))
+		onewireSensors[pos].DSConfig = make([]dsSensor.Config, 0, len(v))
 		for _, sensor := range v {
 			id := sensor.ID()
 			if cfg, ok := d.cfg[id]; ok {
-				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg.config())
+				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg.Config())
 			} else {
-				log.Debug("id not found before: ", id)
+				Log.Debug("id not found before: ", id)
 			}
 		}
 		pos++
@@ -95,10 +81,10 @@ func (d *DSHandler) Open() {
 		return
 	}
 
-	d.cfg = make(map[string]*dsSensor)
+	d.cfg = make(map[string]*dsSensor.Sensor)
 	for _, sensors := range d.sensors {
 		for _, sensor := range sensors {
-			d.cfg[sensor.ID()] = newDsSensor(sensor)
+			d.cfg[sensor.ID()] = dsSensor.New(sensor)
 		}
 	}
 
@@ -106,7 +92,7 @@ func (d *DSHandler) Open() {
 
 func (d *DSHandler) Close() {
 	for _, s := range d.cfg {
-		_ = s.stopPoll()
+		_ = s.StopPoll()
 	}
 
 }
