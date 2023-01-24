@@ -1,56 +1,45 @@
 package models
 
-import "time"
-
-type Resolution int
+type DSResolution int
+type OnewireBusName string
 
 const (
-	Resolution9BIT  Resolution = 9
-	Resolution10BIT Resolution = 10
-	Resolution11BIT Resolution = 11
-	Resolution12BIT Resolution = 12
-	DefaultSamples  uint       = 5
+	Resolution9BIT  DSResolution = 9
+	Resolution10BIT DSResolution = 10
+	Resolution11BIT DSResolution = 11
+	Resolution12BIT DSResolution = 12
+	DefaultSamples  uint         = 5
 )
 
-type PollData interface {
-	ID() string
-	Temperature() float32
-	Stamp() time.Time
-	Error() error
+type OnewireSensors struct {
+	Bus      OnewireBusName `json:"bus"`
+	DSConfig []DSConfig     `json:"ds18b20"`
+}
+type DSSensor interface {
+	Temperature() Temperature
+	Poll() error
+	StopPoll() error
+	Config() DSConfig
+	SetConfig(cfg DSConfig) (err error)
 }
 
-type Handler interface {
+type DSConfig struct {
+	ID             string       `json:"id"`
+	Enabled        bool         `json:"enabled"`
+	Resolution     DSResolution `json:"resolution"`
+	PollTimeMillis uint         `json:"poll_time_millis"`
+	Samples        uint         `json:"samples"`
+}
+
+type DSHandler interface {
 	ID() string
 
-	Resolution() (Resolution, error)
-	SetResolution(resolution Resolution) error
+	Resolution() (DSResolution, error)
+	SetResolution(resolution DSResolution) error
 
 	PollTime() uint
 	SetPollTime(duration uint) error
 
 	Poll(data chan PollData, timeMillis uint) error
 	StopPoll() error
-}
-
-type DSConfig struct {
-	ID             string     `json:"id"`
-	Enabled        bool       `json:"enabled"`
-	Resolution     Resolution `json:"resolution"`
-	PollTimeMillis uint       `json:"poll_time_millis"`
-	Samples        uint       `json:"samples"`
-}
-
-type DSStatus struct {
-	ID          string    `json:"id"`
-	Enabled     bool      `json:"enabled"`
-	Temperature float32   `json:"temperature"`
-	Stamp       time.Time `json:"stamp"`
-}
-
-type DSSensor interface {
-	Status() DSStatus
-	Poll() error
-	StopPoll() error
-	Config() DSConfig
-	SetConfig(cfg DSConfig) (err error)
 }

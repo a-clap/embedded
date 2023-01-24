@@ -18,14 +18,14 @@ var _ models.DSSensor = (*Sensor)(nil)
 
 type Sensor struct {
 	polling      atomic.Bool
-	handler      models.Handler
+	handler      models.DSHandler
 	cfg          models.DSConfig
 	tempReadings chan models.PollData
-	lastRead     models.DSStatus
+	lastRead     models.Temperature
 	temps        *avg.Avg[float32]
 }
 
-func New(handler models.Handler) *Sensor {
+func New(handler models.DSHandler) *Sensor {
 	id := handler.ID()
 	res, err := handler.Resolution()
 	if err != nil {
@@ -33,7 +33,7 @@ func New(handler models.Handler) *Sensor {
 		res = models.Resolution11BIT
 	}
 
-	pollTime := func(r models.Resolution) uint {
+	pollTime := func(r models.DSResolution) uint {
 		switch r {
 		case models.Resolution9BIT:
 			return 94
@@ -64,7 +64,7 @@ func New(handler models.Handler) *Sensor {
 			PollTimeMillis: pollTime(res),
 			Samples:        models.DefaultSamples,
 		},
-		lastRead: models.DSStatus{
+		lastRead: models.Temperature{
 			ID:          id,
 			Enabled:     false,
 			Temperature: 0,
@@ -75,7 +75,7 @@ func New(handler models.Handler) *Sensor {
 	}
 }
 
-func (d *Sensor) Status() models.DSStatus {
+func (d *Sensor) Temperature() models.Temperature {
 	d.lastRead.Temperature = d.temps.Average()
 	d.lastRead.Enabled = d.polling.Load()
 	return d.lastRead
@@ -147,7 +147,7 @@ func (d *Sensor) SetConfig(cfg models.DSConfig) (err error) {
 
 func (d *Sensor) handleReadings() {
 	for data := range d.tempReadings {
-		d.lastRead = models.DSStatus{
+		d.lastRead = models.Temperature{
 			ID:      data.ID(),
 			Enabled: d.polling.Load(),
 			Stamp:   data.Stamp(),

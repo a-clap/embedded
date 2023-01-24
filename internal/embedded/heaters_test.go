@@ -32,7 +32,10 @@ func TestHeaterTestSuite(t *testing.T) {
 }
 
 func toJSON(obj any) string {
-	b, _ := json.Marshal(obj)
+	b, err := json.Marshal(obj)
+	if err != nil {
+		panic(err)
+	}
 	return string(b)
 }
 func fromJSON(b []byte, obj any) {
@@ -55,7 +58,7 @@ func (t *HeaterTestSuite) SetupTest() {
 	t.mock = make(map[embedded.HardwareID]*HeaterMock)
 	t.resp = httptest.NewRecorder()
 }
-func (t *HeaterTestSuite) TestHeater_PostHeaterAllGood_ReturnValuesFromInterface() {
+func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface() {
 	setHeater := embedded.HeaterConfig{
 		HardwareID: "firstHeater",
 		Enabled:    false,
@@ -89,7 +92,7 @@ func (t *HeaterTestSuite) TestHeater_PostHeaterAllGood_ReturnValuesFromInterface
 	t.JSONEq(toJSON(returnHeater), string(b))
 }
 
-func (t *HeaterTestSuite) TestHeater_PostHeaterAllGoodTwice() {
+func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 	expectedHeater := embedded.HeaterConfig{
 		HardwareID: "firstHeater",
 		Enabled:    false,
@@ -148,7 +151,7 @@ func (t *HeaterTestSuite) TestHeater_PostHeaterAllGoodTwice() {
 
 }
 
-func (t *HeaterTestSuite) TestHeater_PostHeaterInterfaceError() {
+func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 	args := []embedded.HeaterConfig{
 		{
 			HardwareID: "firstHeater",
@@ -179,7 +182,7 @@ func (t *HeaterTestSuite) TestHeater_PostHeaterInterfaceError() {
 
 }
 
-func (t *HeaterTestSuite) TestHeater_PostHeaterDoesntExist() {
+func (t *HeaterTestSuite) TestHeater_PutHeaterDoesntExist() {
 	t.req, _ = http.NewRequest(http.MethodPut, "/api/config/heater/blah", nil)
 	t.req.Header.Add("Content-Type", "application/json")
 

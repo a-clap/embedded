@@ -50,7 +50,7 @@ func (t *DsSensorTestSuite) TestPoll() {
 	t.Nil(err)
 
 	// Add this point there should be any data
-	stat := ds.Status()
+	stat := ds.Temperature()
 	t.Equal(id, stat.ID)
 	t.Equal(true, stat.Enabled)
 
@@ -67,7 +67,7 @@ func (t *DsSensorTestSuite) TestPoll() {
 		polledChannel <- t.pollData
 		// Just to force scheduler work
 		<-time.After(1 * time.Millisecond)
-		stat = ds.Status()
+		stat = ds.Temperature()
 		t.Equal(id, stat.ID)
 		t.Equal(true, stat.Enabled)
 		t.Equal(now, stat.Stamp)
@@ -159,7 +159,7 @@ func (t *DsSensorTestSuite) TestNew_VerifyConfig() {
 	args := []struct {
 		name string
 		id   string
-		res  models.Resolution
+		res  models.DSResolution
 	}{
 		{
 			name: "10 bit reso",
@@ -202,12 +202,12 @@ func (s *SensorHandlerMock) ID() string {
 	return s.Called().String(0)
 }
 
-func (s *SensorHandlerMock) Resolution() (models.Resolution, error) {
+func (s *SensorHandlerMock) Resolution() (models.DSResolution, error) {
 	args := s.Called()
-	return args.Get(0).(models.Resolution), args.Error(1)
+	return args.Get(0).(models.DSResolution), args.Error(1)
 }
 
-func (s *SensorHandlerMock) SetResolution(resolution models.Resolution) error {
+func (s *SensorHandlerMock) SetResolution(resolution models.DSResolution) error {
 	return s.Called(resolution).Error(0)
 }
 

@@ -16,7 +16,7 @@ func WithHeaters(heaters map[HardwareID]Heater) Option {
 	}
 }
 
-func WithDS18B20(ds map[OnewireBusName][]models.DSSensor) Option {
+func WithDS18B20(ds map[models.OnewireBusName][]models.DSSensor) Option {
 	return func(h *Handler) error {
 		h.DS.handlers = ds
 		return nil
