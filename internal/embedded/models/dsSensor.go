@@ -12,6 +12,26 @@ const (
 	DefaultSamples  uint       = 5
 )
 
+type PollData interface {
+	ID() string
+	Temperature() float32
+	Stamp() time.Time
+	Error() error
+}
+
+type Handler interface {
+	ID() string
+
+	Resolution() (Resolution, error)
+	SetResolution(resolution Resolution) error
+
+	PollTime() uint
+	SetPollTime(duration uint) error
+
+	Poll(data chan PollData, timeMillis uint) error
+	StopPoll() error
+}
+
 type DSConfig struct {
 	ID             string     `json:"id"`
 	Enabled        bool       `json:"enabled"`
@@ -25,4 +45,12 @@ type DSStatus struct {
 	Enabled     bool      `json:"enabled"`
 	Temperature float32   `json:"temperature"`
 	Stamp       time.Time `json:"stamp"`
+}
+
+type DSSensor interface {
+	Status() DSStatus
+	Poll() error
+	StopPoll() error
+	Config() DSConfig
+	SetConfig(cfg DSConfig) (err error)
 }

@@ -1,7 +1,7 @@
 package embedded
 
 import (
-	"github.com/a-clap/iot/internal/embedded/dsSensor"
+	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/a-clap/iot/pkg/gpio"
 	"github.com/a-clap/iot/pkg/heater"
 )
@@ -16,10 +16,10 @@ type ConfigHeater struct {
 }
 
 type ConfigDS18B20 struct {
-	BusName        OnewireBusName      `json:"bus_name"`
-	PollTimeMillis uint                `json:"poll_time_millis"`
-	Resolution     dsSensor.Resolution `json:"resolution"`
-	Samples        uint                `json:"samples"`
+	BusName        OnewireBusName    `json:"bus_name"`
+	PollTimeMillis uint              `json:"poll_time_millis"`
+	Resolution     models.Resolution `json:"resolution"`
+	Samples        uint              `json:"samples"`
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {

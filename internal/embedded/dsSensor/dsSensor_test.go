@@ -2,6 +2,7 @@ package dsSensor_test
 
 import (
 	"github.com/a-clap/iot/internal/embedded/dsSensor"
+	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/a-clap/iot/pkg/avg"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -37,7 +38,7 @@ func (t *DsSensorTestSuite) TestPoll() {
 	id := "123"
 
 	t.mock.On("ID").Return(id)
-	t.mock.On("Resolution").Return(dsSensor.Resolution10BIT, nil)
+	t.mock.On("Resolution").Return(models.Resolution10BIT, nil)
 
 	t.mock.On("Poll", mock.Anything, mock.Anything).Return(nil)
 	t.mock.On("StopPoll").Return(nil)
@@ -53,10 +54,10 @@ func (t *DsSensorTestSuite) TestPoll() {
 	t.Equal(id, stat.ID)
 	t.Equal(true, stat.Enabled)
 
-	polledChannel := t.mock.TestData()["readings"].(chan dsSensor.PollData)
+	polledChannel := t.mock.TestData()["readings"].(chan models.PollData)
 
 	temperatures := []float32{100.0, 200.0, 300.0, 400.0, 500.0}
-	t.EqualValues(len(temperatures), dsSensor.DefaultSamples)
+	t.EqualValues(len(temperatures), models.DefaultSamples)
 
 	for i, elem := range temperatures {
 		now := time.Now()
@@ -88,44 +89,44 @@ func (t *DsSensorTestSuite) TestPoll() {
 
 func (t *DsSensorTestSuite) TestSetGetConfig() {
 	args := []struct {
-		newConfig dsSensor.Config
+		newConfig models.DSConfig
 		err       error
 	}{
 		{
-			newConfig: dsSensor.Config{
+			newConfig: models.DSConfig{
 				ID:             "1",
 				Enabled:        false,
-				Resolution:     dsSensor.Resolution9BIT,
+				Resolution:     models.Resolution9BIT,
 				PollTimeMillis: 120,
 				Samples:        13,
 			},
 			err: nil,
 		},
 		{
-			newConfig: dsSensor.Config{
+			newConfig: models.DSConfig{
 				ID:             "2",
 				Enabled:        false,
-				Resolution:     dsSensor.Resolution11BIT,
+				Resolution:     models.Resolution11BIT,
 				PollTimeMillis: 0,
 				Samples:        1,
 			},
 			err: nil,
 		},
 		{
-			newConfig: dsSensor.Config{
+			newConfig: models.DSConfig{
 				ID:             "sasaaax",
 				Enabled:        false,
-				Resolution:     dsSensor.Resolution12BIT,
+				Resolution:     models.Resolution12BIT,
 				PollTimeMillis: 163,
 				Samples:        25,
 			},
 			err: nil,
 		},
 		{
-			newConfig: dsSensor.Config{
+			newConfig: models.DSConfig{
 				ID:             "heeeey",
 				Enabled:        false,
-				Resolution:     dsSensor.Resolution12BIT,
+				Resolution:     models.Resolution12BIT,
 				PollTimeMillis: 163,
 				Samples:        0,
 			},
@@ -158,27 +159,27 @@ func (t *DsSensorTestSuite) TestNew_VerifyConfig() {
 	args := []struct {
 		name string
 		id   string
-		res  dsSensor.Resolution
+		res  models.Resolution
 	}{
 		{
 			name: "10 bit reso",
 			id:   "123",
-			res:  dsSensor.Resolution10BIT,
+			res:  models.Resolution10BIT,
 		},
 		{
 			name: "12 bit reso",
 			id:   "hello world 2",
-			res:  dsSensor.Resolution12BIT,
+			res:  models.Resolution12BIT,
 		},
 		{
 			name: "11 bit reso",
 			id:   "hello world 3",
-			res:  dsSensor.Resolution11BIT,
+			res:  models.Resolution11BIT,
 		},
 		{
 			name: "9 bit reso",
 			id:   "hello world 4",
-			res:  dsSensor.Resolution9BIT,
+			res:  models.Resolution9BIT,
 		},
 	}
 	for _, arg := range args {
@@ -201,12 +202,12 @@ func (s *SensorHandlerMock) ID() string {
 	return s.Called().String(0)
 }
 
-func (s *SensorHandlerMock) Resolution() (dsSensor.Resolution, error) {
+func (s *SensorHandlerMock) Resolution() (models.Resolution, error) {
 	args := s.Called()
-	return args.Get(0).(dsSensor.Resolution), args.Error(1)
+	return args.Get(0).(models.Resolution), args.Error(1)
 }
 
-func (s *SensorHandlerMock) SetResolution(resolution dsSensor.Resolution) error {
+func (s *SensorHandlerMock) SetResolution(resolution models.Resolution) error {
 	return s.Called(resolution).Error(0)
 }
 
@@ -218,7 +219,7 @@ func (s *SensorHandlerMock) SetPollTime(duration uint) error {
 	return s.Called(duration).Error(0)
 }
 
-func (s *SensorHandlerMock) Poll(data chan dsSensor.PollData, timeMillis uint) error {
+func (s *SensorHandlerMock) Poll(data chan models.PollData, timeMillis uint) error {
 	s.TestData()["readings"] = data
 	return s.Called(data, timeMillis).Error(0)
 }

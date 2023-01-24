@@ -1,8 +1,8 @@
 package embedded
 
 import (
-	"github.com/a-clap/iot/internal/embedded/dsSensor"
 	. "github.com/a-clap/iot/internal/embedded/logger"
+	"github.com/a-clap/iot/internal/embedded/models"
 )
 
 type Option func(*Handler) error
@@ -16,9 +16,9 @@ func WithHeaters(heaters map[HardwareID]Heater) Option {
 	}
 }
 
-func WithDS18B20(ds map[OnewireBusName][]dsSensor.Handler) Option {
+func WithDS18B20(ds map[OnewireBusName][]models.DSSensor) Option {
 	return func(h *Handler) error {
-		h.DS.sensors = ds
+		h.DS.handlers = ds
 		return nil
 	}
 }

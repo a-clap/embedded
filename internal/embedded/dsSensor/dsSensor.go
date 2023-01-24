@@ -3,6 +3,7 @@ package dsSensor
 import (
 	"errors"
 	. "github.com/a-clap/iot/internal/embedded/logger"
+	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/a-clap/iot/pkg/avg"
 	"sync/atomic"
 	"time"
@@ -13,85 +14,42 @@ var (
 	ErrNotPolling     = errors.New("not polling")
 )
 
-type PollData interface {
-	ID() string
-	Temperature() float32
-	Stamp() time.Time
-	Error() error
-}
-
-type Handler interface {
-	ID() string
-
-	Resolution() (Resolution, error)
-	SetResolution(resolution Resolution) error
-
-	PollTime() uint
-	SetPollTime(duration uint) error
-
-	Poll(data chan PollData, timeMillis uint) error
-	StopPoll() error
-}
-
-type Status struct {
-	ID          string    `json:"id"`
-	Enabled     bool      `json:"enabled"`
-	Temperature float32   `json:"temperature"`
-	Stamp       time.Time `json:"stamp"`
-}
-
-type Config struct {
-	ID             string     `json:"id"`
-	Enabled        bool       `json:"enabled"`
-	Resolution     Resolution `json:"resolution"`
-	PollTimeMillis uint       `json:"poll_time_millis"`
-	Samples        uint       `json:"samples"`
-}
+var _ models.DSSensor = (*Sensor)(nil)
 
 type Sensor struct {
 	polling      atomic.Bool
-	handler      Handler
-	cfg          Config
-	tempReadings chan PollData
-	lastRead     Status
+	handler      models.Handler
+	cfg          models.DSConfig
+	tempReadings chan models.PollData
+	lastRead     models.DSStatus
 	temps        *avg.Avg[float32]
 }
 
-type Resolution int
-
-const (
-	Resolution9BIT  Resolution = 9
-	Resolution10BIT Resolution = 10
-	Resolution11BIT Resolution = 11
-	Resolution12BIT Resolution = 12
-	DefaultSamples  uint       = 5
-)
-
-func New(handler Handler) *Sensor {
+func New(handler models.Handler) *Sensor {
 	id := handler.ID()
 	res, err := handler.Resolution()
 	if err != nil {
 		Log.Debug("resolution read failed on handler: ", id, ", error: ", err)
-		res = Resolution11BIT
+		res = models.Resolution11BIT
 	}
 
-	pollTime := func(r Resolution) uint {
+	pollTime := func(r models.Resolution) uint {
 		switch r {
-		case Resolution9BIT:
+		case models.Resolution9BIT:
 			return 94
-		case Resolution10BIT:
+		case models.Resolution10BIT:
 			return 188
-		case Resolution11BIT:
+		case models.Resolution11BIT:
 			return 375
 		default:
 			Log.Debug("unspecified resolution: ", r)
 			fallthrough
-		case Resolution12BIT:
+		case models.Resolution12BIT:
 			return 750
 		}
 	}
 
-	temps, err := avg.New[float32](DefaultSamples)
+	temps, err := avg.New[float32](models.DefaultSamples)
 	if err != nil {
 		panic(err)
 	}
@@ -99,14 +57,14 @@ func New(handler Handler) *Sensor {
 	return &Sensor{
 		polling: atomic.Bool{},
 		handler: handler,
-		cfg: Config{
+		cfg: models.DSConfig{
 			ID:             id,
 			Enabled:        false,
 			Resolution:     res,
 			PollTimeMillis: pollTime(res),
-			Samples:        DefaultSamples,
+			Samples:        models.DefaultSamples,
 		},
-		lastRead: Status{
+		lastRead: models.DSStatus{
 			ID:          id,
 			Enabled:     false,
 			Temperature: 0,
@@ -117,7 +75,7 @@ func New(handler Handler) *Sensor {
 	}
 }
 
-func (d *Sensor) Status() Status {
+func (d *Sensor) Status() models.DSStatus {
 	d.lastRead.Temperature = d.temps.Average()
 	d.lastRead.Enabled = d.polling.Load()
 	return d.lastRead
@@ -128,7 +86,7 @@ func (d *Sensor) Poll() error {
 		return ErrAlreadyPolling
 	}
 
-	d.tempReadings = make(chan PollData, 5)
+	d.tempReadings = make(chan models.PollData, 5)
 	if err := d.handler.Poll(d.tempReadings, d.cfg.PollTimeMillis); err != nil {
 		return err
 	}
@@ -149,11 +107,11 @@ func (d *Sensor) StopPoll() error {
 	return d.handler.StopPoll()
 }
 
-func (d *Sensor) Config() Config {
+func (d *Sensor) Config() models.DSConfig {
 	return d.cfg
 }
 
-func (d *Sensor) SetConfig(cfg Config) (err error) {
+func (d *Sensor) SetConfig(cfg models.DSConfig) (err error) {
 	if d.cfg.Resolution != cfg.Resolution {
 		if err = d.handler.SetResolution(cfg.Resolution); err != nil {
 			return
@@ -189,7 +147,7 @@ func (d *Sensor) SetConfig(cfg Config) (err error) {
 
 func (d *Sensor) handleReadings() {
 	for data := range d.tempReadings {
-		d.lastRead = Status{
+		d.lastRead = models.DSStatus{
 			ID:      data.ID(),
 			Enabled: d.polling.Load(),
 			Stamp:   data.Stamp(),

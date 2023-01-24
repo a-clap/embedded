@@ -2,33 +2,27 @@ package embedded
 
 import (
 	"errors"
-	"github.com/a-clap/iot/internal/embedded/dsSensor"
 	. "github.com/a-clap/iot/internal/embedded/logger"
+	"github.com/a-clap/iot/internal/embedded/models"
 )
 
 type OnewireBusName string
 
 var (
-	ErrNoSuchSensor = errors.New("specified handler doesnt' exist")
+	ErrNoSuchSensor = errors.New("specified sensor doesnt' exist")
 )
-
-type BusConfig struct {
-	Resolution     dsSensor.Resolution `json:"resolution"`
-	PollTimeMillis uint                `json:"poll_time_millis"`
-	Samples        uint                `json:"samples"`
-}
 
 type OnewireSensors struct {
 	Bus      OnewireBusName    `json:"bus"`
-	DSConfig []dsSensor.Config `json:"ds18b20"`
+	DSConfig []models.DSConfig `json:"ds18b20"`
 }
 
 type DSHandler struct {
-	sensors map[OnewireBusName][]dsSensor.Handler
-	cfg     map[string]*dsSensor.Sensor
+	handlers map[OnewireBusName][]models.DSSensor
+	sensors  map[string]models.DSSensor
 }
 
-func (d *DSHandler) ConfigSensor(cfg dsSensor.Config) (newConfig dsSensor.Config, err error) {
+func (d *DSHandler) ConfigSensor(cfg models.DSConfig) (newConfig models.DSConfig, err error) {
 	ds, err := d.sensorBy(cfg.ID)
 	if err != nil {
 		return
@@ -41,34 +35,34 @@ func (d *DSHandler) ConfigSensor(cfg dsSensor.Config) (newConfig dsSensor.Config
 	return ds.Config(), nil
 }
 
-func (d *DSHandler) SensorStatus(id string) (dsSensor.Config, error) {
+func (d *DSHandler) SensorStatus(id string) (models.DSConfig, error) {
 	s, err := d.sensorBy(id)
 	if err != nil {
-		return dsSensor.Config{}, err
+		return models.DSConfig{}, err
 	}
 	return s.Config(), nil
 }
 
-func (d *DSHandler) sensorBy(id string) (*dsSensor.Sensor, error) {
-	if s, ok := d.cfg[id]; ok {
+func (d *DSHandler) sensorBy(id string) (models.DSSensor, error) {
+	if s, ok := d.sensors[id]; ok {
 		return s, nil
 	}
 	return nil, ErrNoSuchSensor
 }
 
 func (d *DSHandler) Status() ([]OnewireSensors, error) {
-	onewireSensors := make([]OnewireSensors, len(d.sensors))
+	onewireSensors := make([]OnewireSensors, len(d.handlers))
 
 	pos := 0
-	for k, v := range d.sensors {
+	for k, v := range d.handlers {
 		onewireSensors[pos].Bus = k
-		onewireSensors[pos].DSConfig = make([]dsSensor.Config, 0, len(v))
+		onewireSensors[pos].DSConfig = make([]models.DSConfig, 0, len(v))
 		for _, sensor := range v {
-			id := sensor.ID()
-			if cfg, ok := d.cfg[id]; ok {
-				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg.Config())
+			cfg := sensor.Config()
+			if _, ok := d.sensors[cfg.ID]; ok {
+				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg)
 			} else {
-				Log.Debug("id not found before: ", id)
+				Log.Debug("id not found before: ", cfg.ID)
 			}
 		}
 		pos++
@@ -77,22 +71,21 @@ func (d *DSHandler) Status() ([]OnewireSensors, error) {
 }
 
 func (d *DSHandler) Open() {
-	if d.sensors == nil {
+	if d.handlers == nil {
 		return
 	}
 
-	d.cfg = make(map[string]*dsSensor.Sensor)
-	for _, sensors := range d.sensors {
+	d.sensors = make(map[string]models.DSSensor)
+	for _, sensors := range d.handlers {
 		for _, sensor := range sensors {
-			d.cfg[sensor.ID()] = dsSensor.New(sensor)
+			cfg := sensor.Config()
+			d.sensors[cfg.ID] = sensor
 		}
 	}
-
 }
 
 func (d *DSHandler) Close() {
-	for _, s := range d.cfg {
+	for _, s := range d.sensors {
 		_ = s.StopPoll()
 	}
-
 }
