@@ -35,6 +35,7 @@ func (t *DS18B20TestSuite) TearDownTest() {
 	}
 }
 
+// ?
 func (t *DS18B20TestSuite) sensors() map[embedded.OnewireBusName][]embedded.DSSensorHandler {
 	sensors := make(map[embedded.OnewireBusName][]embedded.DSSensorHandler)
 	for k, v := range t.mock {

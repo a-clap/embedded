@@ -2,7 +2,6 @@ package embedded
 
 import (
 	"errors"
-	"sync/atomic"
 )
 
 type DS18B20Resolution int
@@ -41,22 +40,6 @@ type OnewireSensors struct {
 type DSHandler struct {
 	sensors map[OnewireBusName][]DSSensorHandler
 	cfg     map[string]*dsSensor
-}
-
-func (d *DSHandler) defaultPollTime(r DS18B20Resolution) uint {
-	switch r {
-	case DS18B20Resolution_9BIT:
-		return 94
-	case DS18B20Resolution_10BIT:
-		return 188
-	case DS18B20Resolution_11BIT:
-		return 375
-	default:
-		log.Debug("unspecified resolution: ", r)
-		fallthrough
-	case DS18B20Resolution_12BIT:
-		return 750
-	}
 }
 
 func (d *DSHandler) ConfigSensor(cfg DSConfig) (newConfig DSConfig, err error) {
@@ -115,25 +98,7 @@ func (d *DSHandler) Open() {
 	d.cfg = make(map[string]*dsSensor)
 	for _, sensors := range d.sensors {
 		for _, sensor := range sensors {
-			id := sensor.ID()
-			res, err := sensor.Resolution()
-			if err != nil {
-				log.Debug("resolution read failed on handler: ", id, ", error: ", err)
-				res = DS18B20Resolution_11BIT
-			}
-			d.cfg[id] = &dsSensor{
-				polling: atomic.Bool{},
-				handler: sensor,
-				cfg: DSConfig{
-					ID:      id,
-					Enabled: false,
-					BusConfig: BusConfig{
-						Resolution:     res,
-						PollTimeMillis: d.defaultPollTime(res),
-						Samples:        1,
-					},
-				},
-			}
+			d.cfg[sensor.ID()] = newDsSensor(sensor)
 		}
 	}
 

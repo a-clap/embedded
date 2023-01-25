@@ -1,7 +1,7 @@
 package embedded
 
 import (
-	"errors"
+	"github.com/a-clap/iot/pkg/avg"
 	"sync/atomic"
 	"time"
 )
@@ -39,12 +39,60 @@ type dsSensor struct {
 	handler      DSSensorHandler
 	cfg          DSConfig
 	tempReadings chan TemperatureReadings
-	samplesPos   int
-	samples      []DSReadings
+	lastRead     DSReadings
+	temps        *avg.Avg[float32]
+}
+
+func newDsSensor(handler DSSensorHandler) *dsSensor {
+	id := handler.ID()
+	res, err := handler.Resolution()
+	if err != nil {
+		log.Debug("resolution read failed on handler: ", id, ", error: ", err)
+		res = DS18B20Resolution_11BIT
+	}
+
+	pollTime := func(r DS18B20Resolution) uint {
+		switch r {
+		case DS18B20Resolution_9BIT:
+			return 94
+		case DS18B20Resolution_10BIT:
+			return 188
+		case DS18B20Resolution_11BIT:
+			return 375
+		default:
+			log.Debug("unspecified resolution: ", r)
+			fallthrough
+		case DS18B20Resolution_12BIT:
+			return 750
+		}
+	}
+	const default_samples = 5
+	temps, err := avg.New[float32](default_samples)
+	if err != nil {
+		panic(err)
+	}
+
+	return &dsSensor{
+		polling: atomic.Bool{},
+		handler: handler,
+		cfg: DSConfig{
+			ID:      handler.ID(),
+			Enabled: false,
+			BusConfig: BusConfig{
+				Resolution:     res,
+				PollTimeMillis: pollTime(res),
+				Samples:        default_samples,
+			},
+		},
+		tempReadings: nil,
+		temps:        temps,
+	}
 }
 
 func (d *dsSensor) readings() DSReadings {
-	return DSReadings{}
+	r := d.lastRead
+	r.Temperature = d.temps.Average()
+	return r
 }
 
 func (d *dsSensor) poll() error {
@@ -90,8 +138,8 @@ func (d *dsSensor) setConfig(cfg DSConfig) (err error) {
 		}
 	}
 
-	if cfg.Samples == 0 {
-		return errors.New("wrong samples value")
+	if d.temps.Resize(cfg.Samples); err != nil {
+		return err
 	}
 
 	if d.cfg.Enabled != cfg.Enabled {
