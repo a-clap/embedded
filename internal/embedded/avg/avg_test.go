@@ -1,7 +1,7 @@
 package avg_test
 
 import (
-	"github.com/a-clap/iot/pkg/avg"
+	"github.com/a-clap/iot/internal/embedded/avg"
 	"github.com/stretchr/testify/suite"
 	"testing"
 )

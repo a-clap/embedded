@@ -2,7 +2,7 @@ package heater
 
 import (
 	"errors"
-	"github.com/a-clap/iot/pkg/gpio"
+	"github.com/a-clap/iot/internal/embedded/gpio"
 )
 
 type gpioHeating struct {

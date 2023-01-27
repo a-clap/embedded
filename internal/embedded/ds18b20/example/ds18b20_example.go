@@ -2,14 +2,15 @@ package main
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/pkg/ds18b20"
-	"github.com/a-clap/logger"
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/internal/embedded/logger"
+
 	"go.uber.org/zap/zapcore"
 	"time"
 )
 
 func main() {
-	log := logger.NewDefaultZap(zapcore.DebugLevel)
+	log := logger.NewDefaultLogger(zapcore.DebugLevel)
 	ds, err := ds18b20.NewBus(ds18b20.WithOnewire())
 	if err != nil {
 		log.Panic(err)

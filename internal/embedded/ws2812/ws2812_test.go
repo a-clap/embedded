@@ -2,7 +2,7 @@ package ws2812_test
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/pkg/ws2812"
+	"github.com/a-clap/iot/internal/embedded/ws2812"
 	"github.com/stretchr/testify/require"
 	"testing"
 )

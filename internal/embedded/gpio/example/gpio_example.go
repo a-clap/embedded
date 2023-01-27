@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/a-clap/iot/pkg/gpio"
+	"github.com/a-clap/iot/internal/embedded/gpio"
 	"log"
 	"time"
 )

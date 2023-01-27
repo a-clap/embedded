@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/a-clap/iot/pkg/ws2812"
+	"github.com/a-clap/iot/internal/embedded/ws2812"
 	"log"
 	"time"
 )

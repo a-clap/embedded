@@ -1,9 +1,9 @@
 package embedded
 
 import (
+	"github.com/a-clap/iot/internal/embedded/gpio"
+	"github.com/a-clap/iot/internal/embedded/heater"
 	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/a-clap/iot/pkg/gpio"
-	"github.com/a-clap/iot/pkg/heater"
 )
 
 type Config struct {

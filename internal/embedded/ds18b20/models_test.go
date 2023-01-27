@@ -1,9 +1,9 @@
 package ds18b20_test
 
 import (
+	"github.com/a-clap/iot/internal/embedded/avg"
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/a-clap/iot/pkg/avg"
-	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
 	"strconv"
 	"time"

@@ -2,8 +2,8 @@ package ds18b20
 
 import (
 	"errors"
+	"github.com/a-clap/iot/internal/embedded/avg"
 	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/a-clap/iot/pkg/avg"
 	"strconv"
 	"sync/atomic"
 	"time"

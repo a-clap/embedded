@@ -1,7 +1,7 @@
 package heater_test
 
 import (
-	"github.com/a-clap/iot/pkg/heater"
+	"github.com/a-clap/iot/internal/embedded/heater"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"testing"

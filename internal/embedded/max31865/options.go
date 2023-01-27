@@ -1,7 +1,7 @@
 package max31865
 
 import (
-	"github.com/a-clap/iot/pkg/gpio"
+	"github.com/a-clap/iot/internal/embedded/gpio"
 )
 
 type Option func(*Sensor) error

@@ -3,7 +3,7 @@ package ws2812
 import (
 	"errors"
 	"fmt"
-	"github.com/a-clap/iot/pkg/spidev"
+	"github.com/a-clap/iot/internal/embedded/spidev"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 )

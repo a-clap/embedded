@@ -2,8 +2,8 @@ package ds18b20_test
 
 import (
 	"errors"
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"io"

@@ -1,7 +1,7 @@
 package max31865
 
 import (
-	"github.com/a-clap/iot/pkg/spidev"
+	"github.com/a-clap/iot/internal/embedded/spidev"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 )
