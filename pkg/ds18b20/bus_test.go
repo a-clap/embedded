@@ -2,6 +2,7 @@ package ds18b20_test
 
 import (
 	"errors"
+	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -22,8 +23,10 @@ type DSFileMock struct {
 
 type DSTestSuite struct {
 	suite.Suite
-	onewire *DSOnewireMock
-	file    []*DSFileMock
+	onewire  *DSOnewireMock
+	file     []*DSFileMock
+	mock     *SensorHandlerMock
+	pollData *PollDataMock
 }
 
 func TestDS8B20Run(t *testing.T) {
@@ -39,6 +42,12 @@ func (t *DSTestSuite) TearDownTest() {
 	t.onewire.AssertExpectations(t.T())
 	for _, f := range t.file {
 		f.AssertExpectations(t.T())
+	}
+}
+func (t *DSTestSuite) TearDownAllSuite() {
+	t.onewire = nil
+	for i := range t.file {
+		t.file[i] = nil
 	}
 }
 
@@ -129,22 +138,22 @@ func (t *DSTestSuite) TestResolution_Set() {
 	resFile := t.file[1]
 	args := []struct {
 		writeBuf []byte
-		res      ds18b20.Resolution
+		res      models.DSResolution
 	}{
 		{
-			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_9_BIT, 10)),
-			res:      ds18b20.Resolution_9_BIT,
+			writeBuf: []byte(strconv.FormatInt(int64(models.Resolution9BIT), 10)),
+			res:      models.Resolution9BIT,
 		},
 		{
-			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_10_BIT, 10)),
-			res:      ds18b20.Resolution_10_BIT,
+			writeBuf: []byte(strconv.FormatInt(int64(models.Resolution10BIT), 10)),
+			res:      models.Resolution10BIT,
 		}, {
-			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_11_BIT, 10)),
-			res:      ds18b20.Resolution_11_BIT,
+			writeBuf: []byte(strconv.FormatInt(int64(models.Resolution11BIT), 10)),
+			res:      models.Resolution11BIT,
 		},
 		{
-			writeBuf: []byte(strconv.FormatInt(ds18b20.Resolution_12_BIT, 10)),
-			res:      ds18b20.Resolution_12_BIT,
+			writeBuf: []byte(strconv.FormatInt(int64(models.Resolution12BIT), 10)),
+			res:      models.Resolution12BIT,
 		},
 	}
 	for _, arg := range args {
@@ -183,22 +192,22 @@ func (t *DSTestSuite) TestResolution_Read() {
 	resFile := t.file[1]
 	args := []struct {
 		buf      []byte
-		expected ds18b20.Resolution
+		expected models.DSResolution
 	}{
 		{
-			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_9_BIT, 10)),
-			expected: ds18b20.Resolution_9_BIT,
+			buf:      []byte(strconv.FormatInt(int64(models.Resolution9BIT), 10)),
+			expected: models.Resolution9BIT,
 		},
 		{
-			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_10_BIT, 10)),
-			expected: ds18b20.Resolution_10_BIT,
+			buf:      []byte(strconv.FormatInt(int64(models.Resolution10BIT), 10)),
+			expected: models.Resolution10BIT,
 		}, {
-			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_11_BIT, 10)),
-			expected: ds18b20.Resolution_11_BIT,
+			buf:      []byte(strconv.FormatInt(int64(models.Resolution11BIT), 10)),
+			expected: models.Resolution11BIT,
 		},
 		{
-			buf:      []byte(strconv.FormatInt(ds18b20.Resolution_12_BIT, 10)),
-			expected: ds18b20.Resolution_12_BIT,
+			buf:      []byte(strconv.FormatInt(int64(models.Resolution12BIT), 10)),
+			expected: models.Resolution12BIT,
 		},
 	}
 	for _, arg := range args {
@@ -280,10 +289,10 @@ func (t *DSTestSuite) TestSensor_Poll() {
 		now := time.Now()
 		select {
 		case r := <-readings:
-			t.EqualValues(id, r.ID)
-			t.EqualValues(arg.expected, r.Temperature)
-			t.Nil(r.Error)
-			diff := r.Stamp.Sub(now)
+			t.EqualValues(id, r.ID())
+			t.EqualValues(arg.expected, r.Temperature())
+			t.Nil(r.Error())
+			diff := r.Stamp().Sub(now)
 			t.Less(interval, diff)
 		case <-time.After(2 * interval):
 			t.Fail("failed, waiting for readings too long")

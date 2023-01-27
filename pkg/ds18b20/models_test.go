@@ -1,20 +1,13 @@
-package dsSensor_test
+package ds18b20_test
 
 import (
-	"github.com/a-clap/iot/internal/embedded/dsSensor"
 	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/a-clap/iot/pkg/avg"
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
-	"testing"
+	"strconv"
 	"time"
 )
-
-type DsSensorTestSuite struct {
-	suite.Suite
-	mock     *SensorHandlerMock
-	pollData *PollDataMock
-}
 
 type SensorHandlerMock struct {
 	mock.Mock
@@ -24,28 +17,19 @@ type PollDataMock struct {
 	mock.Mock
 }
 
-func TestDSSensorTestSuite(t *testing.T) {
-	suite.Run(t, new(DsSensorTestSuite))
-}
-
-func (t *DsSensorTestSuite) SetupTest() {
-	t.mock = new(SensorHandlerMock)
-}
-
-func (t *DsSensorTestSuite) TestPoll() {
+func (t *DSTestSuite) TestPoll() {
 	t.mock = new(SensorHandlerMock)
 	t.pollData = new(PollDataMock)
 	id := "123"
 
 	t.mock.On("ID").Return(id)
 	t.mock.On("Resolution").Return(models.Resolution10BIT, nil)
-
 	t.mock.On("Poll", mock.Anything, mock.Anything).Return(nil)
-	t.mock.On("StopPoll").Return(nil)
+	t.mock.On("Close").Return(nil)
 
 	t.pollData.On("ID").Return(id)
 
-	ds := dsSensor.New(t.mock)
+	ds := ds18b20.NewModels(t.mock)
 	err := ds.Poll()
 	t.Nil(err)
 
@@ -54,9 +38,9 @@ func (t *DsSensorTestSuite) TestPoll() {
 	t.Equal(id, stat.ID)
 	t.Equal(true, stat.Enabled)
 
-	polledChannel := t.mock.TestData()["readings"].(chan models.PollData)
+	polledChannel := t.mock.TestData()["readings"].(chan ds18b20.Readings)
 
-	temperatures := []float32{100.0, 200.0, 300.0, 400.0, 500.0}
+	temperatures := []string{"100.0", "200.0", "300.0", "400.0", "500.0"}
 	t.EqualValues(len(temperatures), models.DefaultSamples)
 
 	for i, elem := range temperatures {
@@ -74,7 +58,9 @@ func (t *DsSensorTestSuite) TestPoll() {
 
 		expectedTmp := float32(0)
 		for j := 0; j <= i; j++ {
-			expectedTmp += temperatures[j]
+			f, err := strconv.ParseFloat(temperatures[j], 32)
+			t.Nil(err)
+			expectedTmp += float32(f)
 		}
 		expectedTmp /= float32(i + 1)
 
@@ -87,7 +73,7 @@ func (t *DsSensorTestSuite) TestPoll() {
 
 }
 
-func (t *DsSensorTestSuite) TestSetGetConfig() {
+func (t *DSTestSuite) TestSetGetConfig() {
 	args := []struct {
 		newConfig models.DSConfig
 		err       error
@@ -137,9 +123,8 @@ func (t *DsSensorTestSuite) TestSetGetConfig() {
 		t.mock = new(SensorHandlerMock)
 		t.mock.On("ID").Return(arg.newConfig.ID)
 		t.mock.On("Resolution").Return(arg.newConfig.Resolution, nil)
-		t.mock.On("SetPollTime", arg.newConfig.PollTimeMillis).Return(nil)
 
-		ds := dsSensor.New(t.mock)
+		ds := ds18b20.NewModels(t.mock)
 		t.NotNil(ds)
 
 		err := ds.SetConfig(arg.newConfig)
@@ -155,7 +140,7 @@ func (t *DsSensorTestSuite) TestSetGetConfig() {
 
 }
 
-func (t *DsSensorTestSuite) TestNew_VerifyConfig() {
+func (t *DSTestSuite) TestNew_VerifyConfig() {
 	args := []struct {
 		name string
 		id   string
@@ -187,7 +172,7 @@ func (t *DsSensorTestSuite) TestNew_VerifyConfig() {
 		t.mock.On("ID").Return(arg.id)
 		t.mock.On("Resolution").Return(arg.res, nil)
 
-		ds := dsSensor.New(t.mock)
+		ds := ds18b20.NewModels(t.mock)
 		t.NotNil(ds, arg.name)
 		cfg := ds.Config()
 
@@ -215,16 +200,12 @@ func (s *SensorHandlerMock) PollTime() uint {
 	return s.Called().Get(0).(uint)
 }
 
-func (s *SensorHandlerMock) SetPollTime(duration uint) error {
-	return s.Called(duration).Error(0)
-}
-
-func (s *SensorHandlerMock) Poll(data chan models.PollData, timeMillis uint) error {
+func (s *SensorHandlerMock) Poll(data chan ds18b20.Readings, pollTime time.Duration) error {
 	s.TestData()["readings"] = data
-	return s.Called(data, timeMillis).Error(0)
+	return s.Called(data, pollTime).Error(0)
 }
 
-func (s *SensorHandlerMock) StopPoll() error {
+func (s *SensorHandlerMock) Close() error {
 	return s.Called().Error(0)
 }
 
@@ -232,8 +213,8 @@ func (p *PollDataMock) ID() string {
 	return p.Called().String(0)
 }
 
-func (p *PollDataMock) Temperature() float32 {
-	return p.Called().Get(0).(float32)
+func (p *PollDataMock) Temperature() string {
+	return p.Called().String(0)
 }
 
 func (p *PollDataMock) Stamp() time.Time {

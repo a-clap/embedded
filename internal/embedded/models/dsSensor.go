@@ -30,16 +30,3 @@ type DSConfig struct {
 	PollTimeMillis uint         `json:"poll_time_millis"`
 	Samples        uint         `json:"samples"`
 }
-
-type DSHandler interface {
-	ID() string
-
-	Resolution() (DSResolution, error)
-	SetResolution(resolution DSResolution) error
-
-	PollTime() uint
-	SetPollTime(duration uint) error
-
-	Poll(data chan PollData, timeMillis uint) error
-	StopPoll() error
-}

@@ -39,7 +39,7 @@ func main() {
 	}()
 
 	for readings := range reads {
-		fmt.Printf("id: %s, Temperature: %s. Time: %s, err: %v \n", readings.ID, readings.Temperature, readings.Stamp, readings.Error)
+		fmt.Printf("id: %s, Temperature: %s. Time: %s, err: %v \n", readings.ID(), readings.Temperature(), readings.Stamp(), readings.Error())
 	}
 
 	fmt.Println("finished")

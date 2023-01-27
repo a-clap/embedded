@@ -1,6 +1,7 @@
 package ds18b20
 
 import (
+	"github.com/a-clap/iot/internal/embedded/models"
 	"io"
 	"path"
 	"strconv"
@@ -22,15 +23,6 @@ type Sensor struct {
 	stop            chan struct{}
 	data            chan Readings
 }
-
-type Resolution int
-
-const (
-	Resolution_9_BIT  = 9
-	Resolution_10_BIT = 10
-	Resolution_11_BIT = 11
-	Resolution_12_BIT = 12
-)
 
 func newSensor(o opener, id, basePath string) (*Sensor, error) {
 	s := &Sensor{
@@ -60,8 +52,8 @@ func (s *Sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
 	return nil
 }
 
-func (s *Sensor) Resolution() (r Resolution, err error) {
-	r = Resolution_12_BIT
+func (s *Sensor) Resolution() (r models.DSResolution, err error) {
+	r = models.Resolution12BIT
 
 	res, err := s.Open(s.resolutionPath)
 	if err != nil {
@@ -77,11 +69,11 @@ func (s *Sensor) Resolution() (r Resolution, err error) {
 		return
 	}
 
-	r = Resolution(maybeR)
+	r = models.DSResolution(maybeR)
 	return
 }
 
-func (s *Sensor) SetResolution(res Resolution) error {
+func (s *Sensor) SetResolution(res models.DSResolution) error {
 	resFile, err := s.Open(s.resolutionPath)
 	if err != nil {
 		return err
@@ -119,11 +111,11 @@ func (s *Sensor) poll(pollTime time.Duration) {
 			s.polling = false
 		case <-time.After(pollTime):
 			tmp, err := s.Temperature()
-			s.data <- Readings{
-				ID:          s.id,
-				Temperature: tmp,
-				Stamp:       time.Now(),
-				Error:       err,
+			s.data <- &readings{
+				id:          s.id,
+				temperature: tmp,
+				stamp:       time.Now(),
+				err:         err,
 			}
 		}
 	}
@@ -161,4 +153,26 @@ func (s *Sensor) Temperature() (string, error) {
 
 func (s *Sensor) ID() string {
 	return s.id
+}
+
+type readings struct {
+	id, temperature string
+	stamp           time.Time
+	err             error
+}
+
+func (r *readings) ID() string {
+	return r.id
+}
+
+func (r *readings) Temperature() string {
+	return r.temperature
+}
+
+func (r *readings) Stamp() time.Time {
+	return r.stamp
+}
+
+func (r *readings) Error() error {
+	return r.err
 }

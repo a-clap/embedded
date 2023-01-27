@@ -28,11 +28,11 @@ type Bus struct {
 	o   Onewire
 }
 
-type Readings struct {
-	ID          string    `json:"id"`
-	Temperature string    `json:"temperature"`
-	Stamp       time.Time `json:"stamp"`
-	Error       error     `json:"error"`
+type Readings interface {
+	ID() string
+	Temperature() string
+	Stamp() time.Time
+	Error() error
 }
 
 func NewBus(options ...BusOption) (*Bus, error) {

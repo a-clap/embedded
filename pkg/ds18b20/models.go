@@ -1,35 +1,42 @@
-package dsSensor
+package ds18b20
 
 import (
 	"errors"
-	. "github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/a-clap/iot/pkg/avg"
+	"strconv"
 	"sync/atomic"
 	"time"
 )
 
-var (
-	ErrAlreadyPolling = errors.New("already polling")
-	ErrNotPolling     = errors.New("not polling")
-)
-
-var _ models.DSSensor = (*Sensor)(nil)
-
-type Sensor struct {
-	polling      atomic.Bool
-	handler      models.DSHandler
-	cfg          models.DSConfig
-	tempReadings chan models.PollData
-	lastRead     models.Temperature
-	temps        *avg.Avg[float32]
+type DSHandler interface {
+	Poll(data chan Readings, pollTime time.Duration) (err error)
+	Resolution() (r models.DSResolution, err error)
+	SetResolution(res models.DSResolution) error
+	Close() error
+	ID() string
 }
 
-func New(handler models.DSHandler) *Sensor {
+var (
+	ErrNotPolling = errors.New("not polling")
+)
+
+var _ DSHandler = (*Sensor)(nil)
+var _ models.DSSensor = (*ModelsSensor)(nil)
+
+type ModelsSensor struct {
+	handler     DSHandler
+	polling     atomic.Bool
+	cfg         models.DSConfig
+	readings    chan Readings
+	temperature models.Temperature
+	average     *avg.Avg[float32]
+}
+
+func NewModels(handler DSHandler) *ModelsSensor {
 	id := handler.ID()
 	res, err := handler.Resolution()
 	if err != nil {
-		Log.Debug("resolution read failed on handler: ", id, ", error: ", err)
 		res = models.Resolution11BIT
 	}
 
@@ -42,19 +49,18 @@ func New(handler models.DSHandler) *Sensor {
 		case models.Resolution11BIT:
 			return 375
 		default:
-			Log.Debug("unspecified resolution: ", r)
 			fallthrough
 		case models.Resolution12BIT:
 			return 750
 		}
 	}
 
-	temps, err := avg.New[float32](models.DefaultSamples)
+	average, err := avg.New[float32](models.DefaultSamples)
 	if err != nil {
 		panic(err)
 	}
 
-	return &Sensor{
+	return &ModelsSensor{
 		polling: atomic.Bool{},
 		handler: handler,
 		cfg: models.DSConfig{
@@ -64,30 +70,30 @@ func New(handler models.DSHandler) *Sensor {
 			PollTimeMillis: pollTime(res),
 			Samples:        models.DefaultSamples,
 		},
-		lastRead: models.Temperature{
+		temperature: models.Temperature{
 			ID:          id,
 			Enabled:     false,
 			Temperature: 0,
 			Stamp:       time.Time{},
 		},
-		tempReadings: nil,
-		temps:        temps,
+		readings: nil,
+		average:  average,
 	}
 }
 
-func (d *Sensor) Temperature() models.Temperature {
-	d.lastRead.Temperature = d.temps.Average()
-	d.lastRead.Enabled = d.polling.Load()
-	return d.lastRead
+func (m *ModelsSensor) Temperature() models.Temperature {
+	m.temperature.Temperature = m.average.Average()
+	m.temperature.Enabled = m.polling.Load()
+	return m.temperature
 }
 
-func (d *Sensor) Poll() error {
+func (d *ModelsSensor) Poll() error {
 	if d.polling.Load() {
 		return ErrAlreadyPolling
 	}
 
-	d.tempReadings = make(chan models.PollData, 5)
-	if err := d.handler.Poll(d.tempReadings, d.cfg.PollTimeMillis); err != nil {
+	d.readings = make(chan Readings, 5)
+	if err := d.handler.Poll(d.readings, time.Duration(d.cfg.PollTimeMillis)*time.Millisecond); err != nil {
 		return err
 	}
 
@@ -98,20 +104,20 @@ func (d *Sensor) Poll() error {
 	return nil
 }
 
-func (d *Sensor) StopPoll() error {
+func (d *ModelsSensor) StopPoll() error {
 	if !d.polling.Load() {
 		return ErrNotPolling
 	}
 	d.cfg.Enabled = false
 	defer d.polling.Store(false)
-	return d.handler.StopPoll()
+	return d.handler.Close()
 }
 
-func (d *Sensor) Config() models.DSConfig {
+func (d *ModelsSensor) Config() models.DSConfig {
 	return d.cfg
 }
 
-func (d *Sensor) SetConfig(cfg models.DSConfig) (err error) {
+func (d *ModelsSensor) SetConfig(cfg models.DSConfig) (err error) {
 	if d.cfg.Resolution != cfg.Resolution {
 		if err = d.handler.SetResolution(cfg.Resolution); err != nil {
 			return
@@ -119,14 +125,8 @@ func (d *Sensor) SetConfig(cfg models.DSConfig) (err error) {
 		d.cfg.Resolution = cfg.Resolution
 	}
 
-	if d.cfg.PollTimeMillis != cfg.PollTimeMillis {
-		if err = d.handler.SetPollTime(cfg.PollTimeMillis); err != nil {
-			return
-		}
-		d.cfg.PollTimeMillis = cfg.PollTimeMillis
-	}
-
-	if err = d.temps.Resize(cfg.Samples); err != nil {
+	d.cfg.PollTimeMillis = cfg.PollTimeMillis
+	if err = d.average.Resize(cfg.Samples); err != nil {
 		return err
 	}
 	d.cfg.Samples = cfg.Samples
@@ -145,13 +145,16 @@ func (d *Sensor) SetConfig(cfg models.DSConfig) (err error) {
 	return
 }
 
-func (d *Sensor) handleReadings() {
-	for data := range d.tempReadings {
-		d.lastRead = models.Temperature{
+func (d *ModelsSensor) handleReadings() {
+	for data := range d.readings {
+		d.temperature = models.Temperature{
 			ID:      data.ID(),
 			Enabled: d.polling.Load(),
 			Stamp:   data.Stamp(),
 		}
-		d.temps.Add(data.Temperature())
+		if f, err := strconv.ParseFloat(data.Temperature(), 32); err == nil {
+			d.average.Add(float32(f))
+		}
+
 	}
 }
