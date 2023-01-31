@@ -14,6 +14,8 @@ const (
 	RoutesGetPT100Sensors        = "/api/pt100"
 	RoutesGetPT100Temperatures   = "/api/pt100/temperatures"
 	RoutesConfigPT100Sensor      = "/api/pt100/:hardware_id"
+	RoutesGetGPIOs               = "/api/gpio"
+	RoutesConfigGPIO             = "/api/gpio/:hardware_id"
 )
 
 var (
@@ -32,6 +34,8 @@ func (h *Handler) routes() {
 	h.GET(RoutesGetPT100Temperatures, h.getPTTemperatures())
 	h.PUT(RoutesConfigPT100Sensor, h.configPTSensor())
 
+	h.GET(RoutesGetGPIOs, h.getGPIOS())
+	h.PUT(RoutesConfigGPIO, h.configGPIO())
 }
 
 func (*Handler) respond(ctx *gin.Context, code int, obj any) {

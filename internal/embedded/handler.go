@@ -10,6 +10,7 @@ type Handler struct {
 	Heaters *HeaterHandler
 	DS      *DSHandler
 	PT      *PTHandler
+	GPIO    *GPIOHandler
 }
 
 var log = Log
@@ -20,6 +21,7 @@ func New(options ...Option) (*Handler, error) {
 		Heaters: new(HeaterHandler),
 		DS:      new(DSHandler),
 		PT:      new(PTHandler),
+		GPIO:    new(GPIOHandler),
 	}
 
 	for _, opt := range options {
@@ -31,6 +33,7 @@ func New(options ...Option) (*Handler, error) {
 	h.Heaters.Open()
 	h.DS.Open()
 	h.PT.Open()
+	h.GPIO.Open()
 
 	h.routes()
 	return h, nil
@@ -40,6 +43,7 @@ func (h *Handler) Close() {
 	h.Heaters.Close()
 	h.DS.Close()
 	h.PT.Close()
+	h.GPIO.Close()
 }
 
 func NewFromConfig(c Config) (*Handler, error) {

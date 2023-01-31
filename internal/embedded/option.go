@@ -30,6 +30,16 @@ func WithPT(pt []models.PTSensor) Option {
 	}
 }
 
+func WithGPIOs(gpios []models.GPIO) Option {
+	return func(h *Handler) error {
+		h.GPIO.gpios = make(map[string]models.GPIO)
+		for _, gpio := range gpios {
+			h.GPIO.gpios[gpio.ID()] = gpio
+		}
+		return nil
+	}
+}
+
 func WithLogger(l Logger) Option {
 	return func(*Handler) error {
 		log = l
