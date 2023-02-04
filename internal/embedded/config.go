@@ -21,8 +21,8 @@ type Config struct {
 }
 
 type ConfigHeater struct {
-	HardwareID `json:"hardware_id"`
-	gpio.Pin   `json:"gpio_pin"`
+	models.HeaterID `json:"hardware_id"`
+	gpio.Pin        `json:"gpio_pin"`
 }
 
 type ConfigDS18B20 struct {
@@ -49,7 +49,7 @@ type ConfigGPIO struct {
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
-	heaters := make(map[HardwareID]Heater, len(config))
+	heaters := make(map[models.HeaterID]models.Heater, len(config))
 	var errs []error
 	for _, maybeHeater := range config {
 		h, err := heater.New(
@@ -61,7 +61,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 			errs = append(errs, err)
 			continue
 		}
-		heaters[maybeHeater.HardwareID] = h
+		heaters[maybeHeater.HeaterID] = h
 	}
 	return WithHeaters(heaters), errs
 }

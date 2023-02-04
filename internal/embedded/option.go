@@ -12,9 +12,7 @@ import (
 
 type Option func(*Handler) error
 
-type HardwareID string
-
-func WithHeaters(heaters map[HardwareID]Heater) Option {
+func WithHeaters(heaters map[models.HeaterID]models.Heater) Option {
 	return func(h *Handler) error {
 		h.Heaters.heaters = heaters
 		return nil

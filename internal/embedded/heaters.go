@@ -6,30 +6,18 @@
 package embedded
 
 import (
+	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
-type Heater interface {
-	Enable(ena bool)
-	SetPower(pwr uint) error
-	Enabled() bool
-	Power() uint
-}
-
-type HeaterConfig struct {
-	HardwareID HardwareID `json:"hardware_id"`
-	Enabled    bool       `json:"enabled"`
-	Power      uint       `json:"power"`
-}
-
 type HeaterHandler struct {
-	heaters map[HardwareID]Heater
+	heaters map[models.HeaterID]models.Heater
 }
 
 func (h *Handler) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		cfg := HeaterConfig{}
+		cfg := models.HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)
 			return
@@ -56,7 +44,7 @@ func (h *Handler) getHeaters() gin.HandlerFunc {
 	}
 }
 
-func (h *HeaterHandler) Config(cfg HeaterConfig) error {
+func (h *HeaterHandler) Config(cfg models.HeaterConfig) error {
 	heater, err := h.by(cfg.HardwareID)
 	if err != nil {
 		return err
@@ -69,7 +57,7 @@ func (h *HeaterHandler) Config(cfg HeaterConfig) error {
 	return nil
 }
 
-func (h *HeaterHandler) Enable(hwid HardwareID, ena bool) error {
+func (h *HeaterHandler) Enable(hwid models.HeaterID, ena bool) error {
 	heat, err := h.by(hwid)
 	if err != nil {
 		return err
@@ -79,7 +67,7 @@ func (h *HeaterHandler) Enable(hwid HardwareID, ena bool) error {
 	return nil
 }
 
-func (h *HeaterHandler) Power(hwid HardwareID, pwr uint) error {
+func (h *HeaterHandler) Power(hwid models.HeaterID, pwr uint) error {
 	heat, err := h.by(hwid)
 	if err != nil {
 		return err
@@ -87,23 +75,23 @@ func (h *HeaterHandler) Power(hwid HardwareID, pwr uint) error {
 	return heat.SetPower(pwr)
 }
 
-func (h *HeaterHandler) StatusBy(hwid HardwareID) (HeaterConfig, error) {
+func (h *HeaterHandler) StatusBy(hwid models.HeaterID) (models.HeaterConfig, error) {
 	heat, err := h.by(hwid)
 	if err != nil {
-		return HeaterConfig{}, err
+		return models.HeaterConfig{}, err
 	}
-	return HeaterConfig{
+	return models.HeaterConfig{
 		HardwareID: hwid,
 		Enabled:    heat.Enabled(),
 		Power:      heat.Power(),
 	}, nil
 }
 
-func (h *HeaterHandler) Status() []HeaterConfig {
-	status := make([]HeaterConfig, len(h.heaters))
+func (h *HeaterHandler) Status() []models.HeaterConfig {
+	status := make([]models.HeaterConfig, len(h.heaters))
 	pos := 0
 	for hwid, heat := range h.heaters {
-		status[pos] = HeaterConfig{
+		status[pos] = models.HeaterConfig{
 			HardwareID: hwid,
 			Enabled:    heat.Enabled(),
 			Power:      heat.Power(),
@@ -113,7 +101,7 @@ func (h *HeaterHandler) Status() []HeaterConfig {
 	return status
 }
 
-func (h *HeaterHandler) by(hwid HardwareID) (Heater, error) {
+func (h *HeaterHandler) by(hwid models.HeaterID) (models.Heater, error) {
 	maybeHeater, ok := h.heaters[hwid]
 	if !ok {
 		log.Debug("requested heater doesn't exist: ", hwid)

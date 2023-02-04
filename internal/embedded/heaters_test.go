@@ -10,6 +10,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/a-clap/iot/internal/embedded"
+	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -24,7 +25,7 @@ type HeaterTestSuite struct {
 	suite.Suite
 	req  *http.Request
 	resp *httptest.ResponseRecorder
-	mock map[embedded.HardwareID]*HeaterMock
+	mock map[models.HeaterID]*HeaterMock
 }
 
 type HeaterMock struct {
@@ -48,27 +49,27 @@ func fromJSON(b []byte, obj any) {
 	}
 }
 
-func (t *HeaterTestSuite) heaters() map[embedded.HardwareID]embedded.Heater {
-	heater := make(map[embedded.HardwareID]embedded.Heater)
+func (t *HeaterTestSuite) heaters() map[models.HeaterID]models.Heater {
+	heater := make(map[models.HeaterID]models.Heater)
 
 	for k, v := range t.mock {
-		heater[embedded.HardwareID(k)] = v
+		heater[models.HeaterID(k)] = v
 	}
 	return heater
 }
 
 func (t *HeaterTestSuite) SetupTest() {
 	gin.DefaultWriter = io.Discard
-	t.mock = make(map[embedded.HardwareID]*HeaterMock)
+	t.mock = make(map[models.HeaterID]*HeaterMock)
 	t.resp = httptest.NewRecorder()
 }
 func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface() {
-	setHeater := embedded.HeaterConfig{
+	setHeater := models.HeaterConfig{
 		HardwareID: "firstHeater",
 		Enabled:    false,
 		Power:      13,
 	}
-	returnHeater := embedded.HeaterConfig{
+	returnHeater := models.HeaterConfig{
 		HardwareID: setHeater.HardwareID,
 		Enabled:    !setHeater.Enabled,
 		Power:      uint(rand.Int() % 100),
@@ -97,7 +98,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface(
 }
 
 func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
-	expectedHeater := embedded.HeaterConfig{
+	expectedHeater := models.HeaterConfig{
 		HardwareID: "firstHeater",
 		Enabled:    false,
 		Power:      13,
@@ -128,7 +129,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 		t.JSONEq(toJSON(expectedHeater), string(b))
 	}
 	{
-		newExpected := embedded.HeaterConfig{
+		newExpected := models.HeaterConfig{
 			HardwareID: expectedHeater.HardwareID,
 			Enabled:    !expectedHeater.Enabled,
 			Power:      uint(rand.Uint64() % 100),
@@ -156,7 +157,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 }
 
 func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
-	args := []embedded.HeaterConfig{
+	args := []models.HeaterConfig{
 		{
 			HardwareID: "firstHeater",
 			Enabled:    false,
@@ -187,7 +188,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 }
 
 func (t *HeaterTestSuite) TestHeater_GetHeater() {
-	args := []embedded.HeaterConfig{
+	args := []models.HeaterConfig{
 		{
 			HardwareID: "firstHeater",
 			Enabled:    false,
@@ -215,7 +216,7 @@ func (t *HeaterTestSuite) TestHeater_GetHeater() {
 	b, _ := io.ReadAll(t.resp.Body)
 
 	t.Equal(http.StatusOK, t.resp.Code)
-	var bodyJson []embedded.HeaterConfig
+	var bodyJson []models.HeaterConfig
 	fromJSON(b, &bodyJson)
 	t.ElementsMatch(args, bodyJson)
 }
@@ -234,7 +235,7 @@ func (t *HeaterTestSuite) TestHeater_GetZeroHeaters() {
 
 func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
 	type args_t struct {
-		name    embedded.HardwareID
+		name    models.HeaterID
 		power   uint
 		enabled bool
 	}
