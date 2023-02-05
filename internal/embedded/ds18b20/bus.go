@@ -13,6 +13,8 @@ import (
 	"time"
 )
 
+var Log = logger.Log
+
 var (
 	ErrInterface      = errors.New("interface")
 	ErrAlreadyPolling = errors.New("sensor is already polling")
@@ -23,15 +25,14 @@ type File interface {
 	io.ReadWriteCloser
 }
 
-type Onewire interface {
-	Path() string
-	ReadDir(dirname string) ([]string, error)
+type FileOpener interface {
 	Open(name string) (File, error)
 }
 
-type Bus struct {
-	ids []string
-	o   Onewire
+type Onewire interface {
+	Path() string
+	ReadDir(dirname string) ([]string, error)
+	FileOpener
 }
 
 type Readings interface {
@@ -40,8 +41,10 @@ type Readings interface {
 	Stamp() time.Time
 	Error() error
 }
-
-var log = logger.Log
+type Bus struct {
+	ids []string
+	o   Onewire
+}
 
 func NewBus(options ...BusOption) (*Bus, error) {
 	b := &Bus{}
@@ -63,7 +66,7 @@ func (b *Bus) IDs() ([]string, error) {
 	return b.ids, err
 }
 
-func (b *Bus) NewSensor(id string) (*Sensor, error) {
+func (b *Bus) NewSensor(id string) (*Handler, error) {
 	ids, err := b.IDs()
 	if err != nil {
 		return nil, err
@@ -76,11 +79,12 @@ func (b *Bus) NewSensor(id string) (*Sensor, error) {
 			break
 		}
 	}
+
 	if !found {
 		return nil, ErrNoSuchID
 	}
 
-	// delegate creation of Sensor to newSensor
+	// delegate creation of Handler to newSensor
 	s, err := newSensor(b.o, id, b.o.Path())
 	if err != nil {
 		return nil, err
@@ -104,12 +108,12 @@ func (b *Bus) updateIDs() error {
 	return nil
 }
 
-func (b *Bus) Discover() ([]*Sensor, error) {
+func (b *Bus) Discover() ([]*Handler, error) {
 	ids, err := b.IDs()
 	if err != nil {
 		return nil, err
 	}
-	s := make([]*Sensor, 0, len(ids))
+	s := make([]*Handler, 0, len(ids))
 	for _, id := range ids {
 		ds, err := b.NewSensor(id)
 		if err == nil {

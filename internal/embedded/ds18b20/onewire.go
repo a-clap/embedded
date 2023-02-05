@@ -9,6 +9,8 @@ import (
 	"os"
 )
 
+var _ Onewire = (*onewire)(nil)
+
 type onewire struct {
 	path string
 }

@@ -52,7 +52,7 @@ func (t *DSTestSuite) TestPoll() {
 		now := time.Now()
 		t.pollData.On("Temperature").Return(elem).Once()
 		t.pollData.On("Stamp").Return(now).Once()
-
+		t.pollData.On("Error").Return(nil)
 		polledChannel <- t.pollData
 		// Just to force scheduler work
 		<-time.After(1 * time.Millisecond)
