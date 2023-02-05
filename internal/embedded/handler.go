@@ -48,14 +48,42 @@ func (h *Handler) Close() {
 
 func NewFromConfig(c Config) (*Handler, error) {
 	var opts []Option
+	{
+		heaterOpts, err := parseHeaters(c.Heaters)
+		if err != nil {
+			log.Error("parsing ConfigHeaters resulted with errors: ", err)
+		}
 
-	heaterOpts, err := parseHeaters(c.Heaters)
-	if err != nil {
-		log.Error("parsing ConfigHeaters resulted with errors: ", err)
+		if heaterOpts != nil {
+			opts = append(opts, heaterOpts)
+		}
 	}
-	if heaterOpts != nil {
-		opts = append(opts, heaterOpts)
+	{
+		dsOpts, err := parseDS18B20(c.DS18B20)
+		if err != nil {
+			log.Error("parsing ConfigDS18B20 resulted with errors: ", err)
+		}
+		if dsOpts != nil {
+			opts = append(opts, dsOpts)
+		}
 	}
-
+	{
+		ptOpts, err := parsePT100(c.PT100)
+		if err != nil {
+			log.Error("parsing ConfigPT100 resulted with errors: ", err)
+		}
+		if ptOpts != nil {
+			opts = append(opts, ptOpts)
+		}
+	}
+	{
+		gpioOpts, err := parseGPIO(c.GPIO)
+		if err != nil {
+			log.Error("parsing ConfigGPIO resulted with errors: ", err)
+		}
+		if gpioOpts != nil {
+			opts = append(opts, gpioOpts)
+		}
+	}
 	return New(opts...)
 }
