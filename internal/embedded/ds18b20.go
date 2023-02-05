@@ -143,7 +143,14 @@ func (d *DSHandler) Open() {
 }
 
 func (d *DSHandler) Close() {
-	for _, s := range d.sensors {
-		_ = s.StopPoll()
+	for name, sensor := range d.sensors {
+		cfg := sensor.Config()
+		if cfg.Enabled {
+			cfg.Enabled = false
+			err := sensor.SetConfig(cfg)
+			if err != nil {
+				log.Debug("SetConfig failed on sensor: ", name)
+			}
+		}
 	}
 }

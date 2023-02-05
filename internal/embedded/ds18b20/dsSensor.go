@@ -22,9 +22,9 @@ var (
 )
 
 var _ DSHandler = (*Sensor)(nil)
-var _ models.DSSensor = (*ModelsSensor)(nil)
+var _ models.DSSensor = (*DSSensor)(nil)
 
-type ModelsSensor struct {
+type DSSensor struct {
 	handler     DSHandler
 	polling     atomic.Bool
 	cfg         models.DSConfig
@@ -33,7 +33,7 @@ type ModelsSensor struct {
 	average     *avg.Avg[float32]
 }
 
-func NewModels(handler DSHandler) *ModelsSensor {
+func NewDSSensor(handler DSHandler) *DSSensor {
 	id := handler.ID()
 	res, err := handler.Resolution()
 	if err != nil {
@@ -60,7 +60,7 @@ func NewModels(handler DSHandler) *ModelsSensor {
 		panic(err)
 	}
 
-	return &ModelsSensor{
+	return &DSSensor{
 		polling: atomic.Bool{},
 		handler: handler,
 		cfg: models.DSConfig{
@@ -81,13 +81,13 @@ func NewModels(handler DSHandler) *ModelsSensor {
 	}
 }
 
-func (m *ModelsSensor) Temperature() models.Temperature {
-	m.temperature.Temperature = m.average.Average()
-	m.temperature.Enabled = m.polling.Load()
-	return m.temperature
+func (d *DSSensor) Temperature() models.Temperature {
+	d.temperature.Temperature = d.average.Average()
+	d.temperature.Enabled = d.polling.Load()
+	return d.temperature
 }
 
-func (d *ModelsSensor) Poll() error {
+func (d *DSSensor) Poll() error {
 	if d.polling.Load() {
 		return ErrAlreadyPolling
 	}
@@ -104,20 +104,23 @@ func (d *ModelsSensor) Poll() error {
 	return nil
 }
 
-func (d *ModelsSensor) StopPoll() error {
+func (d *DSSensor) StopPoll() error {
 	if !d.polling.Load() {
 		return ErrNotPolling
 	}
 	d.cfg.Enabled = false
-	defer d.polling.Store(false)
+	defer func() {
+		d.polling.Store(false)
+		close(d.readings)
+	}()
 	return d.handler.Close()
 }
 
-func (d *ModelsSensor) Config() models.DSConfig {
+func (d *DSSensor) Config() models.DSConfig {
 	return d.cfg
 }
 
-func (d *ModelsSensor) SetConfig(cfg models.DSConfig) (err error) {
+func (d *DSSensor) SetConfig(cfg models.DSConfig) (err error) {
 	if d.cfg.Resolution != cfg.Resolution {
 		if err = d.handler.SetResolution(cfg.Resolution); err != nil {
 			return
@@ -133,19 +136,15 @@ func (d *ModelsSensor) SetConfig(cfg models.DSConfig) (err error) {
 
 	if d.cfg.Enabled != cfg.Enabled {
 		if cfg.Enabled {
-			if err = d.Poll(); err != nil {
-				return
-			}
+			err = d.Poll()
 		} else {
-			if err = d.StopPoll(); err != nil {
-				return
-			}
+			err = d.StopPoll()
 		}
 	}
 	return
 }
 
-func (d *ModelsSensor) handleReadings() {
+func (d *DSSensor) handleReadings() {
 	for data := range d.readings {
 		d.temperature = models.Temperature{
 			ID:      data.ID(),
@@ -155,6 +154,5 @@ func (d *ModelsSensor) handleReadings() {
 		if f, err := strconv.ParseFloat(data.Temperature(), 32); err == nil {
 			d.average.Add(float32(f))
 		}
-
 	}
 }

@@ -29,7 +29,7 @@ func (t *DSTestSuite) TestPoll() {
 
 	t.pollData.On("ID").Return(id)
 
-	ds := ds18b20.NewModels(t.mock)
+	ds := ds18b20.NewDSSensor(t.mock)
 	err := ds.Poll()
 	t.Nil(err)
 
@@ -124,7 +124,7 @@ func (t *DSTestSuite) TestSetGetConfig() {
 		t.mock.On("ID").Return(arg.newConfig.ID)
 		t.mock.On("Resolution").Return(arg.newConfig.Resolution, nil)
 
-		ds := ds18b20.NewModels(t.mock)
+		ds := ds18b20.NewDSSensor(t.mock)
 		t.NotNil(ds)
 
 		err := ds.SetConfig(arg.newConfig)
@@ -137,7 +137,6 @@ func (t *DSTestSuite) TestSetGetConfig() {
 		t.Equal(arg.newConfig, c)
 
 	}
-
 }
 
 func (t *DSTestSuite) TestNew_VerifyConfig() {
@@ -172,7 +171,7 @@ func (t *DSTestSuite) TestNew_VerifyConfig() {
 		t.mock.On("ID").Return(arg.id)
 		t.mock.On("Resolution").Return(arg.res, nil)
 
-		ds := ds18b20.NewModels(t.mock)
+		ds := ds18b20.NewDSSensor(t.mock)
 		t.NotNil(ds, arg.name)
 		cfg := ds.Config()
 

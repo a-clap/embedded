@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 )
@@ -94,7 +95,8 @@ func (t *DS18B20TestSuite) TestRestAPI_ConfigSensor() {
 
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(newCfg)
-	t.req, _ = http.NewRequest(http.MethodPut, "/api/onewire/"+newCfg.ID, &body)
+
+	t.req, _ = http.NewRequest(http.MethodPut, strings.Replace(embedded.RoutesConfigOnewireSensor, ":hardware_id", newCfg.ID, 1), &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
@@ -104,6 +106,7 @@ func (t *DS18B20TestSuite) TestRestAPI_ConfigSensor() {
 	t.Equal(http.StatusOK, t.resp.Code)
 	t.JSONEq(toJSON(newCfg), string(b))
 }
+
 func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 	args := []struct {
 		bus    models.OnewireSensors
@@ -270,7 +273,7 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 
 }
 
-func (t *DS18B20TestSuite) TestDSStatus() {
+func (t *DS18B20TestSuite) TestDS_GetSensors() {
 	expected := []models.OnewireSensors{
 		{
 			Bus: "first",

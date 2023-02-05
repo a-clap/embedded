@@ -17,8 +17,6 @@ type OnewireSensors struct {
 }
 type DSSensor interface {
 	Temperature() Temperature
-	Poll() error
-	StopPoll() error
 	Config() DSConfig
 	SetConfig(cfg DSConfig) (err error)
 }
