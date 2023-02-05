@@ -12,12 +12,7 @@ import (
 )
 
 func main() {
-	bpiled, err := gpio.BananaPiPin("PWR_LED")
-	if err != nil {
-		panic(err)
-	}
-
-	out, err := gpio.Output(bpiled, false)
+	out, err := gpio.Output(gpio.GetBananaPin(gpio.PWR_LED), false)
 	if err != nil {
 		panic(err)
 	}
