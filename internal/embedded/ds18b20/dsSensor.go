@@ -146,13 +146,20 @@ func (d *DSSensor) SetConfig(cfg models.DSConfig) (err error) {
 
 func (d *DSSensor) handleReadings() {
 	for data := range d.readings {
+		if err := data.Error(); err != nil {
+			log.Errorf("readings error, DS id: %s, error is %v\n", data.ID(), err)
+		}
+
 		d.temperature = models.Temperature{
 			ID:      data.ID(),
 			Enabled: d.polling.Load(),
 			Stamp:   data.Stamp(),
 		}
-		if f, err := strconv.ParseFloat(data.Temperature(), 32); err == nil {
-			d.average.Add(float32(f))
+		f, err := strconv.ParseFloat(data.Temperature(), 32)
+		if err != nil {
+			log.Error("parseFloat error on string  %v, error is %v\n", data.Temperature(), err)
 		}
+
+		d.average.Add(float32(f))
 	}
 }

@@ -3,6 +3,7 @@ package ds18b20
 import (
 	"errors"
 	"fmt"
+	"github.com/a-clap/iot/internal/embedded/logger"
 	"io"
 	"time"
 )
@@ -34,6 +35,8 @@ type Readings interface {
 	Stamp() time.Time
 	Error() error
 }
+
+var log = logger.Log
 
 func NewBus(options ...BusOption) (*Bus, error) {
 	b := &Bus{}
