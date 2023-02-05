@@ -11,19 +11,15 @@ import (
 	"net/http"
 )
 
+// PTHandler is responsible for handling models.PTSensors
 type PTHandler struct {
 	handlers []models.PTSensor
 	sensors  map[string]models.PTSensor
 }
 
+// configPTSensor is middleware for configuring specified by ID PTSensor
 func (h *Handler) configPTSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		hwid := ctx.Param("hardware_id")
-		if _, err := h.PT.GetConfig(hwid); err != nil {
-			h.respond(ctx, http.StatusNotFound, err)
-			return
-		}
-
 		cfg := models.PTConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)

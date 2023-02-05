@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 )
@@ -101,7 +100,7 @@ func (t *DS18B20TestSuite) TestRestAPI_ConfigSensor() {
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(newCfg)
 
-	t.req, _ = http.NewRequest(http.MethodPut, strings.Replace(embedded.RoutesConfigOnewireSensor, ":hardware_id", newCfg.ID, 1), &body)
+	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigOnewireSensor, &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))

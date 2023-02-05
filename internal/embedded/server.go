@@ -11,22 +11,23 @@ import (
 )
 
 const (
-	RoutesGetHeaters             = "/api/heaters"
-	RoutesConfigHeater           = "/api/heater/:hardware_id"
+	RoutesGetHeaters             = "/api/heater"
+	RoutesConfigHeater           = "/api/heater"
 	RoutesGetOnewireSensors      = "/api/onewire"
 	RoutesGetOnewireTemperatures = "/api/onewire/temperatures"
-	RoutesConfigOnewireSensor    = "/api/onewire/:hardware_id"
+	RoutesConfigOnewireSensor    = "/api/onewire"
 	RoutesGetPT100Sensors        = "/api/pt100"
 	RoutesGetPT100Temperatures   = "/api/pt100/temperatures"
-	RoutesConfigPT100Sensor      = "/api/pt100/:hardware_id"
+	RoutesConfigPT100Sensor      = "/api/pt100"
 	RoutesGetGPIOs               = "/api/gpio"
-	RoutesConfigGPIO             = "/api/gpio/:hardware_id"
+	RoutesConfigGPIO             = "/api/gpio"
 )
 
 var (
 	ErrNotImplemented = errors.New("not implemented")
 )
 
+// routes configures default handlers for paths above
 func (h *Handler) routes() {
 	h.GET(RoutesGetHeaters, h.getHeaters())
 	h.PUT(RoutesConfigHeater, h.configHeater())
@@ -43,6 +44,7 @@ func (h *Handler) routes() {
 	h.PUT(RoutesConfigGPIO, h.configGPIO())
 }
 
+// common respond for whole rest API
 func (*Handler) respond(ctx *gin.Context, code int, obj any) {
 	ctx.JSON(code, obj)
 }

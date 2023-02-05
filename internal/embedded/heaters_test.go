@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
@@ -86,7 +85,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface(
 
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(setHeater)
-	t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+setHeater.HardwareID), &body)
+	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigHeater, &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -110,16 +109,15 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 		heaterMock.On("Enable", expectedHeater.Enabled).Return(nil).Once()
 		heaterMock.On("SetPower", expectedHeater.Power).Return(nil).Once()
 
-		heaterMock.On("Enabled").Return(expectedHeater.Enabled).Twice()
-		heaterMock.On("Power").Return(expectedHeater.Power).Twice()
+		heaterMock.On("Enabled").Return(expectedHeater.Enabled).Once()
+		heaterMock.On("Power").Return(expectedHeater.Power).Once()
 
 		var body bytes.Buffer
 		if err := json.NewEncoder(&body).Encode(expectedHeater); err != nil {
-			fmt.Println("err is ", err)
 			panic(err)
 
 		}
-		t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+expectedHeater.HardwareID), &body)
+		t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigHeater, &body)
 		t.req.Header.Add("Content-Type", "application/json")
 
 		h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -138,12 +136,13 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 
 		heaterMock.On("Enable", newExpected.Enabled).Return(nil).Once()
 		heaterMock.On("SetPower", newExpected.Power).Return(nil).Once()
-		heaterMock.On("Enabled").Return(newExpected.Enabled).Twice()
-		heaterMock.On("Power").Return(newExpected.Power).Twice()
+
+		heaterMock.On("Enabled").Return(newExpected.Enabled).Once()
+		heaterMock.On("Power").Return(newExpected.Power).Once()
 
 		var body bytes.Buffer
 		_ = json.NewEncoder(&body).Encode(newExpected)
-		t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+newExpected.HardwareID), &body)
+		t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigHeater, &body)
 		t.req.Header.Add("Content-Type", "application/json")
 
 		h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -175,7 +174,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(args[0])
-	t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+args[0].HardwareID), &body)
+	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigHeater, &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -185,18 +184,6 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 	t.Equal(http.StatusInternalServerError, t.resp.Code)
 	t.Contains(string(b), errOnSetPower.Error())
 
-}
-
-func (t *HeaterTestSuite) TestHeater_PutHeaterDoesntExist() {
-	t.req, _ = http.NewRequest(http.MethodPut, "/api/heater/blah", nil)
-	t.req.Header.Add("Content-Type", "application/json")
-
-	h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
-	h.ServeHTTP(t.resp, t.req)
-	b, _ := io.ReadAll(t.resp.Body)
-
-	t.Equal(http.StatusNotFound, t.resp.Code)
-	t.Equal(toJSON(embedded.ErrHeaterDoesntExist), string(b))
 }
 
 func (t *HeaterTestSuite) TestHeater_GetHeater() {

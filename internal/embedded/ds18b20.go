@@ -23,12 +23,6 @@ type DSHandler struct {
 
 func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		hwid := ctx.Param("hardware_id")
-		if _, err := h.DS.GetConfig(hwid); err != nil {
-			h.respond(ctx, http.StatusNotFound, err)
-			return
-		}
-
 		cfg := models.DSConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)

@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 )
 
@@ -69,7 +68,7 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_ConfigGPIO() {
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(newCfg)
 
-	t.req, _ = http.NewRequest(http.MethodPut, strings.Replace(embedded.RoutesConfigGPIO, ":hardware_id", newCfg.ID, 1), &body)
+	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigGPIO, &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithGPIOs(t.gpios()))

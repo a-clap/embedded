@@ -22,12 +22,6 @@ var (
 
 func (h *Handler) configGPIO() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		hwid := ctx.Param("hardware_id")
-		if _, err := h.GPIO.GetConfig(hwid); err != nil {
-			h.respond(ctx, http.StatusNotFound, err)
-			return
-		}
-
 		cfg := models.GPIOConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)
@@ -40,7 +34,7 @@ func (h *Handler) configGPIO() gin.HandlerFunc {
 			return
 		}
 
-		cfg, err = h.GPIO.GetConfig(hwid)
+		cfg, err = h.GPIO.GetConfig(cfg.ID)
 		if err != nil {
 			h.respond(ctx, http.StatusInternalServerError, toError(err))
 			return

@@ -29,12 +29,6 @@ type HeaterHandler struct {
 
 func (h *Handler) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		hwid := HardwareID(ctx.Param("hardware_id"))
-		if _, err := h.Heaters.StatusBy(hwid); err != nil {
-			h.respond(ctx, http.StatusNotFound, err)
-			return
-		}
-
 		cfg := HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)
@@ -46,7 +40,7 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 			return
 		}
 
-		s, _ := h.Heaters.StatusBy(hwid)
+		s, _ := h.Heaters.StatusBy(cfg.HardwareID)
 		h.respond(ctx, http.StatusOK, s)
 	}
 }

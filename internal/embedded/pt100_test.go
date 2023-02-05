@@ -16,7 +16,6 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"time"
 )
@@ -28,6 +27,7 @@ type PTTestSuite struct {
 	resp *httptest.ResponseRecorder
 }
 
+// PTSensorMock implements models.PTSensor
 type PTSensorMock struct {
 	mock.Mock
 }
@@ -79,6 +79,7 @@ func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 			},
 		},
 	}
+
 	t.mock = make([]*PTSensorMock, 0, len(args))
 	for _, elem := range args {
 		m := new(PTSensorMock)
@@ -93,7 +94,7 @@ func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 		var body bytes.Buffer
 		_ = json.NewEncoder(&body).Encode(elem.new)
 
-		t.req, _ = http.NewRequest(http.MethodPut, strings.Replace(embedded.RoutesConfigPT100Sensor, ":hardware_id", elem.new.ID, 1), &body)
+		t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigPT100Sensor, &body)
 		t.req.Header.Add("Content-Type", "application/json")
 
 		handler.ServeHTTP(t.resp, t.req)
