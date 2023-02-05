@@ -267,7 +267,7 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 
 	t.mock["first"][0].On("SetConfig", toCfg).Return(nil).Once()
 
-	_, err := ds.ConfigSensor(toCfg)
+	_, err := ds.SetConfig(toCfg)
 	t.Nil(err)
 	ds.Close()
 
@@ -326,7 +326,7 @@ func (t *DS18B20TestSuite) TestDS_GetSensors() {
 
 	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	ds := mainHandler.DS
-	cfg := ds.Status()
+	cfg := ds.GetSensors()
 	t.NotNil(cfg)
 	t.ElementsMatch(expected, cfg)
 }

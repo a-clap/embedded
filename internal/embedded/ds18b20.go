@@ -2,7 +2,6 @@ package embedded
 
 import (
 	"errors"
-	. "github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/a-clap/iot/internal/embedded/models"
 	"github.com/gin-gonic/gin"
 	"net/http"
@@ -20,7 +19,7 @@ type DSHandler struct {
 func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		hwid := ctx.Param("hardware_id")
-		if _, err := h.DS.SensorConfig(hwid); err != nil {
+		if _, err := h.DS.GetConfig(hwid); err != nil {
 			h.respond(ctx, http.StatusNotFound, err)
 			return
 		}
@@ -31,7 +30,7 @@ func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 			return
 		}
 
-		cfg, err := h.DS.ConfigSensor(cfg)
+		cfg, err := h.DS.SetConfig(cfg)
 		if err != nil {
 			h.respond(ctx, http.StatusInternalServerError, toError(err))
 			return
@@ -42,7 +41,7 @@ func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 }
 func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ds := h.DS.Temperatures()
+		ds := h.DS.GetTemperatures()
 		if len(ds) == 0 {
 			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
 			return
@@ -53,7 +52,7 @@ func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 
 func (h *Handler) getOnewireSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ds := h.DS.Status()
+		ds := h.DS.GetSensors()
 		if len(ds) == 0 {
 			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
 			return
@@ -62,7 +61,7 @@ func (h *Handler) getOnewireSensors() gin.HandlerFunc {
 	}
 }
 
-func (d *DSHandler) Temperatures() []models.Temperature {
+func (d *DSHandler) GetTemperatures() []models.Temperature {
 	sensors := make([]models.Temperature, 0, len(d.sensors))
 
 	for _, sensor := range d.sensors {
@@ -80,7 +79,7 @@ func (d *DSHandler) SensorTemperature(cfg models.DSConfig) (status models.Temper
 	return ds.Temperature(), nil
 }
 
-func (d *DSHandler) ConfigSensor(cfg models.DSConfig) (newConfig models.DSConfig, err error) {
+func (d *DSHandler) SetConfig(cfg models.DSConfig) (newConfig models.DSConfig, err error) {
 	ds, err := d.sensorBy(cfg.ID)
 	if err != nil {
 		return
@@ -93,7 +92,7 @@ func (d *DSHandler) ConfigSensor(cfg models.DSConfig) (newConfig models.DSConfig
 	return ds.Config(), nil
 }
 
-func (d *DSHandler) SensorConfig(id string) (models.DSConfig, error) {
+func (d *DSHandler) GetConfig(id string) (models.DSConfig, error) {
 	s, err := d.sensorBy(id)
 	if err != nil {
 		return models.DSConfig{}, err
@@ -108,7 +107,7 @@ func (d *DSHandler) sensorBy(id string) (models.DSSensor, error) {
 	return nil, ErrNoSuchSensor
 }
 
-func (d *DSHandler) Status() []models.OnewireSensors {
+func (d *DSHandler) GetSensors() []models.OnewireSensors {
 	onewireSensors := make([]models.OnewireSensors, len(d.handlers))
 
 	pos := 0
@@ -120,7 +119,7 @@ func (d *DSHandler) Status() []models.OnewireSensors {
 			if _, ok := d.sensors[cfg.ID]; ok {
 				onewireSensors[pos].DSConfig = append(onewireSensors[pos].DSConfig, cfg)
 			} else {
-				Log.Debug("id not found before: ", cfg.ID)
+				log.Debug("id not found before: ", cfg.ID)
 			}
 		}
 		pos++

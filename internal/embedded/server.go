@@ -6,11 +6,14 @@ import (
 )
 
 const (
-	RoutesGetHeaters             = "/api/config/heaters"
-	RoutesConfigHeater           = "/api/config/heater/:hardware_id"
+	RoutesGetHeaters             = "/api/heaters"
+	RoutesConfigHeater           = "/api/heater/:hardware_id"
 	RoutesGetOnewireSensors      = "/api/onewire"
 	RoutesGetOnewireTemperatures = "/api/onewire/temperatures"
 	RoutesConfigOnewireSensor    = "/api/onewire/:hardware_id"
+	RoutesGetPT100Sensors        = "/api/pt100"
+	RoutesGetPT100Temperatures   = "/api/pt100/temperatures"
+	RoutesConfigPT100Sensor      = "/api/pt100/:hardware_id"
 )
 
 var (
@@ -24,6 +27,11 @@ func (h *Handler) routes() {
 	h.GET(RoutesGetOnewireSensors, h.getOnewireSensors())
 	h.GET(RoutesGetOnewireTemperatures, h.getOnewireTemperatures())
 	h.PUT(RoutesConfigOnewireSensor, h.configOnewireSensor())
+
+	h.GET(RoutesGetPT100Sensors, h.getPTSensors())
+	h.GET(RoutesGetPT100Temperatures, h.getPTTemperatures())
+	h.PUT(RoutesConfigPT100Sensor, h.configPTSensor())
+
 }
 
 func (*Handler) respond(ctx *gin.Context, code int, obj any) {

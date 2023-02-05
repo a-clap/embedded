@@ -2,7 +2,6 @@ package max31865
 
 import (
 	"fmt"
-	"strconv"
 	"time"
 )
 
@@ -71,11 +70,11 @@ func (s *Sensor) poll() {
 			s.cfg.polling.Store(false)
 		case <-s.trig:
 			tmp, err := s.Temperature()
-			s.data <- Readings{
-				ID:          s.ID(),
-				Temperature: tmp,
-				Stamp:       time.Now(),
-				Error:       err,
+			s.data <- &readings{
+				id:          s.ID(),
+				temperature: tmp,
+				stamp:       time.Now(),
+				error:       err,
 			}
 		}
 	}
@@ -105,11 +104,11 @@ func callback(args any) error {
 	}
 }
 
-func (s *Sensor) Temperature() (string, error) {
+func (s *Sensor) Temperature() (float32, error) {
 	r, err := s.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it
-		return "", err
+		return 0, err
 	}
 	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
 	if err != nil {
@@ -117,12 +116,10 @@ func (s *Sensor) Temperature() (string, error) {
 		_ = s.clearFaults()
 		// make error more specific
 		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.cfg.wiring))
-		return "", err
+		return 0, err
 	}
 	rtd := s.r.rtd()
-	tmp := rtdToTemperature(rtd, s.cfg.refRes, s.cfg.rNominal)
-
-	return strconv.FormatFloat(float64(tmp), 'f', -1, 32), nil
+	return rtdToTemperature(rtd, s.cfg.refRes, s.cfg.rNominal), nil
 }
 
 func (s *Sensor) Close() error {
@@ -227,4 +224,27 @@ func (s *Sensor) verify() error {
 		return ErrReadFF
 	}
 	return nil
+}
+
+type readings struct {
+	id          string
+	temperature float32
+	stamp       time.Time
+	error       error
+}
+
+func (r *readings) ID() string {
+	return r.id
+}
+
+func (r *readings) Temperature() float32 {
+	return r.temperature
+}
+
+func (r *readings) Stamp() time.Time {
+	return r.stamp
+}
+
+func (r *readings) Error() error {
+	return r.error
 }

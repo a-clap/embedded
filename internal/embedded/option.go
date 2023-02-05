@@ -23,9 +23,16 @@ func WithDS18B20(ds map[models.OnewireBusName][]models.DSSensor) Option {
 	}
 }
 
+func WithPT(pt []models.PTSensor) Option {
+	return func(h *Handler) error {
+		h.PT.handlers = pt
+		return nil
+	}
+}
+
 func WithLogger(l Logger) Option {
 	return func(*Handler) error {
-		Log = l
+		log = l
 		return nil
 	}
 }

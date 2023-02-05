@@ -9,13 +9,17 @@ type Handler struct {
 	*gin.Engine
 	Heaters *HeaterHandler
 	DS      *DSHandler
+	PT      *PTHandler
 }
+
+var log = Log
 
 func New(options ...Option) (*Handler, error) {
 	h := &Handler{
 		Engine:  gin.Default(),
 		Heaters: new(HeaterHandler),
 		DS:      new(DSHandler),
+		PT:      new(PTHandler),
 	}
 
 	for _, opt := range options {
@@ -23,16 +27,19 @@ func New(options ...Option) (*Handler, error) {
 			return nil, err
 		}
 	}
-	h.Heaters.init()
+
+	h.Heaters.Open()
 	h.DS.Open()
+	h.PT.Open()
 
 	h.routes()
 	return h, nil
 }
 
 func (h *Handler) Close() {
-
+	h.Heaters.Close()
 	h.DS.Close()
+	h.PT.Close()
 }
 
 func NewFromConfig(c Config) (*Handler, error) {
@@ -40,7 +47,7 @@ func NewFromConfig(c Config) (*Handler, error) {
 
 	heaterOpts, err := parseHeaters(c.Heaters)
 	if err != nil {
-		Log.Error("parsing ConfigHeaters resulted with errors: ", err)
+		log.Error("parsing ConfigHeaters resulted with errors: ", err)
 	}
 	if heaterOpts != nil {
 		opts = append(opts, heaterOpts)

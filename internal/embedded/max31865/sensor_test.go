@@ -5,7 +5,6 @@ import (
 	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"strconv"
 	"testing"
 	"time"
 )
@@ -134,8 +133,7 @@ func (s *SensorSuite) TestTemperature() {
 		sensorMock.On("ReadWrite", maxInitCall).Return(arg.returnArgs, nil).Once()
 		tmp, err := max.Temperature()
 		s.Equal(arg.err, err)
-		f, _ := strconv.ParseFloat(tmp, 32)
-		s.InDelta(arg.tmp, f, 1)
+		s.InDelta(arg.tmp, tmp, 1)
 	}
 }
 
@@ -154,8 +152,7 @@ func (s *SensorSuite) TestTemperatureError() {
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd3}).Return([]byte{0x00, 0xd1}, nil).Once()
 	tmp, err := max.Temperature()
 	s.ErrorIs(err, max31865.ErrRtd)
-	f, _ := strconv.ParseFloat(tmp, 32)
-	s.InDelta(0.0, f, 1)
+	s.InDelta(0.0, tmp, 1)
 }
 
 func (s *SensorSuite) TestPollErrors() {
@@ -212,11 +209,10 @@ func (s *SensorSuite) TestPollTime() {
 		now := time.Now()
 		select {
 		case r := <-dataCh:
-			s.Nil(r.Error)
-			s.EqualValues(id, r.ID)
-			val, _ := strconv.ParseFloat(r.Temperature, 32)
-			s.InDelta(expectedTmp[i], float32(val), 1)
-			diff := r.Stamp.Sub(now)
+			s.Nil(r.Error())
+			s.EqualValues(id, r.ID())
+			s.InDelta(expectedTmp[i], r.Temperature(), 1)
+			diff := r.Stamp().Sub(now)
 			s.InDelta(pollTime.Milliseconds(), diff.Milliseconds(), 1)
 		case <-time.After(2 * pollTime):
 			s.Fail("failed, waiting for readings too long")

@@ -1,7 +1,6 @@
 package embedded
 
 import (
-	. "github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
@@ -59,7 +58,7 @@ func (h *Handler) getHeaters() gin.HandlerFunc {
 }
 
 func (h *HeaterHandler) Config(cfg HeaterConfig) error {
-	heater, err := h.by(HardwareID(cfg.HardwareID))
+	heater, err := h.by(cfg.HardwareID)
 	if err != nil {
 		return err
 	}
@@ -118,11 +117,14 @@ func (h *HeaterHandler) Status() []HeaterConfig {
 func (h *HeaterHandler) by(hwid HardwareID) (Heater, error) {
 	maybeHeater, ok := h.heaters[hwid]
 	if !ok {
-		Log.Debug("requested heater doesn't exist: ", hwid)
+		log.Debug("requested heater doesn't exist: ", hwid)
 		return nil, ErrHeaterDoesntExist
 	}
 	return maybeHeater, nil
 }
 
-func (h *HeaterHandler) init() {
+func (h *HeaterHandler) Open() {
+}
+
+func (h *HeaterHandler) Close() {
 }

@@ -24,6 +24,7 @@ var (
 	ErrReadFF            = errors.New("read only 0xFF from device")
 	ErrRtd               = errors.New("rtd error")
 	ErrAlreadyPolling    = errors.New("max is already polling")
+	ErrNotPolling        = errors.New("max is not polling")
 	ErrWrongArgs         = errors.New("wrong args passed to callback")
 	ErrNoReadyInterface  = errors.New("lack of Ready interface")
 	ErrNoReadWriteCloser = errors.New("lack of ReadWriterCloser interface")
@@ -42,11 +43,11 @@ type Ready interface {
 	Close()
 }
 
-type Readings struct {
-	ID          string    `json:"id"`
-	Temperature string    `json:"temperature"`
-	Stamp       time.Time `json:"stamp"`
-	Error       error     `json:"error"`
+type Readings interface {
+	ID() string
+	Temperature() float32
+	Stamp() time.Time
+	Error() error
 }
 
 func New(options ...Option) (*Sensor, error) {

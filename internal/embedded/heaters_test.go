@@ -81,7 +81,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface(
 
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(setHeater)
-	t.req, _ = http.NewRequest(http.MethodPut, string("/api/config/heater/"+setHeater.HardwareID), &body)
+	t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+setHeater.HardwareID), &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -114,7 +114,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 			panic(err)
 
 		}
-		t.req, _ = http.NewRequest(http.MethodPut, string("/api/config/heater/"+expectedHeater.HardwareID), &body)
+		t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+expectedHeater.HardwareID), &body)
 		t.req.Header.Add("Content-Type", "application/json")
 
 		h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -138,7 +138,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 
 		var body bytes.Buffer
 		_ = json.NewEncoder(&body).Encode(newExpected)
-		t.req, _ = http.NewRequest(http.MethodPut, string("/api/config/heater/"+newExpected.HardwareID), &body)
+		t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+newExpected.HardwareID), &body)
 		t.req.Header.Add("Content-Type", "application/json")
 
 		h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -170,7 +170,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(args[0])
-	t.req, _ = http.NewRequest(http.MethodPut, string("/api/config/heater/"+args[0].HardwareID), &body)
+	t.req, _ = http.NewRequest(http.MethodPut, string("/api/heater/"+args[0].HardwareID), &body)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
@@ -183,7 +183,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 }
 
 func (t *HeaterTestSuite) TestHeater_PutHeaterDoesntExist() {
-	t.req, _ = http.NewRequest(http.MethodPut, "/api/config/heater/blah", nil)
+	t.req, _ = http.NewRequest(http.MethodPut, "/api/heater/blah", nil)
 	t.req.Header.Add("Content-Type", "application/json")
 
 	h, _ := embedded.New(embedded.WithHeaters(t.heaters()))
