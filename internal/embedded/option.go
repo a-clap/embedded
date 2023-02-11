@@ -6,13 +6,13 @@
 package embedded
 
 import (
-	. "github.com/a-clap/iot/internal/embedded/logger"
+	"github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/a-clap/iot/internal/embedded/models"
 )
 
 type Option func(*Handler) error
 
-func WithHeaters(heaters map[string]models.Heater) Option {
+func WithHeaters(heaters map[string]Heater) Option {
 	return func(h *Handler) error {
 		h.Heaters.heaters = heaters
 		return nil
@@ -66,7 +66,7 @@ func WithGPIOs(gpios []models.GPIO) Option {
 	}
 }
 
-func WithLogger(l Logger) Option {
+func WithLogger(l logger.Logger) Option {
 	return func(*Handler) error {
 		log = l
 		return nil

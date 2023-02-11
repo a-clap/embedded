@@ -49,7 +49,7 @@ type ConfigGPIO struct {
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
-	heaters := make(map[string]models.Heater, len(config))
+	heaters := make(map[string]Heater, len(config))
 	var errs []error
 	for _, maybeHeater := range config {
 		h, err := heater.New(

@@ -9,16 +9,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"math/rand"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/a-clap/iot/internal/embedded"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type HeaterTestSuite struct {
@@ -49,8 +49,8 @@ func fromJSON(b []byte, obj any) {
 	}
 }
 
-func (t *HeaterTestSuite) heaters() map[string]models.Heater {
-	heater := make(map[string]models.Heater)
+func (t *HeaterTestSuite) heaters() map[string]embedded.Heater {
+	heater := make(map[string]embedded.Heater)
 
 	for k, v := range t.mock {
 		heater[string(k)] = v
@@ -64,12 +64,12 @@ func (t *HeaterTestSuite) SetupTest() {
 	t.resp = httptest.NewRecorder()
 }
 func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface() {
-	setHeater := models.HeaterConfig{
+	setHeater := embedded.HeaterConfig{
 		ID:      "firstHeater",
 		Enabled: false,
 		Power:   13,
 	}
-	returnHeater := models.HeaterConfig{
+	returnHeater := embedded.HeaterConfig{
 		ID:      setHeater.ID,
 		Enabled: !setHeater.Enabled,
 		Power:   uint(rand.Int() % 100),
@@ -98,7 +98,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface(
 }
 
 func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
-	expectedHeater := models.HeaterConfig{
+	expectedHeater := embedded.HeaterConfig{
 		ID:      "firstHeater",
 		Enabled: false,
 		Power:   13,
@@ -129,7 +129,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 		t.JSONEq(toJSON(expectedHeater), string(b))
 	}
 	{
-		newExpected := models.HeaterConfig{
+		newExpected := embedded.HeaterConfig{
 			ID:      expectedHeater.ID,
 			Enabled: !expectedHeater.Enabled,
 			Power:   uint(rand.Uint64() % 100),
@@ -157,7 +157,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 }
 
 func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
-	args := []models.HeaterConfig{
+	args := []embedded.HeaterConfig{
 		{
 			ID:      "firstHeater",
 			Enabled: false,
@@ -188,7 +188,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 }
 
 func (t *HeaterTestSuite) TestHeater_GetHeater() {
-	args := []models.HeaterConfig{
+	args := []embedded.HeaterConfig{
 		{
 			ID:      "firstHeater",
 			Enabled: false,
@@ -216,7 +216,7 @@ func (t *HeaterTestSuite) TestHeater_GetHeater() {
 	b, _ := io.ReadAll(t.resp.Body)
 
 	t.Equal(http.StatusOK, t.resp.Code)
-	var bodyJson []models.HeaterConfig
+	var bodyJson []embedded.HeaterConfig
 	fromJSON(b, &bodyJson)
 	t.ElementsMatch(args, bodyJson)
 }
