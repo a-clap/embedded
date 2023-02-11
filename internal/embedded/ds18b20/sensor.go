@@ -141,11 +141,12 @@ func (s *Sensor) Average() float32 {
 }
 
 func (s *Sensor) GetReadings() []Readings {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+
 	if len(s.readings) == 0 {
 		return nil
 	}
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
 	c := make([]Readings, len(s.readings))
 	copy(c, s.readings)
 	s.readings = nil

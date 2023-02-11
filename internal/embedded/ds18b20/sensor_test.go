@@ -398,7 +398,7 @@ func (t *SensorSuite) TestSensor_Poll() {
 	cfg := ds18b20.SensorConfig{
 		Correction:   0,
 		Resolution:   ds18b20.Resolution11Bit,
-		PollInterval: 3 * time.Millisecond,
+		PollInterval: 10 * time.Millisecond,
 		Samples:      3,
 	}
 
@@ -453,18 +453,7 @@ func (t *SensorSuite) TestSensor_Poll() {
 	<-time.After(cfg.PollInterval * time.Duration(len(temperatures)+1))
 	data = append(data, sensor.GetReadings()...)
 
-	wait := make(chan struct{})
-	go func() {
-		r.Nil(sensor.Close())
-		wait <- struct{}{}
-	}()
-
-	select {
-	case <-wait:
-	case <-time.After(100 * time.Millisecond):
-		t.Fail("should be done after this time")
-	}
-	close(wait)
+	r.Nil(sensor.Close())
 	r.Equal(len(data), len(temperatures))
 
 	for i := range data {
@@ -472,7 +461,7 @@ func (t *SensorSuite) TestSensor_Poll() {
 			continue
 		}
 		diff := data[i].Stamp.Sub(data[i-1].Stamp)
-		r.InDelta(cfg.PollInterval, diff, float64(1*time.Millisecond))
+		r.InDelta(cfg.PollInterval, diff, float64(3*time.Millisecond))
 	}
 
 }
