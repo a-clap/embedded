@@ -6,11 +6,12 @@
 package numeric
 
 import (
+	"testing"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/test"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type KeyboardSuite struct {
@@ -165,26 +166,27 @@ func (ks *KeyboardSuite) TestInput() {
 	}
 }
 
-func (ks *KeyboardSuite) TestEsc() {
-	mocker = new(ValuerMock)
-	mocker.On("Get").Return("123")
-	w, _ := Show(mocker)
-	called := false
-	w.SetOnClosed(func() {
-		called = true
-	})
-	ks.NotNil(w)
-
-	test.Tap(numericKeyboard.buttons['1'])
-	test.Tap(numericKeyboard.buttons['6'])
-	test.Tap(numericKeyboard.buttons['7'])
-	test.Tap(numericKeyboard.buttons[esc])
-
-	if mocker.AssertExpectations(ks.T()) == false {
-		ks.Failf("expectations not fulfilled", "TestEsc")
-	}
-	ks.True(called, "should be closed on esc")
-}
+// From now we are not closing window, just hiding
+//func (ks *KeyboardSuite) TestEsc() {
+//	mocker = new(ValuerMock)
+//	mocker.On("Get").Return("123")
+//	w, _ := Show(mocker)
+//	called := false
+//	w.SetOnClosed(func() {
+//		called = true
+//	})
+//	ks.NotNil(w)
+//
+//	test.Tap(numericKeyboard.buttons['1'])
+//	test.Tap(numericKeyboard.buttons['6'])
+//	test.Tap(numericKeyboard.buttons['7'])
+//	test.Tap(numericKeyboard.buttons[esc])
+//
+//	if mocker.AssertExpectations(ks.T()) == false {
+//		ks.Failf("expectations not fulfilled", "TestEsc")
+//	}
+//	ks.True(called, "should be closed on esc")
+//}
 
 func (v *ValuerMock) Set(val string) {
 	_ = v.Called(val)

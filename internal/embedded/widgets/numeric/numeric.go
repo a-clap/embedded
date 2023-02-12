@@ -7,11 +7,13 @@ package numeric
 
 import (
 	"errors"
-	"fyne.io/fyne/v2"
-	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/widget"
 	"strconv"
 	"sync"
+
+	"fyne.io/fyne/v2"
+	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/driver/desktop"
+	"fyne.io/fyne/v2/widget"
 )
 
 type Value interface {
@@ -46,9 +48,9 @@ var (
 	}
 
 	specialButtons = []buttonHandler{
-		{key: esc, label: "ESC", handler: func() { numericKeyboard.w.Close() }},
+		{key: esc, label: "ESC", handler: func() { numericKeyboard.w.Hide() }},
 		{key: bs, label: "BS", handler: func() { numericKeyboard.impl.Backspace(); numericKeyboard.update() }},
-		{key: enter, label: "=", handler: func() { numericKeyboard.impl.Enter(); numericKeyboard.w.Close() }},
+		{key: enter, label: "=", handler: func() { numericKeyboard.impl.Enter(); numericKeyboard.w.Hide() }},
 		{key: clr, label: "CLR", handler: func() { numericKeyboard.impl.Clear(); numericKeyboard.update() }},
 		{key: inp, label: "", handler: nil}, {key: dot, label: ".", handler: func() { numericKeyboard.impl.Dot(); numericKeyboard.update() }},
 		{key: minus, label: "-", handler: func() { numericKeyboard.impl.Minus(); numericKeyboard.update() }},
@@ -60,6 +62,7 @@ type numeric struct {
 	buttons map[button]*widget.Button
 	w       fyne.Window
 	once    sync.Once
+	ctn     *fyne.Container
 }
 
 func Show(v Value) (fyne.Window, error) {
@@ -67,28 +70,9 @@ func Show(v Value) (fyne.Window, error) {
 	if app == nil {
 		return nil, ErrNoAppRunning
 	}
-
-	numericKeyboard.w = app.NewWindow("")
 	numericKeyboard.impl = newImpl(v)
-
-	numericKeyboard.init()
+	numericKeyboard.init(app)
 	numericKeyboard.update()
-
-	layout := numericKeyboard.layout()
-	keyboard := container.NewGridWithColumns(1,
-		numericKeyboard.buttons[inp],
-	)
-
-	for _, line := range layout {
-		ctn := container.NewGridWithColumns(len(line))
-		for _, elem := range line {
-			ctn.Add(elem)
-		}
-		keyboard.Add(ctn)
-	}
-
-	numericKeyboard.w.SetContent(keyboard)
-	numericKeyboard.w.SetFixedSize(true)
 
 	return numericKeyboard.w, nil
 }
@@ -97,7 +81,7 @@ func (n *numeric) update() {
 	n.buttons[inp].SetText(n.impl.Get())
 }
 
-func (n *numeric) init() {
+func (n *numeric) init(app fyne.App) {
 	n.once.Do(func() {
 		for _, btn := range specialButtons {
 			n.buttons[btn.key] = widget.NewButton(btn.label, btn.handler)
@@ -111,6 +95,31 @@ func (n *numeric) init() {
 				n.update()
 			})
 		}
+
+		layout := n.layout()
+		n.ctn = container.NewGridWithColumns(1,
+			n.buttons[inp],
+		)
+
+		for _, line := range layout {
+			ctn := container.NewGridWithColumns(len(line))
+			for _, elem := range line {
+				ctn.Add(elem)
+			}
+			n.ctn.Add(ctn)
+		}
+
+		drv := app.Driver()
+		if drv, ok := drv.(desktop.Driver); ok {
+			numericKeyboard.w = drv.CreateSplashWindow()
+		} else {
+			numericKeyboard.w = app.NewWindow("")
+		}
+
+		numericKeyboard.w.SetContent(numericKeyboard.ctn)
+		numericKeyboard.w.SetFixedSize(true)
+		numericKeyboard.w.CenterOnScreen()
+
 	})
 }
 
