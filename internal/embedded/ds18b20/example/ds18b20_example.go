@@ -21,31 +21,27 @@ func main() {
 		log.Panic(err)
 	}
 
-	reads := make(chan ds18b20.Readings)
-
 	ids, err := ds.IDs()
 	if err != nil && len(ids) == 0 {
 		log.Fatal(err)
 	}
+
 	sensor, _ := ds.NewSensor(ids[0])
 
-	errs := sensor.Poll(reads, 750*time.Millisecond)
+	errs := sensor.Poll()
 	if errs != nil {
 		log.Fatal(err)
 	}
 
 	// Just to end this after time
-	go func() {
-		for {
-			select {
-			case <-time.After(10 * time.Second):
-				_ = sensor.Close()
-			}
-		}
-	}()
+	select {
+	case <-time.After(10 * time.Second):
+		_ = sensor.Close()
+	}
+	reads := sensor.GetReadings()
 
-	for readings := range reads {
-		fmt.Printf("id: %s, Temperature: %s. Time: %s, err: %v \n", readings.ID(), readings.Temperature(), readings.Stamp(), readings.Error())
+	for _, readings := range reads {
+		fmt.Printf("id: %s, Temperature: %v. Time: %s, err: %v \n", readings.ID, readings.Temperature, readings.Stamp, readings.Error)
 	}
 
 	fmt.Println("finished")

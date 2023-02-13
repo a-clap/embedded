@@ -19,9 +19,21 @@ func WithHeaters(heaters map[string]models.Heater) Option {
 	}
 }
 
-func WithDS18B20(ds map[models.OnewireBusName][]models.DSSensor) Option {
+func WithDS18B20(ds []DSSensor) Option {
 	return func(h *Handler) error {
-		h.DS.handlers = ds
+		h.DS.sensors = make(map[string]*sensor)
+		for _, ds := range ds {
+			bus, id := ds.Name()
+			cfg := ds.GetConfig()
+			h.DS.sensors[id] = &sensor{
+				DSSensor: ds,
+				cfg: DSSensorConfig{
+					Bus:          bus,
+					Enabled:      false,
+					SensorConfig: cfg,
+				},
+			}
+		}
 		return nil
 	}
 }

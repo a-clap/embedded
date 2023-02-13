@@ -9,7 +9,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/models"
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -22,7 +22,7 @@ import (
 
 type DS18B20TestSuite struct {
 	suite.Suite
-	mock map[string][]*DS18B20SensorMock
+	mock []*DS18B20SensorMock
 	req  *http.Request
 	resp *httptest.ResponseRecorder
 }
@@ -37,320 +37,415 @@ func TestDS18B20TestSuite(t *testing.T) {
 
 func (t *DS18B20TestSuite) SetupTest() {
 	gin.DefaultWriter = io.Discard
-	t.mock = make(map[string][]*DS18B20SensorMock)
 	t.resp = httptest.NewRecorder()
 }
 
-func (t *DS18B20TestSuite) sensors() map[models.OnewireBusName][]models.DSSensor {
-	sensors := make(map[models.OnewireBusName][]models.DSSensor)
-	for k, v := range t.mock {
-		part := make([]models.DSSensor, len(v))
-		for i, s := range v {
-			part[i] = s
-		}
-		sensors[models.OnewireBusName(k)] = part
+func (t *DS18B20TestSuite) sensors() []embedded.DSSensor {
+	sensors := make([]embedded.DSSensor, len(t.mock))
+	for i, v := range t.mock {
+		sensors[i] = v
 	}
 	return sensors
 }
 
-func (t *DS18B20TestSuite) TestRestAPI_ConfigSensor() {
-	retSensors := []models.OnewireSensors{
+func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
+	args := []struct {
+		name     string
+		old, new embedded.DSSensorConfig
+	}{
 		{
-			Bus: "first",
-			DSConfig: []models.DSConfig{
-				{
-					ID:             "first",
-					Enabled:        false,
-					Resolution:     models.Resolution11BIT,
-					PollTimeMillis: 375,
-					Samples:        1,
+			name: "basic",
+			old: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "2",
+					Correction:   1,
+					Resolution:   2,
+					PollInterval: 3,
+					Samples:      4,
 				},
-				{
-					ID:             "second",
-					Enabled:        false,
-					Resolution:     models.Resolution9BIT,
-					PollTimeMillis: 94,
-					Samples:        1,
+			},
+			new: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "2",
+					Correction:   2,
+					Resolution:   3,
+					PollInterval: 4,
+					Samples:      5,
+				},
+			},
+		},
+		{
+			name: "enable dsSensor",
+			old: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "3",
+					Correction:   1,
+					Resolution:   2,
+					PollInterval: 3,
+					Samples:      4,
+				},
+			},
+			new: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: true,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "3",
+					Correction:   2,
+					Resolution:   3,
+					PollInterval: 4,
+					Samples:      5,
 				},
 			},
 		},
 	}
 
-	for _, bus := range retSensors {
-		mocks := make([]*DS18B20SensorMock, len(bus.DSConfig))
-		for i, cfg := range bus.DSConfig {
-			mocks[i] = new(DS18B20SensorMock)
-			mocks[i].On("Config").Return(cfg).Once()
-			mocks[i].On("SetConfig", mock.Anything).Return(nil)
-			mocks[i].On("StopPoll").Return(nil)
-
+	t.mock = make([]*DS18B20SensorMock, len(args))
+	for i, cfg := range args {
+		m := new(DS18B20SensorMock)
+		m.On("Name").Return(cfg.old.Bus, cfg.old.ID)
+		initCall := m.On("GetConfig").Return(cfg.old.SensorConfig).Once()
+		m.On("GetConfig").Return(cfg.new.SensorConfig).NotBefore(initCall).Once()
+		m.On("Configure", cfg.new.SensorConfig).Return(nil).Once()
+		if cfg.new.Enabled != cfg.old.Enabled {
+			if cfg.new.Enabled {
+				m.On("Poll", mock.Anything).Return(nil).Once()
+			} else {
+				m.On("Close").Return(nil).Once()
+			}
 		}
-		t.mock[string(bus.Bus)] = mocks
+		t.mock[i] = m
 	}
-	newCfg := models.DSConfig{
-		ID:             "first",
-		Enabled:        true,
-		Resolution:     models.Resolution12BIT,
-		PollTimeMillis: 400,
-		Samples:        123,
-	}
-
-	t.mock["first"][0].On("Config").Return(newCfg)
-
-	var body bytes.Buffer
-	_ = json.NewEncoder(&body).Encode(newCfg)
-
-	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigOnewireSensor, &body)
-	t.req.Header.Add("Content-Type", "application/json")
-
 	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
-	h.ServeHTTP(t.resp, t.req)
-	b, _ := io.ReadAll(t.resp.Body)
+	r := t.Require()
+	for _, arg := range args {
+		var body bytes.Buffer
+		r.Nil(json.NewEncoder(&body).Encode(arg.new))
 
-	t.Equal(http.StatusOK, t.resp.Code)
-	t.JSONEq(toJSON(newCfg), string(b))
+		t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigOnewireSensor, &body)
+		t.req.Header.Add("Content-Type", "application/json")
+
+		h.ServeHTTP(t.resp, t.req)
+		b, _ := io.ReadAll(t.resp.Body)
+
+		r.Equal(http.StatusOK, t.resp.Code)
+		r.JSONEq(toJSON(arg.new), string(b))
+	}
 }
 
 func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 	args := []struct {
-		bus    models.OnewireSensors
-		status []models.Temperature
+		cfg         embedded.DSSensorConfig
+		temperature embedded.DSTemperature
 	}{
 		{
-			bus: models.OnewireSensors{
-				Bus: "my awesome bus",
-				DSConfig: []models.DSConfig{
-					{
-						ID:             "awesome sensor",
-						Enabled:        true,
-						Resolution:     models.Resolution12BIT,
-						PollTimeMillis: 375,
-						Samples:        123,
-					},
-					{
-						ID:             "not so good, but still here it is",
-						Enabled:        false,
-						Resolution:     models.Resolution9BIT,
-						PollTimeMillis: 94,
-						Samples:        1,
-					},
+			cfg: embedded.DSSensorConfig{
+				Bus:     "456",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "ablah",
+					Correction:   -123,
+					Resolution:   ds18b20.Resolution11Bit,
+					PollInterval: 13 * time.Microsecond,
+					Samples:      15,
 				},
 			},
-			status: []models.Temperature{
-				{
-					ID:          "awesome sensor readings",
-					Enabled:     true,
-					Temperature: 123,
-					Stamp:       time.Unix(1, 1),
+			temperature: embedded.DSTemperature{
+				Bus:      "456",
+				Readings: []ds18b20.Readings{},
+			},
+		},
+		{
+			cfg: embedded.DSSensorConfig{
+				Bus:     "676",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "zablah",
+					Correction:   -123,
+					Resolution:   ds18b20.Resolution11Bit,
+					PollInterval: 13 * time.Microsecond,
+					Samples:      15,
 				},
-				{
-					ID:          "not so good, but still here it is readings",
-					Enabled:     false,
-					Temperature: -123.0,
-					Stamp:       time.Unix(5, 123),
-				},
+			},
+			temperature: embedded.DSTemperature{
+				Bus:      "676",
+				Readings: []ds18b20.Readings{},
 			},
 		},
 	}
 
-	for _, arg := range args {
-		mocks := make([]*DS18B20SensorMock, len(arg.bus.DSConfig))
-		if len(arg.bus.DSConfig) != len(arg.status) {
-			panic("must be equal")
-		}
-
-		for i, cfg := range arg.bus.DSConfig {
-			mocks[i] = new(DS18B20SensorMock)
-			mocks[i].On("Config").Return(cfg)
-			mocks[i].On("StopPoll").Return(nil)
-		}
-
-		for i, cfg := range arg.status {
-			mocks[i].On("Temperature").Return(cfg)
-		}
-
-		t.mock[string(arg.bus.Bus)] = mocks
+	t.mock = make([]*DS18B20SensorMock, len(args))
+	var temps []embedded.DSTemperature
+	for i, arg := range args {
+		m := new(DS18B20SensorMock)
+		m.On("GetConfig").Return(arg.cfg.SensorConfig)
+		m.On("Name").Return(arg.cfg.Bus, arg.cfg.ID)
+		m.On("GetReadings").Return(arg.temperature.Readings)
+		temps = append(temps, arg.temperature)
+		t.mock[i] = m
 	}
-	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetOnewireTemperatures, nil)
 
+	r := t.Require()
 	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
+
+	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetOnewireTemperatures, nil)
 	h.ServeHTTP(t.resp, t.req)
 
 	b, _ := io.ReadAll(t.resp.Body)
-	var bodyJson []models.Temperature
+	var bodyJson []embedded.DSTemperature
 	fromJSON(b, &bodyJson)
-	t.Equal(http.StatusOK, t.resp.Code)
-	t.ElementsMatch(args[0].status, bodyJson)
-}
+	r.Equal(http.StatusOK, t.resp.Code)
+	r.ElementsMatch(temps, bodyJson)
 
+}
 func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
-	args := []models.OnewireSensors{
+	cfgs := []embedded.DSSensorConfig{
 		{
-			Bus: "my awesome bus",
-			DSConfig: []models.DSConfig{
-				{
-					ID:             "awesome sensor",
-					Enabled:        true,
-					Resolution:     models.Resolution12BIT,
-					PollTimeMillis: 375,
-					Samples:        123,
-				},
-				{
-					ID:             "not so good, but still here it is",
-					Enabled:        false,
-					Resolution:     models.Resolution9BIT,
-					PollTimeMillis: 94,
-					Samples:        1,
-				},
+			Bus:     "123",
+			Enabled: false,
+			SensorConfig: ds18b20.SensorConfig{
+				ID:           "blah",
+				Correction:   -13,
+				Resolution:   ds18b20.Resolution12Bit,
+				PollInterval: 123 * time.Microsecond,
+				Samples:      5,
+			},
+		},
+		{
+			Bus:     "456",
+			Enabled: false,
+			SensorConfig: ds18b20.SensorConfig{
+				ID:           "ablah",
+				Correction:   -123,
+				Resolution:   ds18b20.Resolution11Bit,
+				PollInterval: 13 * time.Microsecond,
+				Samples:      15,
 			},
 		},
 	}
-	for _, bus := range args {
-		mocks := make([]*DS18B20SensorMock, len(bus.DSConfig))
-		for i, cfg := range bus.DSConfig {
-			mocks[i] = new(DS18B20SensorMock)
-			mocks[i].On("Config").Return(cfg)
-			mocks[i].On("StopPoll").Return(nil)
-		}
-		t.mock[string(bus.Bus)] = mocks
+
+	t.mock = make([]*DS18B20SensorMock, len(cfgs))
+	for i, cfg := range cfgs {
+		m := new(DS18B20SensorMock)
+		m.On("GetConfig").Return(cfg.SensorConfig)
+		m.On("Name").Return(cfg.Bus, cfg.ID)
+		t.mock[i] = m
 	}
+
+	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
+	r := t.Require()
+
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetOnewireSensors, nil)
 
-	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	h.ServeHTTP(t.resp, t.req)
-
 	b, _ := io.ReadAll(t.resp.Body)
-	var bodyJson []models.OnewireSensors
+	var bodyJson []embedded.DSSensorConfig
 	fromJSON(b, &bodyJson)
-	t.Equal(http.StatusOK, t.resp.Code)
-	t.ElementsMatch(args, bodyJson)
+	r.Equal(http.StatusOK, t.resp.Code)
+	r.ElementsMatch(cfgs, bodyJson)
 }
 
+func (t *DS18B20TestSuite) TestDSConfig_EnableDisable() {
+	startCfg := embedded.DSSensorConfig{
+		Bus:     "1",
+		Enabled: false,
+		SensorConfig: ds18b20.SensorConfig{
+			ID:           "2",
+			Correction:   1,
+			Resolution:   2,
+			PollInterval: 3,
+			Samples:      4,
+		},
+	}
+
+	enableCfg := startCfg
+	enableCfg.Enabled = true
+
+	m := new(DS18B20SensorMock)
+	m.On("Name").Return(startCfg.Bus, startCfg.ID)
+	initCall := m.On("GetConfig").Return(startCfg.SensorConfig).Once()
+	configureCall := m.On("GetConfig").Return(enableCfg.SensorConfig).NotBefore(initCall).Once()
+	m.On("GetConfig").Return(startCfg.SensorConfig).NotBefore(configureCall).Once()
+
+	firstConfigure := m.On("Configure", enableCfg.SensorConfig).Return(nil).Once()
+	m.On("Poll").Return(nil)
+	m.On("Configure", startCfg.SensorConfig).Return(nil).Once().NotBefore(firstConfigure)
+	m.On("Close").Return(nil)
+	t.mock = nil
+	t.mock = append(t.mock, m)
+	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
+	ds := mainHandler.DS
+	r := t.Require()
+
+	_, err := ds.SetConfig(enableCfg)
+	r.Nil(err)
+	_, err = ds.SetConfig(startCfg)
+	r.Nil(err)
+
+}
 func (t *DS18B20TestSuite) TestDSConfig() {
-	retSensors := []models.OnewireSensors{
+	args := []struct {
+		name     string
+		old, new embedded.DSSensorConfig
+	}{
 		{
-			Bus: "first",
-			DSConfig: []models.DSConfig{
-				{
-					ID:             "first_1",
-					Enabled:        false,
-					Resolution:     models.Resolution11BIT,
-					PollTimeMillis: 375,
-					Samples:        1,
+			name: "basic",
+			old: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "2",
+					Correction:   1,
+					Resolution:   2,
+					PollInterval: 3,
+					Samples:      4,
 				},
-				{
-					ID:             "first_2",
-					Enabled:        false,
-					Resolution:     models.Resolution9BIT,
-					PollTimeMillis: 94,
-					Samples:        1,
+			},
+			new: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "2",
+					Correction:   2,
+					Resolution:   3,
+					PollInterval: 4,
+					Samples:      5,
+				},
+			},
+		},
+		{
+			name: "enable dsSensor",
+			old: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: false,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "3",
+					Correction:   1,
+					Resolution:   2,
+					PollInterval: 3,
+					Samples:      4,
+				},
+			},
+			new: embedded.DSSensorConfig{
+				Bus:     "1",
+				Enabled: true,
+				SensorConfig: ds18b20.SensorConfig{
+					ID:           "3",
+					Correction:   2,
+					Resolution:   3,
+					PollInterval: 4,
+					Samples:      5,
 				},
 			},
 		},
 	}
-	for _, bus := range retSensors {
-		mocks := make([]*DS18B20SensorMock, len(bus.DSConfig))
-		for i, cfg := range bus.DSConfig {
-			mocks[i] = new(DS18B20SensorMock)
-			mocks[i].On("Config").Return(cfg)
-			mocks[i].On("StopPoll").Return(nil)
+
+	t.mock = make([]*DS18B20SensorMock, len(args))
+	for i, cfg := range args {
+		m := new(DS18B20SensorMock)
+		m.On("Name").Return(cfg.old.Bus, cfg.old.ID)
+		initCall := m.On("GetConfig").Return(cfg.old.SensorConfig).Once()
+		m.On("GetConfig").Return(cfg.new.SensorConfig).NotBefore(initCall).Once()
+		m.On("Configure", cfg.new.SensorConfig).Return(nil).Once()
+		if cfg.new.Enabled != cfg.old.Enabled {
+			if cfg.new.Enabled {
+				m.On("Poll", mock.Anything).Return(nil).Once()
+			} else {
+				m.On("Close").Return(nil).Once()
+			}
 		}
-		t.mock[string(bus.Bus)] = mocks
+		t.mock[i] = m
 	}
 
 	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	ds := mainHandler.DS
-
-	toCfg := models.DSConfig{
-		ID:             "first_1",
-		Enabled:        true,
-		Resolution:     models.Resolution10BIT,
-		PollTimeMillis: 100,
-		Samples:        10,
+	r := t.Require()
+	for _, arg := range args {
+		newCfg, err := ds.SetConfig(arg.new)
+		r.Nil(err, arg.name)
+		r.EqualValues(arg.new, newCfg)
 	}
-
-	t.mock["first"][0].On("SetConfig", toCfg).Return(nil).Once()
-
-	_, err := ds.SetConfig(toCfg)
-	t.Nil(err)
-	ds.Close()
+	for _, m := range t.mock {
+		m.AssertExpectations(t.T())
+	}
 
 }
-
 func (t *DS18B20TestSuite) TestDS_GetSensors() {
-	expected := []models.OnewireSensors{
+	cfgs := []embedded.DSSensorConfig{
 		{
-			Bus: "first",
-			DSConfig: []models.DSConfig{
-				{
-					ID:             "first_1",
-					Enabled:        false,
-					Resolution:     models.Resolution11BIT,
-					PollTimeMillis: 375,
-					Samples:        5,
-				},
-				{
-					ID:             "first_2",
-					Enabled:        false,
-					Resolution:     models.Resolution9BIT,
-					PollTimeMillis: 94,
-					Samples:        5,
-				},
+			Bus:     "123",
+			Enabled: false,
+			SensorConfig: ds18b20.SensorConfig{
+				ID:           "blah",
+				Correction:   -13,
+				Resolution:   ds18b20.Resolution12Bit,
+				PollInterval: 123 * time.Microsecond,
+				Samples:      5,
 			},
 		},
 		{
-			Bus: "second",
-			DSConfig: []models.DSConfig{
-				{
-					ID:             "second_1",
-					Enabled:        false,
-					Resolution:     models.Resolution12BIT,
-					PollTimeMillis: 750,
-					Samples:        5,
-				},
-				{
-					ID:             "second_2",
-					Enabled:        false,
-					Resolution:     models.Resolution10BIT,
-					PollTimeMillis: 188,
-					Samples:        5,
-				},
+			Bus:     "456",
+			Enabled: false,
+			SensorConfig: ds18b20.SensorConfig{
+				ID:           "ablah",
+				Correction:   -123,
+				Resolution:   ds18b20.Resolution11Bit,
+				PollInterval: 13 * time.Microsecond,
+				Samples:      15,
 			},
 		},
 	}
 
-	for _, bus := range expected {
-		mocks := make([]*DS18B20SensorMock, len(bus.DSConfig))
-		for i, cfg := range bus.DSConfig {
-			mocks[i] = new(DS18B20SensorMock)
-			mocks[i].On("Config").Return(cfg)
-		}
-		t.mock[string(bus.Bus)] = mocks
+	t.mock = make([]*DS18B20SensorMock, len(cfgs))
+	for i, cfg := range cfgs {
+		m := new(DS18B20SensorMock)
+		m.On("GetConfig").Return(cfg.SensorConfig)
+		m.On("Name").Return(cfg.Bus, cfg.ID)
+		t.mock[i] = m
 	}
 
 	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	ds := mainHandler.DS
 	cfg := ds.GetSensors()
 	t.NotNil(cfg)
-	t.ElementsMatch(expected, cfg)
+	t.ElementsMatch(cfgs, cfg)
 }
 
-func (d *DS18B20SensorMock) Temperature() models.Temperature {
-	return d.Called().Get(0).(models.Temperature)
+func (m *DS18B20SensorMock) Poll() (err error) {
+	return m.Called().Error(0)
 }
 
-func (d *DS18B20SensorMock) Poll() error {
-	return d.Called().Error(0)
+func (m *DS18B20SensorMock) Temperature() (actual, average float32, err error) {
+	args := m.Called()
+	return args.Get(0).(float32), args.Get(1).(float32), args.Error(2)
 }
 
-func (d *DS18B20SensorMock) StopPoll() error {
-	return d.Called().Error(0)
+func (m *DS18B20SensorMock) Average() float32 {
+	return m.Called().Get(0).(float32)
 }
 
-func (d *DS18B20SensorMock) Config() models.DSConfig {
-	return d.Called().Get(0).(models.DSConfig)
+func (m *DS18B20SensorMock) Configure(config ds18b20.SensorConfig) error {
+	return m.Called(config).Error(0)
 }
 
-func (d *DS18B20SensorMock) SetConfig(cfg models.DSConfig) (err error) {
-	return d.Called(cfg).Error(0)
+func (m *DS18B20SensorMock) GetConfig() ds18b20.SensorConfig {
+	return m.Called().Get(0).(ds18b20.SensorConfig)
+}
+
+func (m *DS18B20SensorMock) Close() error {
+	return m.Called().Error(0)
+}
+
+func (m *DS18B20SensorMock) Name() (bus string, id string) {
+	args := m.Called()
+	return args.String(0), args.String(1)
+}
+
+func (m *DS18B20SensorMock) GetReadings() []ds18b20.Readings {
+	return m.Called().Get(0).([]ds18b20.Readings)
 }

@@ -6,9 +6,10 @@
 package models
 
 type PTConfig struct {
-	ID      string `json:"id"`
-	Enabled bool   `json:"enabled"`
-	Samples uint   `json:"samples"`
+	ID         string  `json:"id"`
+	Enabled    bool    `json:"enabled"`
+	Samples    uint    `json:"samples"`
+	Correction float32 `json:"correction"`
 }
 
 type PTSensor interface {

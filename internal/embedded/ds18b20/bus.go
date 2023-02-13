@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"github.com/a-clap/iot/internal/embedded/logger"
 	"io"
-	"time"
 )
 
 var Log = logger.Log
@@ -35,12 +34,6 @@ type Onewire interface {
 	FileOpener
 }
 
-type Readings interface {
-	ID() string
-	Temperature() string
-	Stamp() time.Time
-	Error() error
-}
 type Bus struct {
 	ids []string
 	o   Onewire
@@ -66,7 +59,7 @@ func (b *Bus) IDs() ([]string, error) {
 	return b.ids, err
 }
 
-func (b *Bus) NewSensor(id string) (*Handler, error) {
+func (b *Bus) NewSensor(id string) (*Sensor, error) {
 	ids, err := b.IDs()
 	if err != nil {
 		return nil, err
@@ -84,8 +77,8 @@ func (b *Bus) NewSensor(id string) (*Handler, error) {
 		return nil, ErrNoSuchID
 	}
 
-	// delegate creation of Handler to newSensor
-	s, err := newSensor(b.o, id, b.o.Path())
+	// delegate creation of Sensor to NewSensor
+	s, err := NewSensor(b.o, id, b.o.Path())
 	if err != nil {
 		return nil, err
 	}
@@ -108,12 +101,12 @@ func (b *Bus) updateIDs() error {
 	return nil
 }
 
-func (b *Bus) Discover() ([]*Handler, error) {
+func (b *Bus) Discover() ([]*Sensor, error) {
 	ids, err := b.IDs()
 	if err != nil {
 		return nil, err
 	}
-	s := make([]*Handler, 0, len(ids))
+	s := make([]*Sensor, 0, len(ids))
 	for _, id := range ids {
 		ds, err := b.NewSensor(id)
 		if err == nil {

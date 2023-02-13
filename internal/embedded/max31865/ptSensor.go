@@ -33,7 +33,7 @@ var (
 )
 
 func NewPTSensor(handler PTHandler) (*PTSensor, error) {
-	average, err := avg.New[float32](models.DefaultSamples)
+	average, err := avg.New[float32](5)
 	if err != nil {
 		return nil, err
 	}
@@ -44,7 +44,7 @@ func NewPTSensor(handler PTHandler) (*PTSensor, error) {
 		cfg: models.PTConfig{
 			ID:      handler.ID(),
 			Enabled: false,
-			Samples: models.DefaultSamples,
+			Samples: 5,
 		},
 		readings: nil,
 		temperature: models.Temperature{

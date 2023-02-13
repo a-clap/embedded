@@ -26,11 +26,11 @@ type ConfigHeater struct {
 }
 
 type ConfigDS18B20 struct {
-	Path           string                `json:"path"`
-	BusName        models.OnewireBusName `json:"bus_name"`
-	PollTimeMillis uint                  `json:"poll_time_millis"`
-	Resolution     models.DSResolution   `json:"resolution"`
-	Samples        uint                  `json:"samples"`
+	Path           string             `json:"path"`
+	BusName        string             `json:"bus_name"`
+	PollTimeMillis uint               `json:"poll_time_millis"`
+	Resolution     ds18b20.Resolution `json:"resolution"`
+	Samples        uint               `json:"samples"`
 }
 
 type ConfigPT100 struct {
@@ -67,7 +67,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 }
 
 func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
-	onewire := make(map[models.OnewireBusName][]models.DSSensor)
+	onewire := make([]DSSensor, len(config))
 	var errs []error
 
 	for _, busConfig := range config {
@@ -83,15 +83,11 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 			log.Error("error on discovering, err:", err)
 			errs = append(errs, err)
 			continue
-
+		}
+		for _, s := range sensors {
+			onewire = append(onewire, s)
 		}
 
-		dsSensors := make([]models.DSSensor, len(sensors))
-		for i, sensor := range sensors {
-			ds := ds18b20.NewDSSensor(sensor)
-			dsSensors[i] = ds
-		}
-		onewire[busConfig.BusName] = dsSensors
 	}
 	return WithDS18B20(onewire), errs
 }
