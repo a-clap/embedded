@@ -93,11 +93,11 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 }
 
 func parsePT100(config []ConfigPT100) (Option, []error) {
-	pts := make([]models.PTSensor, len(config))
+	pts := make([]PTSensor, len(config))
 
 	var errs []error
 	for _, ptConfig := range config {
-		s, err := max31865.New(
+		s, err := max31865.NewSensor(
 			max31865.WithSpidev(ptConfig.Path),
 			max31865.WithID(ptConfig.ID),
 			max31865.WithRNominal(ptConfig.RNominal),
@@ -105,19 +105,14 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 			max31865.WithWiring(ptConfig.Wiring),
 			max31865.WithReadyPin(ptConfig.ReadyPin),
 		)
+
 		if err != nil {
-			log.Errorf("error on create sensor: %v", err)
+			log.Errorf("error on create dsSensor: %v", err)
 			errs = append(errs, err)
 			continue
 		}
 
-		pt, err := max31865.NewPTSensor(s)
-		if err != nil {
-			log.Errorf("error on create ptSensor: %v", err)
-			errs = append(errs, err)
-			continue
-		}
-		pts = append(pts, pt)
+		pts = append(pts, s)
 	}
 
 	return WithPT(pts), errs

@@ -83,12 +83,12 @@ func (s *SensorSuite) TestNew() {
 	}
 	for _, arg := range args {
 		sensorMock = new(SensorTransferMock)
-		// Initial config call, always constant
+		// Initial configReg call, always constant
 		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
 		// Configuration call
 		sensorMock.On("ReadWrite", arg.call).Return(arg.returnArgs, nil)
 		arg.newArgs = append(arg.newArgs, max31865.WithReadWriteCloser(sensorMock))
-		max, _ := max31865.New(arg.newArgs...)
+		max, _ := max31865.NewSensor(arg.newArgs...)
 		s.NotNil(max)
 	}
 }
@@ -128,26 +128,26 @@ func (s *SensorSuite) TestTemperature() {
 	}
 	for _, arg := range args {
 		sensorMock = new(SensorTransferMock)
-		// Initial config call, always constant
+		// Initial configReg call, always constant
 		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
 		// Configuration call
 		sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
-		max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
+		max, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
 		s.NotNil(max)
 
 		sensorMock.On("ReadWrite", maxInitCall).Return(arg.returnArgs, nil).Once()
-		tmp, err := max.Temperature()
+		tmp, _, err := max.Temperature()
 		s.Equal(arg.err, err)
 		s.InDelta(arg.tmp, tmp, 1)
 	}
 }
 
 func (s *SensorSuite) TestTemperatureError() {
-	// Initial config call, always constant
+	// Initial configReg call, always constant
 	sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
 	// Configuration call
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
-	var max, _ = max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
+	var max, _ = max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
 	s.NotNil(max)
 
 	// Return error (lsb of rtd set to 1)
@@ -155,46 +155,96 @@ func (s *SensorSuite) TestTemperatureError() {
 	sensorMock.On("ReadWrite", maxInitCall).Return(errArgs, nil).Once()
 	// max will try to reset error
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd3}).Return([]byte{0x00, 0xd1}, nil).Once()
-	tmp, err := max.Temperature()
+	tmp, _, err := max.Temperature()
 	s.ErrorIs(err, max31865.ErrRtd)
 	s.InDelta(0.0, tmp, 1)
 }
 
-func (s *SensorSuite) TestPollErrors() {
-	// Initial config call, always constant
-	sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
-	// Configuration call
-	sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
-	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
-	s.NotNil(max)
+func (s *SensorSuite) TestConfigure() {
+	args := []struct {
+		name        string
+		newCfg      max31865.SensorConfig
+		expectedErr error
+	}{
+		{
+			name: "basic",
+			newCfg: max31865.SensorConfig{
+				ID:           "",
+				Correction:   11,
+				ASyncPoll:    false,
+				PollInterval: 100,
+				Samples:      13,
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "another",
+			newCfg: max31865.SensorConfig{
+				ID:           "",
+				Correction:   11.5,
+				ASyncPoll:    false,
+				PollInterval: 1033,
+				Samples:      1,
+			},
+			expectedErr: nil,
+		},
+		{
+			name: "lack of ready interface",
+			newCfg: max31865.SensorConfig{
+				ID:           "",
+				Correction:   -12.0,
+				ASyncPoll:    true,
+				PollInterval: 103,
+				Samples:      15,
+			},
+			expectedErr: max31865.ErrNoReadyInterface,
+		},
+	}
+	r := s.Require()
+	for _, arg := range args {
+		sensorMock = new(SensorTransferMock)
+		triggerMock = new(SensorTriggerMock)
 
-	dataCh := make(chan max31865.Readings)
-	pollTime := time.Duration(-1)
+		//Initial configReg call, always constant
+		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
+		//Configuration call
+		sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
 
-	err := max.Poll(dataCh, pollTime)
-	s.NotNil(err)
-	s.ErrorIs(err, max31865.ErrNoReadyInterface)
+		sensor, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock))
+		r.NotNil(sensor, arg.name)
+		err := sensor.Configure(arg.newCfg)
+		if arg.expectedErr != nil {
+			r.NotNil(err)
+			r.ErrorIs(err, arg.expectedErr)
+			continue
+		}
+		r.Nil(err)
+		newCfg := sensor.GetConfig()
+		r.Equal(arg.newCfg, newCfg)
+	}
+
 }
 
 func (s *SensorSuite) TestPollTime() {
-	// Initial config call, always constant
+	r := s.Require()
+	// Initial configReg call, always constant
 	sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
 	// Configuration call
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
 	id := "max"
-	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithID(id))
-	s.NotNil(max)
+	max, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithID(id))
+	r.NotNil(max)
 
-	dataCh := make(chan max31865.Readings)
-	pollTime := 5 * time.Millisecond
+	cfg := max.GetConfig()
+	cfg.PollInterval = 5 * time.Millisecond
+	cfg.ASyncPoll = false
 
-	err := max.Poll(dataCh, pollTime)
-	s.Nil(err)
+	r.Nil(max.Configure(cfg))
 
 	expectedTmp := []float32{
-		-200.0,
-		-175.0,
-		-50.0,
+		-200.1,
+		-175.3,
+		-50.7,
 		0.0,
 		70.0,
 	}
@@ -209,101 +259,89 @@ func (s *SensorSuite) TestPollTime() {
 	for _, buf := range buffers {
 		sensorMock.On("ReadWrite", maxInitCall).Return(buf, nil).Once()
 	}
-
-	for i := 0; i < 5; i++ {
-		now := time.Now()
-		select {
-		case r := <-dataCh:
-			s.Nil(r.Error())
-			s.EqualValues(id, r.ID())
-			s.InDelta(expectedTmp[i], r.Temperature(), 1)
-			diff := r.Stamp().Sub(now)
-			s.InDelta(pollTime.Milliseconds(), diff.Milliseconds(), 1)
-		case <-time.After(2 * pollTime):
-			s.Fail("failed, waiting for readings too long")
-		}
-	}
 	sensorMock.On("Close").Return(nil)
-	wait := make(chan struct{})
+	err := max.Poll()
+	s.Nil(err)
+	<-time.After(cfg.PollInterval*time.Duration(len(buffers)) + time.Millisecond)
 
-	go func() {
-		s.Nil(max.Close())
-		wait <- struct{}{}
-	}()
+	s.Nil(max.Close())
+	readings := max.GetReadings()
+	r.Len(readings, len(expectedTmp))
 
-	select {
-	case <-wait:
-	case <-time.After(2 * pollTime):
-		s.Fail("should be done after this time")
+	for i := range readings {
+		r.Equal("", readings[i].Error)
+		r.InDelta(expectedTmp[i], readings[i].Temperature, 0.1)
+
+		average := float32(0)
+		for j := 0; j <= i; j++ {
+			average += expectedTmp[j]
+		}
+		average /= float32(i + 1)
+		r.InDelta(average, readings[i].Average, 0.1)
+
+		if i == 0 {
+			continue
+		}
+
+		diff := readings[i].Stamp.Sub(readings[i-1].Stamp)
+		r.InDelta(cfg.PollInterval, diff, float64(1*time.Millisecond))
 	}
-	close(wait)
 
 }
 
 func (s *SensorSuite) TestPollTwice() {
-	// Initial config call, always constant
+	// Initial configReg call, always constant
 	sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
 	// Configuration call
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
-	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
+	max, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0))
 	s.NotNil(max)
-
-	dataCh := make(chan max31865.Readings)
-	pollTime := 5 * time.Millisecond
 
 	// Will call once at least
 	sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
-	err := max.Poll(dataCh, pollTime)
+	err := max.Poll()
 	s.Nil(err)
-	err = max.Poll(dataCh, pollTime)
+	err = max.Poll()
 	s.ErrorIs(err, max31865.ErrAlreadyPolling)
 
 	sensorMock.On("Close").Return(nil)
-	wait := make(chan struct{})
-
-	go func() {
-		s.Nil(max.Close())
-		wait <- struct{}{}
-	}()
-
-	select {
-	case <-wait:
-	case <-time.After(2 * pollTime):
-		s.Fail("should be done after this time")
-	}
-	close(wait)
+	s.Nil(max.Close())
 }
 
 func (s *SensorSuite) TestPollTriggerReturnsCorrectErrors() {
-	// Initial config call, always constant
+	r := s.Require()
+	// Initial configReg call, always constant
 	sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
 	// Configuration call
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil).Once()
-	max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
-	s.NotNil(max)
+	max, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
+	r.NotNil(max)
 
-	dataCh := make(chan max31865.Readings)
+	cfg := max.GetConfig()
+	cfg.ASyncPoll = true
+	r.Nil(max.Configure(cfg))
+
 	triggerErr := errors.New("broken")
 	triggerMock.On("Open", mock.Anything).Return(triggerErr).Once()
-	err := max.Poll(dataCh, -1)
-	s.NotNil(err)
-	s.ErrorIs(err, triggerErr)
+	err := max.Poll()
+	r.NotNil(err)
+	r.ErrorIs(err, triggerErr)
 
 	{
 		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Twice()
 		sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil).Once()
-		max, _ := max31865.New(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
+		max, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
 
 		triggerMock.On("Open", mock.Anything).Return(nil).Once()
-		err = max.Poll(dataCh, -1)
-		s.Nil(err)
+		err = max.Poll()
+		r.Nil(err)
 
 		err = triggerMock.cb(triggerMock.args)
-		s.Nil(err)
+		r.Nil(err)
 
 		err = triggerMock.cb(triggerMock.args)
-		s.NotNil(err)
-		s.ErrorIs(max31865.ErrTooMuchTriggers, err)
+		r.NotNil(err)
+		r.ErrorIs(max31865.ErrTooMuchTriggers, err)
 
 	}
 }

@@ -21,11 +21,11 @@ func WithHeaters(heaters map[string]models.Heater) Option {
 
 func WithDS18B20(ds []DSSensor) Option {
 	return func(h *Handler) error {
-		h.DS.sensors = make(map[string]*sensor)
+		h.DS.sensors = make(map[string]*dsSensor)
 		for _, ds := range ds {
 			bus, id := ds.Name()
 			cfg := ds.GetConfig()
-			h.DS.sensors[id] = &sensor{
+			h.DS.sensors[id] = &dsSensor{
 				DSSensor: ds,
 				cfg: DSSensorConfig{
 					Bus:          bus,
@@ -38,9 +38,20 @@ func WithDS18B20(ds []DSSensor) Option {
 	}
 }
 
-func WithPT(pt []models.PTSensor) Option {
+func WithPT(pt []PTSensor) Option {
 	return func(h *Handler) error {
-		h.PT.handlers = pt
+		h.PT.sensors = make(map[string]*ptSensor)
+		for _, p := range pt {
+			id := p.ID()
+			cfg := p.GetConfig()
+			h.PT.sensors[id] = &ptSensor{
+				PTSensor: p,
+				PTSensorConfig: PTSensorConfig{
+					Enabled:      false,
+					SensorConfig: cfg,
+				},
+			}
+		}
 		return nil
 	}
 }

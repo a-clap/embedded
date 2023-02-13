@@ -7,152 +7,63 @@ package max31865
 
 import (
 	"fmt"
+	"github.com/a-clap/iot/internal/embedded/avg"
+	"sync"
+	"sync/atomic"
 	"time"
 )
 
 type Sensor struct {
 	ReadWriteCloser
-	cfg  *config
-	r    *rtd
-	trig chan struct{}
-	fin  chan struct{}
-	stop chan struct{}
-	data chan Readings
+	configReg       *configReg
+	r               *rtd
+	trig, fin, stop chan struct{}
+	data            chan Readings
+	cfg             SensorConfig
+	average         *avg.Avg[float32]
+	polling         atomic.Bool
+	ready           Ready
+	readings        []Readings
+	mtx             sync.Mutex
 }
 
-func (s *Sensor) Poll(data chan Readings, pollTime time.Duration) (err error) {
-	if s.cfg.polling.Load() {
-		return ErrAlreadyPolling
-	}
-
-	s.cfg.polling.Store(true)
-	if pollTime == -1 {
-		err = s.prepareAsyncPoll()
-	} else {
-		err = s.prepareSyncPoll(pollTime)
-	}
-
-	if err != nil {
-		s.cfg.polling.Store(false)
-		return err
-	}
-
-	s.fin = make(chan struct{})
-	s.stop = make(chan struct{})
-	s.data = data
-	go s.poll()
-
-	return nil
+type SensorConfig struct {
+	ID           string        `json:"id"`
+	Correction   float32       `json:"correction"`
+	ASyncPoll    bool          `json:"a_sync_poll"`
+	PollInterval time.Duration `json:"poll_interval"`
+	Samples      uint          `json:"samples"`
 }
 
-func (s *Sensor) prepareSyncPoll(pollTime time.Duration) error {
-	s.trig = make(chan struct{})
-	go func(s *Sensor, pollTime time.Duration) {
-		for s.cfg.polling.Load() {
-			<-time.After(pollTime)
-			if s.cfg.polling.Load() {
-				s.trig <- struct{}{}
-			}
-		}
-		close(s.trig)
-	}(s, pollTime)
-
-	return nil
+type Readings struct {
+	ID          string    `json:"id"`
+	Temperature float32   `json:"temperature"`
+	Average     float32   `json:"average"`
+	Stamp       time.Time `json:"stamp"`
+	Error       string    `json:"error"`
 }
 
-func (s *Sensor) prepareAsyncPoll() error {
-	if s.cfg.ready == nil {
-		return ErrNoReadyInterface
-	}
-	s.trig = make(chan struct{}, 1)
-	return s.cfg.ready.Open(callback, s)
-}
-
-func (s *Sensor) poll() {
-	for s.cfg.polling.Load() {
-		select {
-		case <-s.stop:
-			s.cfg.polling.Store(false)
-		case <-s.trig:
-			tmp, err := s.Temperature()
-			s.data <- &readings{
-				id:          s.ID(),
-				temperature: tmp,
-				stamp:       time.Now(),
-				error:       err,
-			}
-		}
-	}
-	// For sure there won't be more data
-	close(s.data)
-	if s.cfg.pollType == async {
-		s.cfg.ready.Close()
-		close(s.trig)
-	}
-
-	// Notify user that we are done
-	s.fin <- struct{}{}
-	close(s.fin)
-}
-
-func callback(args any) error {
-	s, ok := args.(*Sensor)
-	if !ok {
-		return ErrWrongArgs
-	}
-	// We don't want to block on channel write, as it may be isr
-	select {
-	case s.trig <- struct{}{}:
-		return nil
-	default:
-		return ErrTooMuchTriggers
-	}
-}
-
-func (s *Sensor) Temperature() (float32, error) {
-	r, err := s.read(regConf, regFault+1)
-	if err != nil {
-		//	can't do much about it
-		return 0, err
-	}
-	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
-	if err != nil {
-		// Not handling error here, should have happened on previous call
-		_ = s.clearFaults()
-		// make error more specific
-		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.cfg.wiring))
-		return 0, err
-	}
-	rtd := s.r.rtd()
-	return rtdToTemperature(rtd, s.cfg.refRes, s.cfg.rNominal), nil
-}
-
-func (s *Sensor) Close() error {
-	if s.cfg.polling.Load() {
-		s.stop <- struct{}{}
-		// Close stop channel, not needed anymore
-		close(s.stop)
-		// Unblock poll
-		for range s.data {
-		}
-		// Wait until finish
-		for range s.fin {
-		}
-	}
-
-	return s.ReadWriteCloser.Close()
-}
-
-func (s *Sensor) ID() string {
-	return string(s.cfg.id)
-}
-
-func newSensor(options ...Option) (*Sensor, error) {
+func NewSensor(options ...Option) (*Sensor, error) {
 	s := &Sensor{
 		ReadWriteCloser: nil,
 		r:               newRtd(),
-		cfg:             newConfig(),
+		configReg:       newConfig(),
+		readings:        nil,
+		mtx:             sync.Mutex{},
+		cfg: SensorConfig{
+			ID:           "",
+			Correction:   0,
+			ASyncPoll:    false,
+			PollInterval: 100 * time.Millisecond,
+			Samples:      10,
+		},
 	}
+	var err error
+	s.average, err = avg.New[float32](s.cfg.Samples)
+	if err != nil {
+		return nil, err
+	}
+
 	for _, opt := range options {
 		if err := opt(s); err != nil {
 			return nil, err
@@ -171,12 +82,185 @@ func newSensor(options ...Option) (*Sensor, error) {
 	return s, nil
 }
 
+func (s *Sensor) Poll() (err error) {
+	if s.polling.Load() {
+		return ErrAlreadyPolling
+	}
+
+	s.polling.Store(true)
+	if s.cfg.ASyncPoll {
+		err = s.prepareAsyncPoll()
+	} else {
+		err = s.prepareSyncPoll(s.cfg.PollInterval)
+	}
+
+	if err != nil {
+		s.polling.Store(false)
+		return err
+	}
+
+	s.fin = make(chan struct{})
+	s.stop = make(chan struct{})
+	s.data = make(chan Readings, 10)
+	go s.poll()
+
+	return nil
+}
+
+func (s *Sensor) GetReadings() []Readings {
+	if len(s.readings) == 0 {
+		return nil
+	}
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	c := make([]Readings, len(s.readings))
+	copy(c, s.readings)
+	s.readings = nil
+	return c
+}
+
+func (s *Sensor) add(r Readings) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.readings = append(s.readings, r)
+	if len(s.readings) > 100 {
+		s.readings = s.readings[1:]
+	}
+}
+
+func (s *Sensor) Configure(config SensorConfig) error {
+	if s.cfg.Samples != config.Samples {
+		if err := s.average.Resize(config.Samples); err != nil {
+			return err
+		}
+		s.cfg.Samples = config.Samples
+	}
+	if config.ASyncPoll {
+		if s.ready == nil {
+			return ErrNoReadyInterface
+		}
+	}
+	s.cfg.ASyncPoll = config.ASyncPoll
+
+	s.cfg.PollInterval = config.PollInterval
+	s.cfg.Correction = config.Correction
+	return nil
+}
+func (s *Sensor) GetConfig() SensorConfig {
+	return s.cfg
+}
+
+func (s *Sensor) prepareSyncPoll(pollTime time.Duration) error {
+	s.trig = make(chan struct{})
+	go func(s *Sensor, pollTime time.Duration) {
+		for s.polling.Load() {
+			<-time.After(pollTime)
+			if s.polling.Load() {
+				s.trig <- struct{}{}
+			}
+		}
+		close(s.trig)
+	}(s, pollTime)
+
+	return nil
+}
+
+func (s *Sensor) prepareAsyncPoll() error {
+	if s.ready == nil {
+		return ErrNoReadyInterface
+	}
+	s.trig = make(chan struct{}, 1)
+	return s.ready.Open(callback, s)
+}
+
+func (s *Sensor) poll() {
+	go func() {
+		for data := range s.data {
+			s.add(data)
+		}
+	}()
+
+	for s.polling.Load() {
+		select {
+		case <-s.stop:
+			s.polling.Store(false)
+		case <-s.trig:
+			tmp, average, err := s.Temperature()
+			e := ""
+			if err != nil {
+				e = err.Error()
+			}
+
+			s.data <- Readings{
+				ID:          s.ID(),
+				Temperature: tmp,
+				Average:     average,
+				Stamp:       time.Now(),
+				Error:       e,
+			}
+		}
+	}
+	// For sure there won't be more data
+	close(s.data)
+	if s.cfg.ASyncPoll {
+		s.ready.Close()
+		close(s.trig)
+	}
+
+	// Notify user that we are done
+	s.fin <- struct{}{}
+	close(s.fin)
+}
+
+func (s *Sensor) Average() float32 {
+	return s.average.Average()
+}
+
+func (s *Sensor) Temperature() (actual float32, average float32, err error) {
+	r, err := s.read(regConf, regFault+1)
+	if err != nil {
+		//	can't do much about it
+		return
+	}
+	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
+	if err != nil {
+		// Not handling error here, should have happened on previous call
+		_ = s.clearFaults()
+		// make error more specific
+		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.configReg.wiring))
+		return
+	}
+	tmp := s.r.toTemperature(s.configReg.refRes, s.configReg.rNominal)
+	s.average.Add(tmp)
+	return tmp, s.average.Average(), nil
+}
+
+func (s *Sensor) Close() error {
+	if !s.polling.Load() {
+		return nil
+	}
+	// Close stop channel, notify poll
+	close(s.stop)
+	// Unblock poll
+	for range s.data {
+	}
+	// Wait until finish
+	for range s.fin {
+	}
+
+	return s.ReadWriteCloser.Close()
+}
+
+func (s *Sensor) ID() string {
+	return s.configReg.id
+}
+
 func (s *Sensor) clearFaults() error {
-	return s.write(regConf, []byte{s.cfg.clearFaults()})
+	return s.write(regConf, []byte{s.configReg.clearFaults()})
 }
 
 func (s *Sensor) config() error {
-	err := s.write(regConf, []byte{s.cfg.reg()})
+	err := s.write(regConf, []byte{s.configReg.reg()})
 	return err
 }
 
@@ -231,25 +315,16 @@ func (s *Sensor) verify() error {
 	return nil
 }
 
-type readings struct {
-	id          string
-	temperature float32
-	stamp       time.Time
-	error       error
-}
-
-func (r *readings) ID() string {
-	return r.id
-}
-
-func (r *readings) Temperature() float32 {
-	return r.temperature
-}
-
-func (r *readings) Stamp() time.Time {
-	return r.stamp
-}
-
-func (r *readings) Error() error {
-	return r.error
+func callback(args any) error {
+	s, ok := args.(*Sensor)
+	if !ok {
+		return ErrWrongArgs
+	}
+	// We don't want to block on channel write, as it may be isr
+	select {
+	case s.trig <- struct{}{}:
+		return nil
+	default:
+		return ErrTooMuchTriggers
+	}
 }

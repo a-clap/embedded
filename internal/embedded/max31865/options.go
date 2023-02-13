@@ -20,27 +20,27 @@ func WithReadWriteCloser(readWriteCloser ReadWriteCloser) Option {
 
 func WithID(id string) Option {
 	return func(s *Sensor) error {
-		s.cfg.id = id
+		s.configReg.id = id
 		return nil
 	}
 }
 func WithWiring(wiring Wiring) Option {
 	return func(s *Sensor) error {
-		s.cfg.wiring = wiring
+		s.configReg.wiring = wiring
 		return nil
 	}
 }
 
 func WithRefRes(res float32) Option {
 	return func(s *Sensor) error {
-		s.cfg.refRes = res
+		s.configReg.refRes = res
 		return nil
 	}
 }
 
 func WithRNominal(nominal float32) Option {
 	return func(s *Sensor) error {
-		s.cfg.rNominal = nominal
+		s.configReg.rNominal = nominal
 		return nil
 	}
 }
@@ -67,7 +67,7 @@ func WithReadyPin(pin gpio.Pin) Option {
 
 func WithReady(r Ready) Option {
 	return func(s *Sensor) error {
-		s.cfg.ready = r
+		s.ready = r
 		return nil
 	}
 }

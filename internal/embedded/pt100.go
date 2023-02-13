@@ -6,21 +6,45 @@
 package embedded
 
 import (
-	"github.com/a-clap/iot/internal/embedded/models"
+	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/gin-gonic/gin"
 	"net/http"
 )
 
+type PTSensor interface {
+	ID() string
+	Poll() (err error)
+	Configure(config max31865.SensorConfig) error
+	GetConfig() max31865.SensorConfig
+	Average() float32
+	Temperature() (actual float32, average float32, err error)
+	GetReadings() []max31865.Readings
+	Close() error
+}
+
+type PTSensorConfig struct {
+	Enabled bool `json:"enabled"`
+	max31865.SensorConfig
+}
+
+type ptSensor struct {
+	PTSensor
+	PTSensorConfig
+}
+
+type PTTemperature struct {
+	Readings []max31865.Readings
+}
+
 // PTHandler is responsible for handling models.PTSensors
 type PTHandler struct {
-	handlers []models.PTSensor
-	sensors  map[string]models.PTSensor
+	sensors map[string]*ptSensor
 }
 
 // configPTSensor is middleware for configuring specified by ID PTSensor
 func (h *Handler) configPTSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		cfg := models.PTConfig{}
+		cfg := PTSensorConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)
 			return
@@ -57,45 +81,60 @@ func (h *Handler) getPTSensors() gin.HandlerFunc {
 	}
 }
 
-func (p *PTHandler) GetTemperatures() []models.Temperature {
-	temps := make([]models.Temperature, len(p.handlers))
-	for i, pt := range p.handlers {
-		temps[i] = pt.Temperature()
+func (p *PTHandler) GetTemperatures() []PTTemperature {
+	temps := make([]PTTemperature, 0, len(p.sensors))
+	for _, pt := range p.sensors {
+		tmp := PTTemperature{Readings: pt.GetReadings()}
+		temps = append(temps, tmp)
 	}
 	return temps
 }
 
-func (p *PTHandler) GetSensors() []models.PTConfig {
-	sensors := make([]models.PTConfig, len(p.handlers))
-	for i, pt := range p.handlers {
-		sensors[i] = pt.Config()
+func (p *PTHandler) GetSensors() []PTSensorConfig {
+	sensors := make([]PTSensorConfig, 0, len(p.sensors))
+	for _, pt := range p.sensors {
+		sensors = append(sensors, pt.PTSensorConfig)
 	}
 	return sensors
 }
 
-func (p *PTHandler) SetConfig(cfg models.PTConfig) (newCfg models.PTConfig, err error) {
+func (p *PTHandler) SetConfig(cfg PTSensorConfig) (newCfg PTSensorConfig, err error) {
 	sensor, err := p.sensorBy(cfg.ID)
 	if err != nil {
 		return
 	}
 
-	if err = sensor.SetConfig(cfg); err != nil {
+	if err = sensor.Configure(cfg.SensorConfig); err != nil {
 		return
 	}
 
-	return sensor.Config(), nil
-}
-
-func (p *PTHandler) GetConfig(hwid string) (models.PTConfig, error) {
-	sensor, err := p.sensorBy(hwid)
-	if err != nil {
-		return models.PTConfig{}, err
+	if cfg.Enabled != sensor.Enabled {
+		if cfg.Enabled {
+			if err = sensor.Poll(); err != nil {
+				return
+			}
+		} else {
+			if err = sensor.Close(); err != nil {
+				return
+			}
+		}
 	}
-	return sensor.Config(), nil
+	sensor.Enabled = cfg.Enabled
+
+	return p.GetConfig(cfg.ID)
 }
 
-func (p *PTHandler) sensorBy(hwid string) (models.PTSensor, error) {
-	maybeSensor, ok := p.sensors[hwid]
+func (p *PTHandler) GetConfig(id string) (PTSensorConfig, error) {
+	sensor, err := p.sensorBy(id)
+	if err != nil {
+		return PTSensorConfig{}, err
+	}
+	sensor.SensorConfig = sensor.GetConfig()
+	return sensor.PTSensorConfig, nil
+}
+
+func (p *PTHandler) sensorBy(id string) (*ptSensor, error) {
+	maybeSensor, ok := p.sensors[id]
 	if !ok {
 		return nil, ErrNoSuchSensor
 	}
@@ -103,23 +142,13 @@ func (p *PTHandler) sensorBy(hwid string) (models.PTSensor, error) {
 }
 
 func (p *PTHandler) Open() {
-	if p.handlers == nil {
-		return
-	}
-	p.sensors = make(map[string]models.PTSensor)
-
-	for _, elem := range p.handlers {
-		p.sensors[elem.Config().ID] = elem
-	}
 }
 func (p *PTHandler) Close() {
 	for name, sensor := range p.sensors {
-		cfg := sensor.Config()
-		if cfg.Enabled {
-			cfg.Enabled = false
-			err := sensor.SetConfig(cfg)
-			if err != nil {
-				log.Debug("SetConfig failed on sensor: ", name)
+		if sensor.Enabled {
+			sensor.Enabled = false
+			if err := sensor.Close(); err != nil {
+				log.Error("close failed on sensor: ", name, ", with error ", err)
 			}
 		}
 	}

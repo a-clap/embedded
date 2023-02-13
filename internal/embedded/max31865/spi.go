@@ -11,19 +11,19 @@ import (
 	"periph.io/x/conn/v3/spi"
 )
 
-type maxSpidevTransfer struct {
+type spidevTransfer struct {
 	*spidev.Spidev
 }
 
-func newMaxSpidev(devFile string) (*maxSpidevTransfer, error) {
+func newMaxSpidev(devFile string) (*spidevTransfer, error) {
 	maxSpi, err := spidev.New(devFile, 5*physic.MegaHertz, spi.Mode1, 8)
 	if err != nil {
 		return nil, err
 	}
-	return &maxSpidevTransfer{maxSpi}, nil
+	return &spidevTransfer{maxSpi}, nil
 }
 
-func (m *maxSpidevTransfer) ReadWrite(write []byte) (read []byte, err error) {
+func (m *spidevTransfer) ReadWrite(write []byte) (read []byte, err error) {
 	read = make([]byte, len(write))
 	err = m.Spidev.Tx(write, read)
 	return read, err

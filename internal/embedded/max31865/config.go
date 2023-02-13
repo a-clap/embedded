@@ -5,8 +5,6 @@
 
 package max31865
 
-import "sync/atomic"
-
 type Wiring string
 
 const (
@@ -26,36 +24,23 @@ const (
 	vBias
 )
 
-type pollType int
-
-const (
-	sync pollType = iota
-	async
-)
-
-type config struct {
+type configReg struct {
 	id       string
 	wiring   Wiring
 	refRes   float32
 	rNominal float32
-	ready    Ready
-	polling  atomic.Bool
-	pollType pollType
 }
 
-func newConfig() *config {
-	return &config{
+func newConfig() *configReg {
+	return &configReg{
 		id:       "",
 		wiring:   ThreeWire,
 		refRes:   430.0,
 		rNominal: 100.0,
-		ready:    nil,
-		polling:  atomic.Bool{},
-		pollType: sync,
 	}
 }
 
-func (c *config) reg() uint8 {
+func (c *configReg) reg() uint8 {
 	const value = uint8((1 << filter60Hz) | (1 << continuous) | (1 << vBias))
 	const wireMsk = 1 << wire3
 	if c.wiring == ThreeWire {
@@ -64,15 +49,15 @@ func (c *config) reg() uint8 {
 	return value
 }
 
-func (c *config) clearFaults() uint8 {
+func (c *configReg) clearFaults() uint8 {
 	return c.reg() | (1 << clearFault)
 }
 
-func (c *config) faultDetect() uint8 {
+func (c *configReg) faultDetect() uint8 {
 	return 0b10000100 | (c.reg() & ((1 << filter60Hz) | (1 << wire3)))
 }
 
-func (c *config) faultDetectFinished(reg uint8) bool {
+func (c *configReg) faultDetectFinished(reg uint8) bool {
 	mask := uint8(1<<faultDetect2 | 1<<faultDetect1)
 	return reg&mask == 0
 }
