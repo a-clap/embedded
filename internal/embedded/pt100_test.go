@@ -8,8 +8,9 @@ package embedded_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/models"
+	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -27,7 +28,7 @@ type PTTestSuite struct {
 	resp *httptest.ResponseRecorder
 }
 
-// PTSensorMock implements models.PTSensor
+// PTSensorMock implements embedded.PTSensor
 type PTSensorMock struct {
 	mock.Mock
 }
@@ -42,8 +43,8 @@ func TestPTTestSuite(t *testing.T) {
 	suite.Run(t, new(PTTestSuite))
 }
 
-func (t *PTTestSuite) pts() []models.PTSensor {
-	s := make([]models.PTSensor, len(t.mock))
+func (t *PTTestSuite) pts() []embedded.PTSensor {
+	s := make([]embedded.PTSensor, len(t.mock))
 	for i, m := range t.mock {
 		s[i] = m
 	}
@@ -52,42 +53,63 @@ func (t *PTTestSuite) pts() []models.PTSensor {
 
 func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 	args := []struct {
-		old, new models.PTConfig
+		old, new embedded.PTSensorConfig
 	}{
 		{
-			old: models.PTConfig{
-				ID:      "adin",
+			old: embedded.PTSensorConfig{
 				Enabled: false,
-				Samples: 1,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "blah",
+					Correction:   13.0,
+					ASyncPoll:    false,
+					PollInterval: 100,
+					Samples:      1,
+				},
 			},
-			new: models.PTConfig{
-				ID:      "adin",
-				Enabled: true,
-				Samples: 15,
+			new: embedded.PTSensorConfig{
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "blah",
+					Correction:   14.0,
+					ASyncPoll:    false,
+					PollInterval: 101,
+					Samples:      15,
+				},
 			},
 		},
 		{
-			old: models.PTConfig{
-				ID:      "2",
-				Enabled: true,
-				Samples: 17,
-			},
-			new: models.PTConfig{
-				ID:      "2",
+			old: embedded.PTSensorConfig{
 				Enabled: false,
-				Samples: 15,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "another",
+					Correction:   -14.0,
+					ASyncPoll:    false,
+					PollInterval: 100,
+					Samples:      1,
+				},
+			},
+			new: embedded.PTSensorConfig{
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "another",
+					Correction:   14.0,
+					ASyncPoll:    true,
+					PollInterval: 101,
+					Samples:      15,
+				},
 			},
 		},
 	}
-
 	t.mock = make([]*PTSensorMock, 0, len(args))
 	for _, elem := range args {
 		m := new(PTSensorMock)
 		m.On("ID").Return(elem.old.ID)
-		m.On("Config").Return(elem.new)
-		m.On("SetConfig", elem.new).Return(nil)
+		m.On("GetConfig").Return(elem.new.SensorConfig)
+		m.On("Configure", elem.new.SensorConfig).Return(nil)
+
 		t.mock = append(t.mock, m)
 	}
+
 	handler, _ := embedded.New(embedded.WithPT(t.pts()))
 
 	for i, elem := range args {
@@ -99,7 +121,7 @@ func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 
 		handler.ServeHTTP(t.resp, t.req)
 		b, _ := io.ReadAll(t.resp.Body)
-		var bodyJson models.PTConfig
+		var bodyJson embedded.PTSensorConfig
 		fromJSON(b, &bodyJson)
 		t.Equal(http.StatusOK, t.resp.Code, i)
 		t.EqualValues(elem.new, bodyJson, i)
@@ -108,33 +130,38 @@ func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 
 func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 	args := []struct {
-		cfg  models.PTConfig
-		stat models.Temperature
+		cfg  embedded.PTSensorConfig
+		stat embedded.PTTemperature
 	}{
 		{
-			cfg: models.PTConfig{
-				ID:      "1",
-				Enabled: true,
-				Samples: 123,
-			},
-			stat: models.Temperature{
-				ID:          "1",
-				Enabled:     true,
-				Temperature: 123.45,
-				Stamp:       time.Unix(1, 1),
-			},
-		},
-		{
-			cfg: models.PTConfig{
-				ID:      "2",
+			cfg: embedded.PTSensorConfig{
 				Enabled: false,
-				Samples: 12,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "1",
+					Correction:   10.0,
+					ASyncPoll:    true,
+					PollInterval: 110,
+					Samples:      15,
+				},
 			},
-			stat: models.Temperature{
-				ID:          "2",
-				Enabled:     false,
-				Temperature: 11.1,
-				Stamp:       time.Unix(1, 2),
+
+			stat: embedded.PTTemperature{
+				Readings: []max31865.Readings{
+					{
+						ID:          "1",
+						Temperature: 12,
+						Average:     13,
+						Stamp:       time.Unix(1, 1),
+						Error:       "nil",
+					},
+					{
+						ID:          "1",
+						Temperature: 12.3,
+						Average:     13.0,
+						Stamp:       time.Unix(1, 15),
+						Error:       errors.New("helloworld").Error(),
+					},
+				},
 			},
 		},
 	}
@@ -142,8 +169,8 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 	for _, elem := range args {
 		m := new(PTSensorMock)
 		m.On("ID").Return(elem.cfg.ID)
-		m.On("Config").Return(elem.cfg)
-		m.On("Temperature").Return(elem.stat)
+		m.On("GetConfig").Return(elem.cfg.SensorConfig)
+		m.On("GetReadings").Return(elem.stat.Readings)
 		t.mock = append(t.mock, m)
 	}
 
@@ -152,11 +179,11 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 	h.ServeHTTP(t.resp, t.req)
 
 	b, _ := io.ReadAll(t.resp.Body)
-	var bodyJson []models.Temperature
+	var bodyJson []embedded.PTTemperature
 	fromJSON(b, &bodyJson)
 	t.Equal(http.StatusOK, t.resp.Code)
 
-	expected := make([]models.Temperature, 0, len(args))
+	expected := make([]embedded.PTTemperature, 0, len(args))
 	for _, stat := range args {
 		expected = append(expected, stat.stat)
 	}
@@ -164,25 +191,34 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 	t.ElementsMatch(expected, bodyJson)
 
 }
-
 func (t *PTTestSuite) TestPTRestAPI_GetSensors() {
-	args := []models.PTConfig{
+	args := []embedded.PTSensorConfig{
 		{
-			ID:      "heyo",
-			Enabled: true,
-			Samples: 13,
+			Enabled: false,
+			SensorConfig: max31865.SensorConfig{
+				ID:           "heyo",
+				Correction:   1.0,
+				ASyncPoll:    true,
+				PollInterval: 100,
+				Samples:      13,
+			},
 		},
 		{
-			ID:      "heyo 2",
 			Enabled: false,
-			Samples: 17,
+			SensorConfig: max31865.SensorConfig{
+				ID:           "heyo 2",
+				Correction:   12.0,
+				ASyncPoll:    false,
+				PollInterval: 101,
+				Samples:      15,
+			},
 		},
 	}
 	t.mock = make([]*PTSensorMock, 0, len(args))
 	for _, elem := range args {
 		m := new(PTSensorMock)
 		m.On("ID").Return(elem.ID)
-		m.On("Config").Return(elem)
+		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
 	}
 
@@ -193,38 +229,104 @@ func (t *PTTestSuite) TestPTRestAPI_GetSensors() {
 	handler.ServeHTTP(t.resp, t.req)
 
 	b, _ := io.ReadAll(t.resp.Body)
-	var bodyJson []models.PTConfig
+	var bodyJson []embedded.PTSensorConfig
 	fromJSON(b, &bodyJson)
 	t.Equal(http.StatusOK, t.resp.Code)
 	t.ElementsMatch(args, bodyJson)
 }
 
+func (t *PTTestSuite) TestPT_SetConfig_EnableDisable() {
+	disabled := embedded.PTSensorConfig{
+		Enabled: false,
+		SensorConfig: max31865.SensorConfig{
+			ID:           "blah",
+			Correction:   13.0,
+			ASyncPoll:    false,
+			PollInterval: 100,
+			Samples:      1,
+		},
+	}
+
+	enabled := embedded.PTSensorConfig{
+		Enabled: true,
+		SensorConfig: max31865.SensorConfig{
+			ID:           "blah",
+			Correction:   13.0,
+			ASyncPoll:    false,
+			PollInterval: 100,
+			Samples:      1,
+		},
+	}
+
+	t.mock = make([]*PTSensorMock, 0, 1)
+	m := new(PTSensorMock)
+	m.On("ID").Return(disabled.ID)
+	m.On("GetConfig").Return(disabled.SensorConfig)
+	m.On("Configure", enabled.SensorConfig).Return(nil)
+	t.mock = append(t.mock, m)
+
+	handler, _ := embedded.New(embedded.WithPT(t.pts()))
+	pt := handler.PT
+
+	// Poll should be called
+	m.On("Poll").Return(nil)
+	cfg, err := pt.SetConfig(enabled)
+	t.Nil(err)
+	t.EqualValues(enabled, cfg)
+
+	// Close should be called
+	m.On("Close").Return(nil)
+	cfg, err = pt.SetConfig(disabled)
+	t.Nil(err)
+	t.EqualValues(disabled, cfg)
+
+}
 func (t *PTTestSuite) TestPT_SetConfig() {
 	args := []struct {
-		old, new models.PTConfig
+		old, new embedded.PTSensorConfig
 	}{
 		{
-			old: models.PTConfig{
-				ID:      "adin",
+			old: embedded.PTSensorConfig{
 				Enabled: false,
-				Samples: 1,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "blah",
+					Correction:   13.0,
+					ASyncPoll:    false,
+					PollInterval: 100,
+					Samples:      1,
+				},
 			},
-			new: models.PTConfig{
-				ID:      "adin",
-				Enabled: true,
-				Samples: 15,
+			new: embedded.PTSensorConfig{
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "blah",
+					Correction:   14.0,
+					ASyncPoll:    false,
+					PollInterval: 101,
+					Samples:      15,
+				},
 			},
 		},
 		{
-			old: models.PTConfig{
-				ID:      "2",
-				Enabled: true,
-				Samples: 17,
-			},
-			new: models.PTConfig{
-				ID:      "2",
+			old: embedded.PTSensorConfig{
 				Enabled: false,
-				Samples: 15,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "another",
+					Correction:   -14.0,
+					ASyncPoll:    false,
+					PollInterval: 100,
+					Samples:      1,
+				},
+			},
+			new: embedded.PTSensorConfig{
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "another",
+					Correction:   14.0,
+					ASyncPoll:    true,
+					PollInterval: 101,
+					Samples:      15,
+				},
 			},
 		},
 	}
@@ -232,8 +334,8 @@ func (t *PTTestSuite) TestPT_SetConfig() {
 	for _, elem := range args {
 		m := new(PTSensorMock)
 		m.On("ID").Return(elem.old.ID)
-		m.On("Config").Return(elem.new)
-		m.On("SetConfig", elem.new).Return(nil)
+		m.On("GetConfig").Return(elem.new.SensorConfig)
+		m.On("Configure", elem.new.SensorConfig).Return(nil)
 
 		t.mock = append(t.mock, m)
 	}
@@ -248,25 +350,34 @@ func (t *PTTestSuite) TestPT_SetConfig() {
 	}
 
 }
-
 func (t *PTTestSuite) TestPT_GetSensors() {
-	args := []models.PTConfig{
+	args := []embedded.PTSensorConfig{
 		{
-			ID:      "heyo",
-			Enabled: true,
-			Samples: 13,
+			Enabled: false,
+			SensorConfig: max31865.SensorConfig{
+				ID:           "heyo",
+				Correction:   1.0,
+				ASyncPoll:    true,
+				PollInterval: 100,
+				Samples:      13,
+			},
 		},
 		{
-			ID:      "heyo 2",
 			Enabled: false,
-			Samples: 17,
+			SensorConfig: max31865.SensorConfig{
+				ID:           "heyo 2",
+				Correction:   12.0,
+				ASyncPoll:    false,
+				PollInterval: 101,
+				Samples:      15,
+			},
 		},
 	}
 	t.mock = make([]*PTSensorMock, 0, len(args))
 	for _, elem := range args {
 		m := new(PTSensorMock)
 		m.On("ID").Return(elem.ID)
-		m.On("Config").Return(elem)
+		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
 	}
 
@@ -277,34 +388,45 @@ func (t *PTTestSuite) TestPT_GetSensors() {
 }
 
 func (t *PTTestSuite) TestPT_GetConfig() {
-	args := []models.PTConfig{
+	args := []embedded.PTSensorConfig{
 		{
-			ID:      "heyo",
-			Enabled: true,
-			Samples: 13,
+			Enabled: false,
+			SensorConfig: max31865.SensorConfig{
+				ID:           "heyo",
+				Correction:   1.0,
+				ASyncPoll:    true,
+				PollInterval: 100,
+				Samples:      13,
+			},
 		},
 		{
-			ID:      "heyo 2",
 			Enabled: false,
-			Samples: 17,
+			SensorConfig: max31865.SensorConfig{
+				ID:           "heyo 2",
+				Correction:   12.0,
+				ASyncPoll:    false,
+				PollInterval: 101,
+				Samples:      15,
+			},
 		},
 	}
 	t.mock = make([]*PTSensorMock, 0, len(args))
 	for _, elem := range args {
 		m := new(PTSensorMock)
 		m.On("ID").Return(elem.ID)
-		m.On("Config").Return(elem)
+		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
 	}
 
 	handler, _ := embedded.New(embedded.WithPT(t.pts()))
 	pt := handler.PT
+	for _, elem := range args {
+		s, err := pt.GetConfig(elem.ID)
+		t.Nil(err)
+		t.EqualValues(elem, s)
+	}
 
-	s, err := pt.GetConfig(args[0].ID)
-	t.Nil(err)
-	t.EqualValues(args[0], s)
-
-	s, err = pt.GetConfig("not exist")
+	_, err := pt.GetConfig("not exist")
 	t.NotNil(err)
 	t.ErrorIs(embedded.ErrNoSuchSensor, err)
 }
@@ -314,27 +436,37 @@ func (p *PTSensorMock) ID() string {
 	return args.String(0)
 }
 
-func (p *PTSensorMock) Temperature() models.Temperature {
-	args := p.Called()
-	return args.Get(0).(models.Temperature)
-}
-
-func (p *PTSensorMock) Poll() error {
+func (p *PTSensorMock) Poll() (err error) {
 	args := p.Called()
 	return args.Error(0)
 }
 
-func (p *PTSensorMock) StopPoll() error {
-	args := p.Called()
+func (p *PTSensorMock) Configure(config max31865.SensorConfig) error {
+	args := p.Called(config)
 	return args.Error(0)
 }
 
-func (p *PTSensorMock) Config() models.PTConfig {
+func (p *PTSensorMock) GetConfig() max31865.SensorConfig {
 	args := p.Called()
-	return args.Get(0).(models.PTConfig)
+	return args.Get(0).(max31865.SensorConfig)
 }
 
-func (p *PTSensorMock) SetConfig(cfg models.PTConfig) (err error) {
-	args := p.Called(cfg)
+func (p *PTSensorMock) Average() float32 {
+	args := p.Called()
+	return args.Get(0).(float32)
+}
+
+func (p *PTSensorMock) Temperature() (actual float32, average float32, err error) {
+	args := p.Called()
+	return args.Get(0).(float32), args.Get(1).(float32), args.Error(2)
+}
+
+func (p *PTSensorMock) GetReadings() []max31865.Readings {
+	args := p.Called()
+	return args.Get(0).([]max31865.Readings)
+}
+
+func (p *PTSensorMock) Close() error {
+	args := p.Called()
 	return args.Error(0)
 }

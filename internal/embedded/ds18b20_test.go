@@ -8,6 +8,7 @@ package embedded_test
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/gin-gonic/gin"
@@ -156,8 +157,23 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 				},
 			},
 			temperature: embedded.DSTemperature{
-				Bus:      "456",
-				Readings: []ds18b20.Readings{},
+				Bus: "456",
+				Readings: []ds18b20.Readings{
+					{
+						ID:          "ablah",
+						Temperature: 123,
+						Average:     15,
+						Stamp:       time.Unix(1, 1),
+						Error:       "",
+					},
+					{
+						ID:          "ablah",
+						Temperature: 1,
+						Average:     17,
+						Stamp:       time.Unix(1, 1),
+						Error:       io.EOF.Error(),
+					},
+				},
 			},
 		},
 		{
@@ -173,8 +189,23 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 				},
 			},
 			temperature: embedded.DSTemperature{
-				Bus:      "676",
-				Readings: []ds18b20.Readings{},
+				Bus: "676",
+				Readings: []ds18b20.Readings{
+					{
+						ID:          "zablah",
+						Temperature: 123,
+						Average:     15,
+						Stamp:       time.Unix(1, 1),
+						Error:       "",
+					},
+					{
+						ID:          "zablah",
+						Temperature: 1,
+						Average:     17,
+						Stamp:       time.Unix(1, 1),
+						Error:       errors.New("hello world").Error(),
+					},
+				},
 			},
 		},
 	}
