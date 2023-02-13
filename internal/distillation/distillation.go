@@ -6,7 +6,6 @@
 package distillation
 
 type Handler struct {
-	temperatures map[string]TemperatureSensor
 }
 
 func New() (*Handler, error) {

@@ -5,10 +5,6 @@
 
 package distillation
 
-type TemperatureSensor interface {
-	Temperature() (float32, error)
-}
-
 type Heater interface {
 	Set(power uint) error
 }

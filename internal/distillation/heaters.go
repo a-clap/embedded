@@ -7,10 +7,10 @@ package distillation
 
 import "github.com/a-clap/iot/internal/embedded/models"
 
-type GlobalConfig struct {
-	heaters []models.HeaterConfig
+type Heaters interface {
+	Heaters() []models.HeaterConfig
+	SetHeater(config models.HeaterConfig) error
 }
 
-type PhaseConfig struct {
-	heaters []models.HeaterConfig
+type HeatersHandler struct {
 }

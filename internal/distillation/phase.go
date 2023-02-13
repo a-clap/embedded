@@ -5,5 +5,8 @@
 
 package distillation
 
+type MoveToNext func() bool
+
 type Phase struct {
+	move MoveToNext
 }
