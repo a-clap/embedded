@@ -7,13 +7,30 @@ package embedded
 
 import (
 	"errors"
-	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/a-clap/iot/internal/embedded/gpio"
+	"github.com/gin-gonic/gin"
 )
 
+type GPIO interface {
+	ID() string
+	Get() (bool, error)
+	Configure(config gpio.GPIOConfig) error
+	GetConfig() (gpio.GPIOConfig, error)
+}
+
+type GPIOConfig struct {
+	gpio.GPIOConfig
+}
+
+type gpioHandler struct {
+	GPIO
+	GPIOConfig
+}
+
 type GPIOHandler struct {
-	gpios map[string]models.GPIO
+	gpios map[string]*gpioHandler
 }
 
 var (
@@ -22,7 +39,7 @@ var (
 
 func (h *Handler) configGPIO() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		cfg := models.GPIOConfig{}
+		cfg := GPIOConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			h.respond(ctx, http.StatusBadRequest, err)
 			return
@@ -53,19 +70,20 @@ func (h *Handler) getGPIOS() gin.HandlerFunc {
 	}
 }
 
-func (g *GPIOHandler) SetConfig(cfg models.GPIOConfig) error {
-	gpio, err := g.gpioBy(cfg.ID)
+func (g *GPIOHandler) SetConfig(cfg GPIOConfig) error {
+	gp, err := g.gpioBy(cfg.ID)
 	if err != nil {
 		return err
 	}
-	return gpio.SetConfig(cfg)
+
+	return gp.Configure(cfg.GPIOConfig)
 }
 
-func (g *GPIOHandler) GetConfigAll() ([]models.GPIOConfig, error) {
-	configs := make([]models.GPIOConfig, len(g.gpios))
+func (g *GPIOHandler) GetConfigAll() ([]GPIOConfig, error) {
+	configs := make([]GPIOConfig, len(g.gpios))
 	pos := 0
-	for _, gpio := range g.gpios {
-		cfg, err := gpio.Config()
+	for _, gpi := range g.gpios {
+		cfg, err := gpi.getConfig()
 		if err != nil {
 			return configs, err
 		}
@@ -75,20 +93,26 @@ func (g *GPIOHandler) GetConfigAll() ([]models.GPIOConfig, error) {
 	return configs, nil
 
 }
-func (g *GPIOHandler) GetConfig(hwid string) (models.GPIOConfig, error) {
-	gpio, err := g.gpioBy(hwid)
+func (g *GPIOHandler) GetConfig(hwid string) (GPIOConfig, error) {
+	gp, err := g.gpioBy(hwid)
 	if err != nil {
-		return models.GPIOConfig{}, err
+		return GPIOConfig{}, err
 	}
-	return gpio.Config()
+	return gp.getConfig()
 }
 
-func (g *GPIOHandler) gpioBy(hwid string) (models.GPIO, error) {
-	gpio, ok := g.gpios[hwid]
+func (g *GPIOHandler) gpioBy(hwid string) (*gpioHandler, error) {
+	gp, ok := g.gpios[hwid]
 	if !ok {
 		return nil, ErrNoSuchGPIO
 	}
-	return gpio, nil
+	return gp, nil
+}
+
+func (g *gpioHandler) getConfig() (GPIOConfig, error) {
+	var err error
+	g.GPIOConfig.GPIOConfig, err = g.GetConfig()
+	return g.GPIOConfig, err
 }
 
 func (g *GPIOHandler) Open() {

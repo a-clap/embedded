@@ -7,7 +7,6 @@ package embedded
 
 import (
 	"github.com/a-clap/iot/internal/embedded/logger"
-	"github.com/a-clap/iot/internal/embedded/models"
 )
 
 type Option func(*Handler) error
@@ -56,11 +55,12 @@ func WithPT(pt []PTSensor) Option {
 	}
 }
 
-func WithGPIOs(gpios []models.GPIO) Option {
+func WithGPIOs(gpios []GPIO) Option {
 	return func(h *Handler) error {
-		h.GPIO.gpios = make(map[string]models.GPIO)
+		h.GPIO.gpios = make(map[string]*gpioHandler)
 		for _, gpio := range gpios {
-			h.GPIO.gpios[gpio.ID()] = gpio
+			h.GPIO.gpios[gpio.ID()] = &gpioHandler{
+				GPIO: gpio}
 		}
 		return nil
 	}

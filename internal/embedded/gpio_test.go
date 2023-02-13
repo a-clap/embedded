@@ -8,15 +8,16 @@ package embedded_test
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/a-clap/iot/internal/embedded"
+	"github.com/a-clap/iot/internal/embedded/gpio"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type GPIOTestSuite struct {
@@ -30,8 +31,8 @@ type GPIOMock struct {
 	mock.Mock
 }
 
-func (t *GPIOTestSuite) gpios() []models.GPIO {
-	gpios := make([]models.GPIO, len(t.mocks))
+func (t *GPIOTestSuite) gpios() []embedded.GPIO {
+	gpios := make([]embedded.GPIO, len(t.mocks))
 	for i, gpio := range t.mocks {
 		gpios[i] = gpio
 	}
@@ -47,22 +48,26 @@ func (t *GPIOTestSuite) SetupTest() {
 	t.resp = httptest.NewRecorder()
 }
 func (t *GPIOTestSuite) TestGPIO_RestAPI_ConfigGPIO() {
-	cfg := models.GPIOConfig{
-		ID:          "blah",
-		Direction:   models.Input,
-		ActiveLevel: models.High,
-		Value:       true,
+	cfg := embedded.GPIOConfig{
+		GPIOConfig: gpio.GPIOConfig{
+			ID:          "blah",
+			Direction:   gpio.DirInput,
+			ActiveLevel: gpio.High,
+			Value:       true,
+		},
 	}
-	newCfg := models.GPIOConfig{
-		ID:          "blah",
-		Direction:   models.Input,
-		ActiveLevel: models.Low,
-		Value:       true,
+	newCfg := embedded.GPIOConfig{
+		GPIOConfig: gpio.GPIOConfig{
+			ID:          "blah",
+			Direction:   gpio.DirInput,
+			ActiveLevel: gpio.Low,
+			Value:       true,
+		},
 	}
 	m := new(GPIOMock)
 	m.On("ID").Return(cfg.ID)
-	m.On("Config").Return(newCfg, nil)
-	m.On("SetConfig", newCfg).Return(nil)
+	m.On("GetConfig").Return(newCfg.GPIOConfig, nil)
+	m.On("Configure", newCfg.GPIOConfig).Return(nil)
 	t.mocks = append(t.mocks, m)
 
 	var body bytes.Buffer
@@ -81,24 +86,28 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_ConfigGPIO() {
 }
 func (t *GPIOTestSuite) TestGPIO_RestAPI_GetGPIOs() {
 	r := t.Require()
-	args := []models.GPIOConfig{
+	args := []embedded.GPIOConfig{
 		{
-			ID:          "blah",
-			Direction:   models.Input,
-			ActiveLevel: models.High,
-			Value:       true,
+			GPIOConfig: gpio.GPIOConfig{
+				ID:          "blah",
+				Direction:   gpio.DirInput,
+				ActiveLevel: gpio.High,
+				Value:       true,
+			},
 		},
 		{
-			ID:          "another",
-			Direction:   models.Output,
-			ActiveLevel: models.Low,
-			Value:       false,
+			GPIOConfig: gpio.GPIOConfig{
+				ID:          "another",
+				Direction:   gpio.DirOutput,
+				ActiveLevel: gpio.Low,
+				Value:       false,
+			},
 		},
 	}
 	for _, arg := range args {
 		m := new(GPIOMock)
 		m.On("ID").Return(arg.ID)
-		m.On("Config").Return(arg, nil)
+		m.On("GetConfig").Return(arg.GPIOConfig, nil)
 		t.mocks = append(t.mocks, m)
 	}
 
@@ -111,7 +120,7 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_GetGPIOs() {
 	r.Equal(http.StatusOK, t.resp.Code)
 
 	b, _ := io.ReadAll(t.resp.Body)
-	var bodyJson []models.GPIOConfig
+	var bodyJson []embedded.GPIOConfig
 	fromJSON(b, &bodyJson)
 	r.ElementsMatch(args, bodyJson)
 }
@@ -119,43 +128,51 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_GetGPIOs() {
 func (t *GPIOTestSuite) TestGPIO_SetConfig() {
 	r := t.Require()
 	args := []struct {
-		cfg    models.GPIOConfig
-		newCfg models.GPIOConfig
+		cfg    embedded.GPIOConfig
+		newCfg embedded.GPIOConfig
 	}{
 		{
-			cfg: models.GPIOConfig{
-				ID:          "blah",
-				Direction:   models.Input,
-				ActiveLevel: models.High,
-				Value:       true,
+			cfg: embedded.GPIOConfig{
+				GPIOConfig: gpio.GPIOConfig{
+					ID:          "blah",
+					Direction:   gpio.DirInput,
+					ActiveLevel: gpio.High,
+					Value:       true,
+				},
 			},
-			newCfg: models.GPIOConfig{
-				ID:          "blah",
-				Direction:   models.Input,
-				ActiveLevel: models.Low,
-				Value:       true,
+			newCfg: embedded.GPIOConfig{
+				GPIOConfig: gpio.GPIOConfig{
+					ID:          "blah",
+					Direction:   gpio.DirInput,
+					ActiveLevel: gpio.Low,
+					Value:       true,
+				},
 			},
 		},
 		{
-			cfg: models.GPIOConfig{
-				ID:          "another",
-				Direction:   models.Output,
-				ActiveLevel: models.Low,
-				Value:       false,
+			cfg: embedded.GPIOConfig{
+				GPIOConfig: gpio.GPIOConfig{
+					ID:          "another",
+					Direction:   gpio.DirOutput,
+					ActiveLevel: gpio.Low,
+					Value:       false,
+				},
 			},
-			newCfg: models.GPIOConfig{
-				ID:          "another",
-				Direction:   models.Input,
-				ActiveLevel: models.High,
-				Value:       true,
+			newCfg: embedded.GPIOConfig{
+				GPIOConfig: gpio.GPIOConfig{
+					ID:          "another",
+					Direction:   gpio.DirInput,
+					ActiveLevel: gpio.High,
+					Value:       true,
+				},
 			},
 		},
 	}
 	for _, arg := range args {
 		m := new(GPIOMock)
 		m.On("ID").Return(arg.cfg.ID)
-		m.On("Config").Return(arg.cfg, nil)
-		m.On("SetConfig", arg.newCfg).Return(nil)
+		m.On("GetConfig").Return(arg.cfg.GPIOConfig, nil)
+		m.On("Configure", arg.newCfg.GPIOConfig).Return(nil)
 		t.mocks = append(t.mocks, m)
 	}
 
@@ -173,29 +190,33 @@ func (t *GPIOTestSuite) TestGPIO_SetConfig() {
 func (t *GPIOTestSuite) TestGPIO_GetConfig() {
 	r := t.Require()
 	args := []struct {
-		cfg models.GPIOConfig
+		cfg embedded.GPIOConfig
 	}{
 		{
-			cfg: models.GPIOConfig{
-				ID:          "blah",
-				Direction:   models.Input,
-				ActiveLevel: models.High,
-				Value:       true,
+			cfg: embedded.GPIOConfig{
+				GPIOConfig: gpio.GPIOConfig{
+					ID:          "blah",
+					Direction:   gpio.DirInput,
+					ActiveLevel: gpio.High,
+					Value:       true,
+				},
 			},
 		},
 		{
-			cfg: models.GPIOConfig{
-				ID:          "another",
-				Direction:   models.Output,
-				ActiveLevel: models.Low,
-				Value:       false,
+			cfg: embedded.GPIOConfig{
+				GPIOConfig: gpio.GPIOConfig{
+					ID:          "another",
+					Direction:   gpio.DirOutput,
+					ActiveLevel: gpio.Low,
+					Value:       false,
+				},
 			},
 		},
 	}
 	for _, arg := range args {
 		m := new(GPIOMock)
 		m.On("ID").Return(arg.cfg.ID)
-		m.On("Config").Return(arg.cfg, nil)
+		m.On("GetConfig").Return(arg.cfg.GPIOConfig, nil)
 		t.mocks = append(t.mocks, m)
 	}
 
@@ -213,11 +234,16 @@ func (g *GPIOMock) ID() string {
 	return g.Called().String(0)
 }
 
-func (g *GPIOMock) Config() (models.GPIOConfig, error) {
+func (g *GPIOMock) GetConfig() (gpio.GPIOConfig, error) {
 	args := g.Called()
-	return args.Get(0).(models.GPIOConfig), args.Error(1)
+	return args.Get(0).(gpio.GPIOConfig), args.Error(1)
 }
 
-func (g *GPIOMock) SetConfig(cfg models.GPIOConfig) error {
+func (g *GPIOMock) Configure(cfg gpio.GPIOConfig) error {
 	return g.Called(cfg).Error(0)
+}
+
+func (g *GPIOMock) Get() (bool, error) {
+	args := g.Called()
+	return args.Bool(0), args.Error(1)
 }

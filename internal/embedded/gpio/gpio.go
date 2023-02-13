@@ -6,10 +6,29 @@
 package gpio
 
 import (
-	"github.com/a-clap/iot/internal/embedded/models"
-	"github.com/warthog618/gpiod"
 	"strconv"
+
+	"github.com/warthog618/gpiod"
 )
+
+type ActiveLevel int
+type Direction int
+
+const (
+	Low ActiveLevel = iota
+	High
+)
+const (
+	DirInput Direction = iota
+	DirOutput
+)
+
+type GPIOConfig struct {
+	ID          string      `json:"id"`
+	Direction   Direction   `json:"direction"`
+	ActiveLevel ActiveLevel `json:"active_level"`
+	Value       bool        `json:"value"`
+}
 
 type Pin struct {
 	Chip string `json:"chip"`
@@ -17,12 +36,14 @@ type Pin struct {
 }
 
 type In struct {
-	level models.ActiveLevel
+	GPIOConfig
+	level ActiveLevel
 	*gpiod.Line
 }
 
 type Out struct {
-	level models.ActiveLevel
+	GPIOConfig
+	level ActiveLevel
 	*gpiod.Line
 }
 
@@ -54,28 +75,27 @@ var (
 	_    Writer = (*Out)(nil)
 	_, _ Reader = (*Out)(nil), (*In)(nil)
 	_, _ Closer = (*Out)(nil), (*In)(nil)
-
-	_, _ models.GPIO = (*In)(nil), (*Out)(nil)
 )
 
 func getLine(pin Pin, options ...gpiod.LineReqOption) (*gpiod.Line, error) {
 	return gpiod.RequestLine(pin.Chip, int(pin.Line), options...)
 }
 
-func getActiveLevel(line *gpiod.Line) (models.ActiveLevel, error) {
+func getActiveLevel(line *gpiod.Line) (ActiveLevel, error) {
 	info, err := line.Info()
 	if err != nil {
-		return models.Low, err
+		return Low, err
 	}
 
 	if info.Config.ActiveLow {
-		return models.Low, nil
+		return Low, nil
 	}
-	return models.High, nil
+	return High, nil
 }
-func setActiveLevel(line *gpiod.Line, level models.ActiveLevel) error {
+
+func setActiveLevel(line *gpiod.Line, level ActiveLevel) error {
 	opt := gpiod.AsActiveLow
-	if level == models.High {
+	if level == High {
 		opt = gpiod.AsActiveHigh
 	}
 	return line.Reconfigure(opt)
@@ -99,11 +119,13 @@ func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, erro
 	if initValue {
 		startValue = 1
 	}
+
 	options = append(options, gpiod.AsOutput(startValue))
 	line, err := getLine(pin, options...)
 	if err != nil {
 		return nil, err
 	}
+
 	lvl, err := getActiveLevel(line)
 	if err != nil {
 		return nil, err
@@ -111,9 +133,13 @@ func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, erro
 	return &Out{level: lvl, Line: line}, nil
 }
 
+func (in *In) ID() string {
+	return in.Chip() + ":" + strconv.FormatInt(int64(in.Offset()), 32)
+}
+
 func (in *In) Get() (bool, error) {
 	var value bool
-	val, err := in.Value()
+	val, err := in.Line.Value()
 	if val > 0 {
 		value = true
 	}
@@ -121,31 +147,21 @@ func (in *In) Get() (bool, error) {
 	return value, err
 }
 
-func (in *In) ID() string {
-	return in.Chip() + ":" + strconv.FormatInt(int64(in.Offset()), 32)
-}
-
-func (in *In) Config() (models.GPIOConfig, error) {
-	val, err := in.Get()
-	if err != nil {
-		return models.GPIOConfig{}, nil
-	}
-	return models.GPIOConfig{
-		ID:          in.ID(),
-		Direction:   models.Input,
-		ActiveLevel: in.level,
-		Value:       val,
-	}, nil
-}
-
-func (in *In) SetConfig(cfg models.GPIOConfig) error {
-	if cfg.ActiveLevel != in.level {
-		if err := setActiveLevel(in.Line, cfg.ActiveLevel); err != nil {
+func (in *In) Configure(new GPIOConfig) error {
+	last := in.GPIOConfig
+	if last.ActiveLevel != new.ActiveLevel {
+		if err := setActiveLevel(in.Line, new.ActiveLevel); err != nil {
 			return err
 		}
-		in.level = cfg.ActiveLevel
 	}
+	last.ActiveLevel = new.ActiveLevel
 	return nil
+}
+
+func (in *In) GetConfig() (GPIOConfig, error) {
+	var err error
+	in.GPIOConfig.Value, err = in.Get()
+	return in.GPIOConfig, err
 }
 
 func (o *Out) Set(value bool) error {
@@ -158,7 +174,7 @@ func (o *Out) Set(value bool) error {
 
 func (o *Out) Get() (bool, error) {
 	var value bool
-	val, err := o.Value()
+	val, err := o.Line.Value()
 	if val > 0 {
 		value = true
 	}
@@ -170,35 +186,25 @@ func (o *Out) ID() string {
 	return o.Chip() + ":" + strconv.FormatInt(int64(o.Offset()), 32)
 }
 
-func (o *Out) Config() (models.GPIOConfig, error) {
-	val, err := o.Get()
-	if err != nil {
-		return models.GPIOConfig{}, nil
-	}
-	return models.GPIOConfig{
-		ID:          o.ID(),
-		Direction:   models.Input,
-		ActiveLevel: o.level,
-		Value:       val,
-	}, nil
-}
-
-func (o *Out) SetConfig(cfg models.GPIOConfig) error {
-	if cfg.ActiveLevel != o.level {
-		if err := setActiveLevel(o.Line, cfg.ActiveLevel); err != nil {
+func (o *Out) Configure(new GPIOConfig) error {
+	last := o.GPIOConfig
+	if last.ActiveLevel != new.ActiveLevel {
+		if err := setActiveLevel(o.Line, new.ActiveLevel); err != nil {
 			return err
 		}
-		o.level = cfg.ActiveLevel
 	}
+	last.ActiveLevel = new.ActiveLevel
 
-	value, err := o.Get()
-	if err != nil {
-		return err
+	if last.Value != new.Value {
+		if err := o.Set(new.Value); err != nil {
+			return err
+		}
 	}
-
-	if cfg.Value != value {
-		return o.Set(cfg.Value)
-	}
-
 	return nil
+}
+
+func (o *Out) GetConfig() (GPIOConfig, error) {
+	var err error
+	o.GPIOConfig.Value, err = o.Get()
+	return o.GPIOConfig, err
 }

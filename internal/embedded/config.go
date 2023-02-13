@@ -10,7 +10,6 @@ import (
 	"github.com/a-clap/iot/internal/embedded/gpio"
 	"github.com/a-clap/iot/internal/embedded/heater"
 	"github.com/a-clap/iot/internal/embedded/max31865"
-	"github.com/a-clap/iot/internal/embedded/models"
 )
 
 type Config struct {
@@ -43,9 +42,10 @@ type ConfigPT100 struct {
 }
 
 type ConfigGPIO struct {
-	Pin         gpio.Pin           `json:"pin"`
-	ActiveLevel models.ActiveLevel `json:"active_level"`
-	Direction   models.Direction   `json:"direction"`
+	Pin         gpio.Pin         `json:"pin"`
+	ActiveLevel gpio.ActiveLevel `json:"active_level"`
+	Direction   gpio.Direction   `json:"direction"`
+	Value       bool             `json:"value"`
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
@@ -119,41 +119,41 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 }
 
 func parseGPIO(config []ConfigGPIO) (Option, []error) {
-	gpios := make([]models.GPIO, len(config))
+	gpios := make([]GPIO, len(config))
 	var errs []error
 	for _, gpioConfig := range config {
-		var maybeGpio models.GPIO
-		if gpioConfig.Direction == models.Input {
+		var maybeGpio *gpioHandler
+		if gpioConfig.Direction == gpio.DirInput {
 			gp, err := gpio.Input(gpioConfig.Pin)
 			if err != nil {
 				log.Errorf("error on create input: %v\n", err)
 				errs = append(errs, err)
 				continue
 			}
-			maybeGpio = gp
+			maybeGpio = &gpioHandler{GPIO: gp}
 		} else {
-			initValue := gpioConfig.ActiveLevel == models.Low
+			initValue := gpioConfig.ActiveLevel == gpio.Low
 			gp, err := gpio.Output(gpioConfig.Pin, initValue)
 			if err != nil {
 				log.Errorf("error on create output: %v\n", err)
 				errs = append(errs, err)
 				continue
 			}
-			maybeGpio = gp
+			maybeGpio = &gpioHandler{GPIO: gp}
 		}
-		cfg := models.GPIOConfig{
+		cfg := gpio.GPIOConfig{
 			ID:          "",
 			Direction:   gpioConfig.Direction,
 			ActiveLevel: gpioConfig.ActiveLevel,
-			Value:       false,
+			Value:       gpioConfig.Value,
 		}
 
-		err := maybeGpio.SetConfig(cfg)
-		if err != nil {
-			log.Errorf("failed to perform initial config on gpio: %v, err: %v", maybeGpio.ID(), err)
+		if err := maybeGpio.Configure(cfg); err != nil {
+			log.Errorf("failed to Configure on gpio: %v, err: %v", maybeGpio.ID(), err)
 			errs = append(errs, err)
 			continue
 		}
+
 		gpios = append(gpios, maybeGpio)
 	}
 	return WithGPIOs(gpios), errs
