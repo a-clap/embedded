@@ -5,12 +5,16 @@
 
 package distillation
 
-import "github.com/a-clap/iot/internal/embedded/models"
-
-type GlobalConfig struct {
-	heaters []models.HeaterConfig
+type Config struct {
+	PhaseCount int
+	TSensors   []TSensorConfig
+	Heaters    []HeaterConfigGlobal
 }
 
-type PhaseConfig struct {
-	heaters []models.HeaterConfig
+type ConfigPhase struct {
+	Heaters                []HeaterConfig
+	Move                   MoveToNextType
+	TimeToMove             int
+	TemperatureThreshold   float32
+	TemperatureTimeSustain int
 }

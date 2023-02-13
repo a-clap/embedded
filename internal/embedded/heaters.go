@@ -19,7 +19,7 @@ type Heater interface {
 }
 
 type HeaterConfig struct {
-	ID      string `json:"hardware_id"`
+	ID      string `json:"id"`
 	Enabled bool   `json:"enabled"`
 	Power   uint   `json:"power"`
 }

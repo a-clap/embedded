@@ -5,14 +5,50 @@
 
 package distillation
 
+import (
+	"errors"
+
+	"github.com/gin-gonic/gin"
+)
+
 type Handler struct {
+	*gin.Engine
+	HeatersHandler *HeatersHandler
 }
 
-func New() (*Handler, error) {
+func New(opts ...Option) (*Handler, error) {
+	h := &Handler{Engine: gin.Default()}
 	// Options
+	for _, opt := range opts {
+		if err := opt(h); err != nil {
+			return nil, err
+		}
+	}
+	h.routes()
 
-	// Load saved configuration or
-	// set sensible defaults
+	return h, nil
+}
 
-	return nil, nil
+const (
+	RoutesConfigHeater        = "/api/heater/all"
+	RoutesGetAllHeaters       = "/api/heater/all"
+	RoutesGetEnabledHeaters   = "/api/heater/enabled"
+	RoutesConfigEnabledHeater = "/api/heater/enabled"
+)
+
+var (
+	ErrNotImplemented = errors.New("not implemented")
+)
+
+// routes configures default handlers for paths above
+func (h *Handler) routes() {
+	h.GET(RoutesGetAllHeaters, h.getAllHeaters())
+	h.GET(RoutesGetEnabledHeaters, h.getEnabledHeaters())
+	h.PUT(RoutesConfigHeater, h.configHeater())
+	h.PUT(RoutesConfigEnabledHeater, h.configEnabledHeater())
+}
+
+// common respond for whole rest API
+func (*Handler) respond(ctx *gin.Context, code int, obj any) {
+	ctx.JSON(code, obj)
 }

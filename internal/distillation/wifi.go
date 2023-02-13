@@ -5,6 +5,12 @@
 
 package distillation
 
-type Heater interface {
-	Set(power uint) error
+type Wifi interface {
+	APs() ([]string, error)
+	Connect(ap, psk string) error
+	Disconnect() error
+	Status() (connected bool, ap string, err error)
+}
+
+type WifiHandler struct {
 }

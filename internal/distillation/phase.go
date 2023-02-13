@@ -5,8 +5,15 @@
 
 package distillation
 
+type MoveToNextType int
+
+const (
+	ByTime MoveToNextType = iota
+	ByTemperature
+)
+
 type MoveToNext func() bool
 
 type Phase struct {
-	move MoveToNext
+	config *ConfigPhase
 }
