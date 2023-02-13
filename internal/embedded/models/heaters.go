@@ -5,8 +5,6 @@
 
 package models
 
-type HeaterID string
-
 type Heater interface {
 	Enable(ena bool)
 	SetPower(pwr uint) error
@@ -15,7 +13,7 @@ type Heater interface {
 }
 
 type HeaterConfig struct {
-	HardwareID HeaterID `json:"hardware_id"`
-	Enabled    bool     `json:"enabled"`
-	Power      uint     `json:"power"`
+	ID      string `json:"hardware_id"`
+	Enabled bool   `json:"enabled"`
+	Power   uint   `json:"power"`
 }

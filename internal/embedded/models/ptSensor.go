@@ -12,7 +12,6 @@ type PTConfig struct {
 }
 
 type PTSensor interface {
-	ID() string
 	Temperature() Temperature
 	Config() PTConfig
 	SetConfig(cfg PTConfig) (err error)

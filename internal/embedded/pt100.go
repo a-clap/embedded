@@ -109,7 +109,7 @@ func (p *PTHandler) Open() {
 	p.sensors = make(map[string]models.PTSensor)
 
 	for _, elem := range p.handlers {
-		p.sensors[elem.ID()] = elem
+		p.sensors[elem.Config().ID] = elem
 	}
 }
 func (p *PTHandler) Close() {

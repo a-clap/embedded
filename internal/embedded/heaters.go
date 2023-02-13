@@ -12,7 +12,7 @@ import (
 )
 
 type HeaterHandler struct {
-	heaters map[models.HeaterID]models.Heater
+	heaters map[string]models.Heater
 }
 
 func (h *Handler) configHeater() gin.HandlerFunc {
@@ -28,7 +28,7 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 			return
 		}
 
-		s, _ := h.Heaters.StatusBy(cfg.HardwareID)
+		s, _ := h.Heaters.StatusBy(cfg.ID)
 		h.respond(ctx, http.StatusOK, s)
 	}
 }
@@ -45,7 +45,7 @@ func (h *Handler) getHeaters() gin.HandlerFunc {
 }
 
 func (h *HeaterHandler) Config(cfg models.HeaterConfig) error {
-	heater, err := h.by(cfg.HardwareID)
+	heater, err := h.by(cfg.ID)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func (h *HeaterHandler) Config(cfg models.HeaterConfig) error {
 	return nil
 }
 
-func (h *HeaterHandler) Enable(hwid models.HeaterID, ena bool) error {
+func (h *HeaterHandler) Enable(hwid string, ena bool) error {
 	heat, err := h.by(hwid)
 	if err != nil {
 		return err
@@ -67,7 +67,7 @@ func (h *HeaterHandler) Enable(hwid models.HeaterID, ena bool) error {
 	return nil
 }
 
-func (h *HeaterHandler) Power(hwid models.HeaterID, pwr uint) error {
+func (h *HeaterHandler) Power(hwid string, pwr uint) error {
 	heat, err := h.by(hwid)
 	if err != nil {
 		return err
@@ -75,15 +75,15 @@ func (h *HeaterHandler) Power(hwid models.HeaterID, pwr uint) error {
 	return heat.SetPower(pwr)
 }
 
-func (h *HeaterHandler) StatusBy(hwid models.HeaterID) (models.HeaterConfig, error) {
+func (h *HeaterHandler) StatusBy(hwid string) (models.HeaterConfig, error) {
 	heat, err := h.by(hwid)
 	if err != nil {
 		return models.HeaterConfig{}, err
 	}
 	return models.HeaterConfig{
-		HardwareID: hwid,
-		Enabled:    heat.Enabled(),
-		Power:      heat.Power(),
+		ID:      hwid,
+		Enabled: heat.Enabled(),
+		Power:   heat.Power(),
 	}, nil
 }
 
@@ -92,16 +92,16 @@ func (h *HeaterHandler) Status() []models.HeaterConfig {
 	pos := 0
 	for hwid, heat := range h.heaters {
 		status[pos] = models.HeaterConfig{
-			HardwareID: hwid,
-			Enabled:    heat.Enabled(),
-			Power:      heat.Power(),
+			ID:      hwid,
+			Enabled: heat.Enabled(),
+			Power:   heat.Power(),
 		}
 		pos++
 	}
 	return status
 }
 
-func (h *HeaterHandler) by(hwid models.HeaterID) (models.Heater, error) {
+func (h *HeaterHandler) by(hwid string) (models.Heater, error) {
 	maybeHeater, ok := h.heaters[hwid]
 	if !ok {
 		log.Debug("requested heater doesn't exist: ", hwid)

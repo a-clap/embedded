@@ -25,7 +25,7 @@ type HeaterTestSuite struct {
 	suite.Suite
 	req  *http.Request
 	resp *httptest.ResponseRecorder
-	mock map[models.HeaterID]*HeaterMock
+	mock map[string]*HeaterMock
 }
 
 type HeaterMock struct {
@@ -49,34 +49,34 @@ func fromJSON(b []byte, obj any) {
 	}
 }
 
-func (t *HeaterTestSuite) heaters() map[models.HeaterID]models.Heater {
-	heater := make(map[models.HeaterID]models.Heater)
+func (t *HeaterTestSuite) heaters() map[string]models.Heater {
+	heater := make(map[string]models.Heater)
 
 	for k, v := range t.mock {
-		heater[models.HeaterID(k)] = v
+		heater[string(k)] = v
 	}
 	return heater
 }
 
 func (t *HeaterTestSuite) SetupTest() {
 	gin.DefaultWriter = io.Discard
-	t.mock = make(map[models.HeaterID]*HeaterMock)
+	t.mock = make(map[string]*HeaterMock)
 	t.resp = httptest.NewRecorder()
 }
 func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface() {
 	setHeater := models.HeaterConfig{
-		HardwareID: "firstHeater",
-		Enabled:    false,
-		Power:      13,
+		ID:      "firstHeater",
+		Enabled: false,
+		Power:   13,
 	}
 	returnHeater := models.HeaterConfig{
-		HardwareID: setHeater.HardwareID,
-		Enabled:    !setHeater.Enabled,
-		Power:      uint(rand.Int() % 100),
+		ID:      setHeater.ID,
+		Enabled: !setHeater.Enabled,
+		Power:   uint(rand.Int() % 100),
 	}
 
 	heaterMock := new(HeaterMock)
-	t.mock[setHeater.HardwareID] = heaterMock
+	t.mock[setHeater.ID] = heaterMock
 
 	heaterMock.On("Enable", setHeater.Enabled).Return(nil)
 	heaterMock.On("SetPower", setHeater.Power).Return(nil)
@@ -99,13 +99,13 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface(
 
 func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 	expectedHeater := models.HeaterConfig{
-		HardwareID: "firstHeater",
-		Enabled:    false,
-		Power:      13,
+		ID:      "firstHeater",
+		Enabled: false,
+		Power:   13,
 	}
 
 	heaterMock := new(HeaterMock)
-	t.mock[expectedHeater.HardwareID] = heaterMock
+	t.mock[expectedHeater.ID] = heaterMock
 	{
 		heaterMock.On("Enable", expectedHeater.Enabled).Return(nil).Once()
 		heaterMock.On("SetPower", expectedHeater.Power).Return(nil).Once()
@@ -130,9 +130,9 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 	}
 	{
 		newExpected := models.HeaterConfig{
-			HardwareID: expectedHeater.HardwareID,
-			Enabled:    !expectedHeater.Enabled,
-			Power:      uint(rand.Uint64() % 100),
+			ID:      expectedHeater.ID,
+			Enabled: !expectedHeater.Enabled,
+			Power:   uint(rand.Uint64() % 100),
 		}
 
 		heaterMock.On("Enable", newExpected.Enabled).Return(nil).Once()
@@ -159,9 +159,9 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 	args := []models.HeaterConfig{
 		{
-			HardwareID: "firstHeater",
-			Enabled:    false,
-			Power:      13,
+			ID:      "firstHeater",
+			Enabled: false,
+			Power:   13,
 		},
 	}
 	errOnSetPower := errors.New("nope, sorry")
@@ -170,7 +170,7 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 		heater.On("Enabled").Return(arg.Enabled).Maybe()
 		heater.On("Power").Return(arg.Power).Maybe()
 		heater.On("SetPower", mock.Anything).Return(errOnSetPower).Once()
-		t.mock[arg.HardwareID] = heater
+		t.mock[arg.ID] = heater
 	}
 
 	var body bytes.Buffer
@@ -190,14 +190,14 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 func (t *HeaterTestSuite) TestHeater_GetHeater() {
 	args := []models.HeaterConfig{
 		{
-			HardwareID: "firstHeater",
-			Enabled:    false,
-			Power:      13,
+			ID:      "firstHeater",
+			Enabled: false,
+			Power:   13,
 		},
 		{
-			HardwareID: "second",
-			Enabled:    true,
-			Power:      71,
+			ID:      "second",
+			Enabled: true,
+			Power:   71,
 		},
 	}
 
@@ -205,7 +205,7 @@ func (t *HeaterTestSuite) TestHeater_GetHeater() {
 		heater := new(HeaterMock)
 		heater.On("Enabled").Return(arg.Enabled).Once()
 		heater.On("Power").Return(arg.Power).Once()
-		t.mock[arg.HardwareID] = heater
+		t.mock[arg.ID] = heater
 	}
 
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetHeaters, nil)
@@ -235,7 +235,7 @@ func (t *HeaterTestSuite) TestHeater_GetZeroHeaters() {
 
 func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
 	type args_t struct {
-		name    models.HeaterID
+		name    string
 		power   uint
 		enabled bool
 	}
@@ -283,7 +283,7 @@ func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
 	for _, elem := range stat {
 		correct := false
 		for _, arg := range args {
-			if arg.name == elem.HardwareID {
+			if arg.name == elem.ID {
 				correct = arg.enabled == elem.Enabled && arg.power == elem.Power
 				if correct {
 					break
@@ -316,7 +316,7 @@ func (t *HeaterTestSuite) TestHeater_SingleHeater() {
 	t.Len(stat, 1)
 	t.EqualValues(true, stat[0].Enabled)
 	t.EqualValues(16, stat[0].Power)
-	t.EqualValues("firstMock", stat[0].HardwareID)
+	t.EqualValues("firstMock", stat[0].ID)
 
 	firstMock.AssertExpectations(t.T())
 }
