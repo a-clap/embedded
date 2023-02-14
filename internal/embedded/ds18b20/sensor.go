@@ -8,7 +8,6 @@ package ds18b20
 import (
 	"errors"
 	"fmt"
-	"github.com/a-clap/iot/internal/embedded/avg"
 	"io"
 	"path"
 	"strconv"
@@ -16,6 +15,8 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded/avg"
 )
 
 type Resolution int
@@ -46,7 +47,7 @@ type Sensor struct {
 	polling                         atomic.Bool
 	fin, stop                       chan struct{}
 	data                            chan Readings
-	average                         *avg.Avg[float32]
+	average                         *avg.Avg
 	cfg                             SensorConfig
 	readings                        []Readings
 	mtx                             *sync.Mutex
@@ -80,7 +81,7 @@ func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 		},
 	}
 	var err error
-	if s.average, err = avg.New[float32](s.cfg.Samples); err != nil {
+	if s.average, err = avg.New(s.cfg.Samples); err != nil {
 		return nil, err
 	}
 

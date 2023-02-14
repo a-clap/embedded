@@ -6,9 +6,10 @@
 package avg_test
 
 import (
+	"testing"
+
 	"github.com/a-clap/iot/internal/embedded/avg"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type AvgTestSuite struct {
@@ -20,12 +21,12 @@ func TestAvgTestSuite(t *testing.T) {
 }
 
 func (t *AvgTestSuite) TestHandleErrors() {
-	a, err := avg.New[int](0)
+	a, err := avg.New(0)
 	t.Nil(a)
 	t.NotNil(err)
 	t.ErrorIs(avg.ErrSizeIsZero, err)
 
-	a, err = avg.New[int](2)
+	a, err = avg.New(2)
 	t.NotNil(a)
 	t.Nil(err)
 
@@ -106,9 +107,9 @@ func (t *AvgTestSuite) TestResize() {
 		},
 	}
 	for _, arg := range args {
-		a, _ := avg.New[int](arg.initSize)
+		a, _ := avg.New(arg.initSize)
 		for _, initV := range arg.initValues {
-			a.Add(initV)
+			a.Add(float32(initV))
 		}
 		t.EqualValues(arg.initExpected, a.Average(), arg.name)
 
@@ -117,7 +118,7 @@ func (t *AvgTestSuite) TestResize() {
 		t.EqualValues(arg.afterResizeExpected, a.Average(), arg.name)
 
 		for _, next := range arg.nextValues {
-			a.Add(next)
+			a.Add(float32(next))
 		}
 		t.EqualValues(arg.nextExpected, a.Average(), arg.name)
 
@@ -159,9 +160,9 @@ func (t *AvgTestSuite) TestAverage_Float() {
 		},
 	}
 	for _, arg := range args {
-		a, _ := avg.New[float64](arg.size)
+		a, _ := avg.New(arg.size)
 		for _, elem := range arg.values {
-			a.Add(elem)
+			a.Add(float32(elem))
 		}
 		t.InDelta(arg.expected, a.Average(), 0.01, arg.name)
 
@@ -209,9 +210,9 @@ func (t *AvgTestSuite) TestAverage_Int() {
 		},
 	}
 	for _, arg := range args {
-		a, _ := avg.New[int](arg.size)
+		a, _ := avg.New(arg.size)
 		for _, elem := range arg.values {
-			a.Add(elem)
+			a.Add(float32(elem))
 		}
 		t.EqualValues(arg.expected, a.Average())
 

@@ -7,10 +7,11 @@ package max31865
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/internal/embedded/avg"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded/avg"
 )
 
 type Sensor struct {
@@ -20,7 +21,7 @@ type Sensor struct {
 	trig, fin, stop chan struct{}
 	data            chan Readings
 	cfg             SensorConfig
-	average         *avg.Avg[float32]
+	average         *avg.Avg
 	polling         atomic.Bool
 	ready           Ready
 	readings        []Readings
@@ -59,7 +60,7 @@ func NewSensor(options ...Option) (*Sensor, error) {
 		},
 	}
 	var err error
-	s.average, err = avg.New[float32](s.cfg.Samples)
+	s.average, err = avg.New(s.cfg.Samples)
 	if err != nil {
 		return nil, err
 	}

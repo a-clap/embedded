@@ -7,34 +7,29 @@ package avg
 
 import (
 	"errors"
-	"golang.org/x/exp/constraints"
 )
 
 var (
 	ErrSizeIsZero = errors.New("size must be greater than zero")
 )
 
-type SummableAndDividable interface {
-	constraints.Integer | constraints.Float
-}
-
-type Avg[T SummableAndDividable] struct {
-	buffer []T
+type Avg struct {
+	buffer []float32
 	size   uint
 }
 
-func New[T SummableAndDividable](size uint) (*Avg[T], error) {
+func New(size uint) (*Avg, error) {
 	if size == 0 {
 		return nil, ErrSizeIsZero
 	}
 
-	return &Avg[T]{
-		buffer: make([]T, 0, size),
+	return &Avg{
+		buffer: make([]float32, 0, size),
 		size:   size,
 	}, nil
 }
 
-func (a *Avg[T]) Add(value T) {
+func (a *Avg) Add(value float32) {
 	p := uint(0)
 	newBufSize := uint(len(a.buffer) + 1)
 	if newBufSize > a.size {
@@ -44,7 +39,7 @@ func (a *Avg[T]) Add(value T) {
 
 }
 
-func (a *Avg[T]) Average() (avg T) {
+func (a *Avg) Average() (avg float32) {
 	if len(a.buffer) == 0 {
 		return
 	}
@@ -52,10 +47,10 @@ func (a *Avg[T]) Average() (avg T) {
 	for _, elem := range a.buffer {
 		avg += elem
 	}
-	return avg / T(len(a.buffer))
+	return avg / float32(len(a.buffer))
 }
 
-func (a *Avg[T]) Resize(newSize uint) error {
+func (a *Avg) Resize(newSize uint) error {
 	if newSize == 0 {
 		return ErrSizeIsZero
 	}
