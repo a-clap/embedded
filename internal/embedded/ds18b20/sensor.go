@@ -82,11 +82,11 @@ func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 	}
 	var err error
 	if s.average, err = avg.New(s.cfg.Samples); err != nil {
-		return nil, err
+		return nil, &Error{Bus: s.bus, ID: s.id, Op: "NewSensor", Err: err.Error()}
 	}
 
 	if s.cfg.Resolution, err = s.resolution(); err != nil {
-		return nil, err
+		return nil, &Error{Bus: s.bus, ID: s.id, Op: "NewSensor.resolution", Err: err.Error()}
 	}
 
 	return s, nil
@@ -98,7 +98,7 @@ func (s *Sensor) Name() (bus string, id string) {
 
 func (s *Sensor) Poll() (err error) {
 	if s.polling.Load() {
-		return ErrAlreadyPolling
+		return &Error{Bus: s.bus, ID: s.id, Op: "Poll", Err: ErrAlreadyPolling.Error()}
 	}
 
 	s.polling.Store(true)
@@ -111,11 +111,15 @@ func (s *Sensor) Poll() (err error) {
 }
 
 func (s *Sensor) Temperature() (actual, avg float32, err error) {
-	avg = s.Average()
-
 	conv, err := s.readFile(s.temperaturePath)
 	if err != nil {
-		return
+		err = &Error{
+			Bus: s.bus,
+			ID:  s.id,
+			Op:  "readFile :" + s.temperaturePath,
+			Err: err.Error(),
+		}
+		return 0, 0, err
 	}
 	length := len(conv)
 	if length > 3 {
@@ -130,7 +134,13 @@ func (s *Sensor) Temperature() (actual, avg float32, err error) {
 	}
 	t64, err := strconv.ParseFloat(conv, 32)
 	if err != nil {
-		return
+		err = &Error{
+			Bus: s.bus,
+			ID:  s.id,
+			Op:  "ParseFloat :" + conv,
+			Err: err.Error(),
+		}
+		return 0, 0, err
 	}
 	tmp := float32(t64) + s.cfg.Correction
 	s.average.Add(tmp)
@@ -164,14 +174,24 @@ func (s *Sensor) add(r Readings) {
 func (s *Sensor) Configure(config SensorConfig) error {
 	if s.cfg.Samples != config.Samples {
 		if err := s.average.Resize(config.Samples); err != nil {
-			return err
+			return &Error{
+				Bus: s.bus,
+				ID:  s.id,
+				Op:  "Configure.Resize",
+				Err: err.Error(),
+			}
 		}
 		s.cfg.Samples = config.Samples
 	}
 
 	if s.cfg.Resolution != config.Resolution {
 		if err := s.setResolution(config.Resolution); err != nil {
-			return err
+			return &Error{
+				Bus: s.bus,
+				ID:  s.id,
+				Op:  "Configure.setResolution",
+				Err: err.Error(),
+			}
 		}
 		s.cfg.Resolution = config.Resolution
 	}
@@ -206,12 +226,11 @@ func (s *Sensor) Close() error {
 func (s *Sensor) resolution() (r Resolution, err error) {
 	res, err := s.readFile(s.resolutionPath)
 	if err != nil {
-		return r, err
+		return
 	}
 
 	maybeRes, err := strconv.ParseInt(res, 10, 32)
 	if err != nil {
-		Log.Error(err)
 		return
 	}
 	r = Resolution(maybeRes)
@@ -222,25 +241,25 @@ func (s *Sensor) resolution() (r Resolution, err error) {
 	return
 }
 
-func (s *Sensor) setResolution(res Resolution) error {
+func (s *Sensor) setResolution(res Resolution) (err error) {
 	resFile, err := s.Open(s.resolutionPath)
 	if err != nil {
-		Log.Error(err)
-		return err
+		return
 	}
 
 	defer func() {
-		err = resFile.Close()
-		if err != nil {
-			Log.Error(err)
+		errOnClose := resFile.Close()
+		// If there is already error, we don't want to hide it
+		if err == nil {
+			err = errOnClose
 		}
 	}()
 
 	buf := strconv.FormatInt(int64(res), 10) + "\r\n"
-	if _, err := resFile.Write([]byte(buf)); err != nil {
-		return err
+	if _, err = resFile.Write([]byte(buf)); err != nil {
+		return
 	}
-	return nil
+	return
 }
 
 func (s *Sensor) poll() {
@@ -269,20 +288,23 @@ func (s *Sensor) poll() {
 			}
 		}
 	}
-	close(s.data)
 	// For sure there won't be more data
-	// Sensor created channel (and is the sender side), so should close
+	close(s.data)
+	// Notify we are done
 	close(s.fin)
 }
 
-func (s *Sensor) readFile(path string) (string, error) {
+func (s *Sensor) readFile(path string) (r string, err error) {
 	f, err := s.Open(path)
 	if err != nil {
 		return "", err
 	}
+
 	defer func() {
-		if err := f.Close(); err != nil {
-			Log.Error(err)
+		errOnClose := f.Close()
+		// If there is already error, we don't want to hide it
+		if err == nil {
+			err = errOnClose
 		}
 	}()
 
@@ -292,5 +314,5 @@ func (s *Sensor) readFile(path string) (string, error) {
 		return "", err
 	}
 
-	return strings.TrimRight(string(buf), "\r\n"), nil
+	return strings.TrimRight(string(buf), "\r\n"), err
 }

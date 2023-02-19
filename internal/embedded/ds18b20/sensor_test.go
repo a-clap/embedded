@@ -7,15 +7,16 @@ package ds18b20_test
 
 import (
 	"errors"
-	"github.com/a-clap/iot/internal/embedded/avg"
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"path"
 	"strconv"
 	"testing"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded/avg"
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type SensorSuite struct {
@@ -358,7 +359,7 @@ func (t *SensorSuite) TestSensor_PollTwice() {
 	r.Nil(err)
 
 	err = sensor.Poll()
-	r.ErrorIs(err, ds18b20.ErrAlreadyPolling)
+	r.ErrorContains(err, ds18b20.ErrAlreadyPolling.Error())
 
 	wait := make(chan struct{})
 

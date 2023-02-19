@@ -7,18 +7,38 @@ package ds18b20
 
 import (
 	"errors"
-	"fmt"
-	"github.com/a-clap/iot/internal/embedded/logger"
 	"io"
 )
 
-var Log = logger.Log
-
+// Those are Err possible in Error.Err
 var (
-	ErrInterface      = errors.New("interface")
 	ErrAlreadyPolling = errors.New("sensor is already polling")
 	ErrNoSuchID       = errors.New("there is no sensor with provided ID")
+	ErrNoInterface    = errors.New("no interface")
 )
+
+// Error is common error returned by this package
+type Error struct {
+	Bus string `json:"bus"`
+	ID  string `json:"ID"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (d *Error) Error() string {
+	if d.Err == "" {
+		return "<nil>"
+	}
+	s := d.Op
+	if d.Bus != "" {
+		s += ":" + d.Bus
+	}
+	if d.ID != "" {
+		s += ":" + d.ID
+	}
+	s += ": " + d.Err
+	return s
+}
 
 type File interface {
 	io.ReadWriteCloser
@@ -43,12 +63,12 @@ func NewBus(options ...BusOption) (*Bus, error) {
 	b := &Bus{}
 	for _, opt := range options {
 		if err := opt(b); err != nil {
-			return nil, err
+			return nil, &Error{Bus: "", ID: "", Op: "opt", Err: err.Error()}
 		}
 	}
 
 	if b.o == nil {
-		return nil, errors.New("lack of Onewire interface")
+		return nil, &Error{Bus: "", ID: "", Op: "NewBus", Err: ErrNoInterface.Error()}
 	}
 
 	return b, nil
@@ -56,7 +76,10 @@ func NewBus(options ...BusOption) (*Bus, error) {
 
 func (b *Bus) IDs() ([]string, error) {
 	err := b.updateIDs()
-	return b.ids, err
+	if err != nil {
+		return nil, &Error{Bus: b.o.Path(), ID: "", Op: "updateIDs", Err: err.Error()}
+	}
+	return b.ids, nil
 }
 
 func (b *Bus) NewSensor(id string) (*Sensor, error) {
@@ -74,7 +97,7 @@ func (b *Bus) NewSensor(id string) (*Sensor, error) {
 	}
 
 	if !found {
-		return nil, ErrNoSuchID
+		return nil, &Error{Bus: b.o.Path(), ID: id, Op: "NewSensor", Err: ErrNoSuchID.Error()}
 	}
 
 	// delegate creation of Sensor to NewSensor
@@ -83,22 +106,6 @@ func (b *Bus) NewSensor(id string) (*Sensor, error) {
 		return nil, err
 	}
 	return s, nil
-}
-
-func (b *Bus) updateIDs() error {
-	fileNames, err := b.o.ReadDir(b.o.Path())
-	if err != nil {
-		return fmt.Errorf("%w: %v", ErrInterface, err)
-	}
-	for _, name := range fileNames {
-		if len(name) > 0 {
-			// Onewire id starts with digit
-			if name[0] >= '0' && name[0] <= '9' {
-				b.ids = append(b.ids, name)
-			}
-		}
-	}
-	return nil
 }
 
 func (b *Bus) Discover() ([]*Sensor, error) {
@@ -114,4 +121,20 @@ func (b *Bus) Discover() ([]*Sensor, error) {
 		}
 	}
 	return s, nil
+}
+
+func (b *Bus) updateIDs() error {
+	fileNames, err := b.o.ReadDir(b.o.Path())
+	if err != nil {
+		return err
+	}
+	for _, name := range fileNames {
+		if len(name) > 0 {
+			// Onewire id starts with digit
+			if name[0] >= '0' && name[0] <= '9' {
+				b.ids = append(b.ids, name)
+			}
+		}
+	}
+	return nil
 }

@@ -7,11 +7,12 @@ package main
 
 import (
 	"fmt"
+	"time"
+
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/a-clap/iot/internal/embedded/logger"
 
 	"go.uber.org/zap/zapcore"
-	"time"
 )
 
 func main() {

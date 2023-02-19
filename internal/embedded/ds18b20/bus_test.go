@@ -7,12 +7,13 @@ package ds18b20_test
 
 import (
 	"errors"
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"path"
 	"testing"
+
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type OnewireMock struct {
@@ -89,24 +90,26 @@ func (t *BusSuite) TestBus_IDs() {
 			ids: []string{"28-051693848dff", "28-05169397aeff"},
 		},
 	}
+	r := t.Require()
 	for _, arg := range args {
-		t.onewire.On("Path").Return(arg.path).Once()
-		t.onewire.On("ReadDir", arg.path).Return(arg.dirEntry, arg.err).Once()
+		t.onewire = new(OnewireMock)
+		t.onewire.On("Path").Return(arg.path)
+		t.onewire.On("ReadDir", arg.path).Return(arg.dirEntry, arg.err)
 
 		h, err := ds18b20.NewBus(
 			ds18b20.WithInterface(t.onewire),
 		)
 
-		t.NotNil(h, arg.name)
-		t.Nil(err, arg.name)
+		r.NotNil(h, arg.name)
+		r.Nil(err, arg.name)
 
 		ids, err := h.IDs()
-		t.EqualValues(arg.ids, ids, arg.name)
+		r.EqualValues(arg.ids, ids, arg.name)
 
 		if arg.err != nil {
-			t.ErrorContains(err, arg.err.Error(), arg.name)
+			r.ErrorContains(err, arg.err.Error(), arg.name)
 		} else {
-			t.Nil(err, arg.name)
+			r.Nil(err, arg.name)
 		}
 	}
 }
@@ -150,7 +153,7 @@ func (t *BusSuite) TestBus_NewSensorWrongID() {
 	dirEntry := []string{"28-05169397aeff"}
 	expectedErr := ds18b20.ErrNoSuchID
 
-	t.onewire.On("Path").Return(w1path).Once()
+	t.onewire.On("Path").Return(w1path)
 	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 
 	bus, _ := ds18b20.NewBus(
@@ -160,7 +163,7 @@ func (t *BusSuite) TestBus_NewSensorWrongID() {
 	sensor, err := bus.NewSensor(id)
 	t.Nil(sensor)
 	t.NotNil(err)
-	t.ErrorIs(err, expectedErr)
+	t.ErrorContains(err, expectedErr.Error())
 
 }
 
