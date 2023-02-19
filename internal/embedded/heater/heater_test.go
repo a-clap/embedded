@@ -6,11 +6,12 @@
 package heater_test
 
 import (
+	"testing"
+	"time"
+
 	"github.com/a-clap/iot/internal/embedded/heater"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type HeaterSuite struct {
@@ -75,7 +76,7 @@ func (t *HeaterSuite) TestHeater_Power() {
 	t.Nil(h.SetPower(100))
 	err := h.SetPower(101)
 	t.NotNil(err)
-	t.ErrorIs(heater.ErrPowerOutOfRange, err)
+	t.ErrorContains(err, heater.ErrPowerOutOfRange.Error())
 }
 func (t *HeaterSuite) TestHeater_Running() {
 	ticker := make(chan time.Time)

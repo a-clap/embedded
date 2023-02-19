@@ -7,6 +7,7 @@ package heater
 
 import (
 	"errors"
+	"strconv"
 	"sync/atomic"
 	"time"
 )
@@ -35,8 +36,24 @@ type Ticker interface {
 	Tick() <-chan time.Time
 }
 
+type Error struct {
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (e *Error) Error() string {
+	if e.Err == "" {
+		return "<nil>"
+	}
+	s := e.Op
+	s += ": " + e.Err
+	return s
+}
+
 var (
 	ErrPowerOutOfRange = errors.New("power out of range")
+	ErrNoHeating       = errors.New("lack of heating interface")
+	ErrNoTicker        = errors.New("lack of ticker interface")
 )
 
 func New(options ...Option) (*Heater, error) {
@@ -56,15 +73,15 @@ func New(options ...Option) (*Heater, error) {
 		}
 	}
 	if heater.heating == nil {
-		return nil, errors.New("lack of heating interface")
+		return nil, &Error{Op: "New", Err: ErrNoHeating.Error()}
 	}
 
 	if heater.ticker == nil {
-		return nil, errors.New("lack of ticker interface")
+		return nil, &Error{Op: "New", Err: ErrNoTicker.Error()}
 	}
 
 	if err := heater.heating.Open(); err != nil {
-		return nil, err
+		return nil, &Error{Op: "New.Open", Err: err.Error()}
 	}
 
 	return heater, nil
@@ -90,7 +107,7 @@ func (h *Heater) Enable(ena bool) {
 
 func (h *Heater) SetPower(power uint) error {
 	if power > 100 {
-		return ErrPowerOutOfRange
+		return &Error{Op: "SetPower " + strconv.FormatInt(int64(power), 10), Err: ErrPowerOutOfRange.Error()}
 	}
 	h.power = power
 	return nil
@@ -115,6 +132,7 @@ func (h *Heater) enable() {
 				state := h.currentPower <= h.power
 				if err := h.heating.Set(state); err != nil {
 					// non-blocking write
+					err = &Error{Op: "Set", Err: err.Error()}
 					select {
 					case h.err <- err:
 					default:
