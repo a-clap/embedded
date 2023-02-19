@@ -6,12 +6,13 @@
 package spidev
 
 import (
+	"sync"
+
 	"periph.io/x/conn/v3/driver/driverreg"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 	"periph.io/x/conn/v3/spi/spireg"
 	"periph.io/x/host/v3"
-	"sync"
 )
 
 type spiHandler struct {

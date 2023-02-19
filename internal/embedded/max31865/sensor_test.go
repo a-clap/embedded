@@ -7,11 +7,12 @@ package max31865_test
 
 import (
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type SensorSuite struct {
@@ -156,7 +157,7 @@ func (s *SensorSuite) TestTemperatureError() {
 	// max will try to reset error
 	sensorMock.On("ReadWrite", []byte{0x80, 0xd3}).Return([]byte{0x00, 0xd1}, nil).Once()
 	tmp, _, err := max.Temperature()
-	s.ErrorIs(err, max31865.ErrRtd)
+	s.ErrorContains(err, max31865.ErrRtd.Error())
 	s.InDelta(0.0, tmp, 1)
 }
 
@@ -205,9 +206,9 @@ func (s *SensorSuite) TestConfigure() {
 		sensorMock = new(SensorTransferMock)
 		triggerMock = new(SensorTriggerMock)
 
-		//Initial configReg call, always constant
+		// Initial configReg call, always constant
 		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
-		//Configuration call
+		// Configuration call
 		sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil)
 
 		sensor, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock))
@@ -215,7 +216,7 @@ func (s *SensorSuite) TestConfigure() {
 		err := sensor.Configure(arg.newCfg)
 		if arg.expectedErr != nil {
 			r.NotNil(err)
-			r.ErrorIs(err, arg.expectedErr)
+			r.ErrorContains(err, arg.expectedErr.Error())
 			continue
 		}
 		r.Nil(err)
@@ -302,7 +303,7 @@ func (s *SensorSuite) TestPollTwice() {
 	err := max.Poll()
 	s.Nil(err)
 	err = max.Poll()
-	s.ErrorIs(err, max31865.ErrAlreadyPolling)
+	s.ErrorContains(err, max31865.ErrAlreadyPolling.Error())
 
 	sensorMock.On("Close").Return(nil)
 	s.Nil(max.Close())
@@ -325,7 +326,7 @@ func (s *SensorSuite) TestPollTriggerReturnsCorrectErrors() {
 	triggerMock.On("Open", mock.Anything).Return(triggerErr).Once()
 	err := max.Poll()
 	r.NotNil(err)
-	r.ErrorIs(err, triggerErr)
+	r.ErrorContains(err, triggerErr.Error())
 
 	{
 		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Twice()

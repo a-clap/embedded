@@ -7,10 +7,11 @@ package max31865_test
 
 import (
 	"errors"
+	"testing"
+
 	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
 )
 
 type MaxSuite struct {
@@ -46,20 +47,20 @@ func (m *MaxSuite) SetupTest() {
 func (m *MaxSuite) TestMaxInterfaceError() {
 	mocker.On("ReadWrite", mock.Anything).Return([]byte{}, errors.New("interface broken"))
 	max, err := max31865.NewSensor(max31865.WithReadWriteCloser(mocker))
-	m.Equal(max31865.ErrInterface, err)
+	m.ErrorContains(err, max31865.ErrInterface.Error())
 	m.Nil(max)
 }
 
 func (m *MaxSuite) TestMaxInterfaceReturnsZeroes() {
 	mocker.On("ReadWrite", mock.Anything).Return([]byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}, nil)
 	max, err := max31865.NewSensor(max31865.WithReadWriteCloser(mocker))
-	m.Equal(max31865.ErrReadZeroes, err)
+	m.ErrorContains(err, max31865.ErrReadZeroes.Error())
 	m.Nil(max)
 }
 
 func (m *MaxSuite) TestMaxInterfaceReturnsFF() {
 	mocker.On("ReadWrite", mock.Anything).Return([]byte{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}, nil)
 	max, err := max31865.NewSensor(max31865.WithReadWriteCloser(mocker))
-	m.Equal(max31865.ErrReadFF, err)
+	m.ErrorContains(err, max31865.ErrReadFF.Error())
 	m.Nil(max)
 }

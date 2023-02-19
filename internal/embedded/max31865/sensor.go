@@ -14,6 +14,24 @@ import (
 	"github.com/a-clap/iot/internal/embedded/avg"
 )
 
+type Error struct {
+	ID  string `json:"ID"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (e *Error) Error() string {
+	if e.Err == "" {
+		return "<nil>"
+	}
+	s := e.Op
+	if e.ID != "" {
+		s += ":" + e.ID
+	}
+	s += ": " + e.Err
+	return s
+}
+
 type Sensor struct {
 	ReadWriteCloser
 	configReg       *configReg
@@ -59,25 +77,25 @@ func NewSensor(options ...Option) (*Sensor, error) {
 			Samples:      10,
 		},
 	}
+	for _, opt := range options {
+		if err := opt(s); err != nil {
+			return nil, &Error{Op: "Max.NewSensor", Err: err.Error()}
+		}
+	}
+
 	var err error
 	s.average, err = avg.New(s.cfg.Samples)
 	if err != nil {
-		return nil, err
-	}
-
-	for _, opt := range options {
-		if err := opt(s); err != nil {
-			return nil, err
-		}
+		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.Avg", Err: err.Error()}
 	}
 	// verify after parsing opts
 	if err := s.verify(); err != nil {
-		return nil, err
+		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.Verify", Err: err.Error()}
 	}
 
 	// Do initial regConfig
 	if err := s.config(); err != nil {
-		return nil, err
+		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.config", Err: err.Error()}
 	}
 
 	return s, nil
@@ -85,7 +103,7 @@ func NewSensor(options ...Option) (*Sensor, error) {
 
 func (s *Sensor) Poll() (err error) {
 	if s.polling.Load() {
-		return ErrAlreadyPolling
+		return &Error{ID: s.ID(), Op: "Poll", Err: ErrAlreadyPolling.Error()}
 	}
 
 	s.polling.Store(true)
@@ -97,7 +115,7 @@ func (s *Sensor) Poll() (err error) {
 
 	if err != nil {
 		s.polling.Store(false)
-		return err
+		return &Error{ID: s.ID(), Op: "Poll", Err: err.Error()}
 	}
 
 	s.fin = make(chan struct{})
@@ -132,13 +150,13 @@ func (s *Sensor) add(r Readings) {
 func (s *Sensor) Configure(config SensorConfig) error {
 	if s.cfg.Samples != config.Samples {
 		if err := s.average.Resize(config.Samples); err != nil {
-			return err
+			return &Error{ID: s.ID(), Op: "Configure.Avg.Resize", Err: err.Error()}
 		}
 		s.cfg.Samples = config.Samples
 	}
 	if config.ASyncPoll {
 		if s.ready == nil {
-			return ErrNoReadyInterface
+			return &Error{ID: s.ID(), Op: "Configure", Err: ErrNoReadyInterface.Error()}
 		}
 	}
 	s.cfg.ASyncPoll = config.ASyncPoll
@@ -221,6 +239,7 @@ func (s *Sensor) Temperature() (actual float32, average float32, err error) {
 	r, err := s.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it
+		err = &Error{ID: s.ID(), Op: "Temperature.read", Err: err.Error()}
 		return
 	}
 	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
@@ -229,6 +248,7 @@ func (s *Sensor) Temperature() (actual float32, average float32, err error) {
 		_ = s.clearFaults()
 		// make error more specific
 		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.configReg.wiring))
+		err = &Error{ID: s.ID(), Op: "Temperature.update", Err: err.Error()}
 		return
 	}
 	tmp := s.r.toTemperature(s.configReg.refRes, s.configReg.rNominal)
