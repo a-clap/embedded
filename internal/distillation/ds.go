@@ -8,7 +8,6 @@ package distillation
 import (
 	"errors"
 	"net/http"
-	"time"
 
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
@@ -16,7 +15,7 @@ import (
 )
 
 var (
-	ErrNoSuchDS      = errors.New("doesn't exist")
+	ErrNoSuchID      = errors.New("doesn't exist")
 	ErrNoTemps       = errors.New("temperature buffer is empty")
 	ErrUnexpectedID  = errors.New("unexpected ID")
 	ErrNoDSInterface = errors.New("no ds interface")
@@ -55,9 +54,8 @@ type DSConfig struct {
 
 // DSHandler main struct used to handle number of DS sensors
 type DSHandler struct {
-	DS           DS
-	sensors      map[string]*DSConfig
-	pollInterval time.Duration
+	DS      DS
+	sensors map[string]*DSConfig
 }
 
 // DSTemperature - json returned from rest API
@@ -116,9 +114,8 @@ func (h *Handler) configureDS() gin.HandlerFunc {
 // NewDSHandler creates new DSHandler with provided DS interface
 func NewDSHandler(ds DS) (*DSHandler, error) {
 	d := &DSHandler{
-		DS:           ds,
-		sensors:      make(map[string]*DSConfig),
-		pollInterval: 1 * time.Second,
+		DS:      ds,
+		sensors: make(map[string]*DSConfig),
 	}
 	if err := d.init(); err != nil {
 		return nil, err
@@ -186,7 +183,7 @@ func (d *DSHandler) Temperatures() []DSTemperature {
 func (d *DSHandler) Temperature(id string) (float32, error) {
 	ds, ok := d.sensors[id]
 	if !ok {
-		return 0.0, &DSError{ID: id, Op: "Temperature", Err: ErrNoSuchDS.Error()}
+		return 0.0, &DSError{ID: id, Op: "Temperature", Err: ErrNoSuchID.Error()}
 	}
 
 	size := len(ds.temps.Readings)
@@ -200,7 +197,7 @@ func (d *DSHandler) Temperature(id string) (float32, error) {
 func (d *DSHandler) ConfigureSensor(cfg DSConfig) error {
 	ds, ok := d.sensors[cfg.ID]
 	if !ok {
-		return &DSError{ID: cfg.ID, Op: "ConfigureSensor", Err: ErrNoSuchDS.Error()}
+		return &DSError{ID: cfg.ID, Op: "ConfigureSensor", Err: ErrNoSuchID.Error()}
 	}
 	if err := d.DS.Set(cfg.DSSensorConfig); err != nil {
 		return &DSError{ID: cfg.ID, Op: "ConfigureSensor.Set", Err: err.Error()}
@@ -212,7 +209,7 @@ func (d *DSHandler) ConfigureSensor(cfg DSConfig) error {
 func (d *DSHandler) GetConfig(id string) (DSConfig, error) {
 	ds, ok := d.sensors[id]
 	if !ok {
-		return DSConfig{}, &DSError{ID: id, Op: "GetConfig", Err: ErrNoSuchDS.Error()}
+		return DSConfig{}, &DSError{ID: id, Op: "GetConfig", Err: ErrNoSuchID.Error()}
 	}
 	return *ds, nil
 }

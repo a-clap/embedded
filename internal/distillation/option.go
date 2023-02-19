@@ -20,3 +20,10 @@ func WithDS(ds DS) Option {
 		return err
 	}
 }
+
+func WithPT(pt PT) Option {
+	return func(h *Handler) (err error) {
+		h.PTHandler, err = NewPTHandler(pt)
+		return err
+	}
+}

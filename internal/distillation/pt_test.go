@@ -18,199 +18,197 @@ import (
 
 	"github.com/a-clap/iot/internal/distillation"
 	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
-type DSTestSuite struct {
+type PTTestSuite struct {
 	suite.Suite
 }
 
-type DSMock struct {
+type PTMock struct {
 	mock.Mock
 }
 
-func TestDS(t *testing.T) {
-	suite.Run(t, new(DSTestSuite))
+func (p *PTMock) Get() ([]embedded.PTSensorConfig, error) {
+	args := p.Called()
+	return args.Get(0).([]embedded.PTSensorConfig), args.Error(1)
 }
 
-func (t *DSTestSuite) SetupTest() {
+func (p *PTMock) Set(s embedded.PTSensorConfig) error {
+	return p.Called(s).Error(0)
+}
+
+func (p *PTMock) Temperatures() ([]embedded.PTTemperature, error) {
+	args := p.Called()
+	return args.Get(0).([]embedded.PTTemperature), args.Error(1)
+}
+
+func TestPT(t *testing.T) {
+	suite.Run(t, new(PTTestSuite))
+}
+
+func (t *PTTestSuite) SetupTest() {
 	gin.DefaultWriter = io.Discard
 }
 
-func (t *DSTestSuite) TestGetSensors_Rest() {
+func (t *PTTestSuite) TestGetSensors_Rest() {
 	args := []struct {
 		name     string
-		onGet    []embedded.DSSensorConfig
-		expected []distillation.DSConfig
+		onGet    []embedded.PTSensorConfig
+		expected []distillation.PTConfig
 	}{
 		{
 			name: "single element",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}},
-			expected: []distillation.DSConfig{{
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+			expected: []distillation.PTConfig{{
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}},
 		},
 		{
 			name: "two sensors on one bus",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "2",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}},
 			},
-			expected: []distillation.DSConfig{{
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+			expected: []distillation.PTConfig{{
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "2",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}},
 		},
 		{
 			name: "multiple sensors on multiple bus",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "2",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "4",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "5",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "5",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "12",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}},
 			},
-			expected: []distillation.DSConfig{{
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+			expected: []distillation.PTConfig{{
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "2",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "4",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "5",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "5",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "12",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}},
@@ -218,145 +216,137 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		h, err := distillation.New(distillation.WithDS(m))
+		h, err := distillation.New(distillation.WithPT(m))
 		r.NotNil(h)
 		r.Nil(err)
 
 		recorder := httptest.NewRecorder()
-		request, _ := http.NewRequest(http.MethodGet, distillation.RoutesGetDS, nil)
+		request, _ := http.NewRequest(http.MethodGet, distillation.RoutesGetPT, nil)
 
 		h.ServeHTTP(recorder, request)
 		r.Equal(http.StatusOK, recorder.Code, arg.name)
-		var retCfg []distillation.DSConfig
+		var retCfg []distillation.PTConfig
 
 		r.Nil(json.NewDecoder(recorder.Body).Decode(&retCfg), arg.name)
 	}
 }
 
-func (t *DSTestSuite) TestTemperature_REST() {
+func (t *PTTestSuite) TestTemperature_REST() {
 	args := []struct {
 		name                 string
-		onGet                []embedded.DSSensorConfig
-		onTemperatures       []embedded.DSTemperature
-		expectedTemperatures []distillation.DSTemperature
+		onGet                []embedded.PTSensorConfig
+		onTemperatures       []embedded.PTTemperature
+		expectedTemperatures []distillation.PTTemperature
 	}{
 		{
 			name: "return average",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}},
-			onTemperatures: []embedded.DSTemperature{{
-				Bus: "1",
-				Readings: []ds18b20.Readings{{
+			onTemperatures: []embedded.PTTemperature{{
+				Readings: []max31865.Readings{{
 					ID:          "1",
 					Temperature: 1,
 					Average:     123.0,
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}},
-			expectedTemperatures: []distillation.DSTemperature{{
+			expectedTemperatures: []distillation.PTTemperature{{
 				ID:          "1",
 				Temperature: 123.0,
 			}}}, {
 			name: "return last average",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}},
-			onTemperatures: []embedded.DSTemperature{{
-				Bus: "1",
-				Readings: []ds18b20.Readings{{
+			onTemperatures: []embedded.PTTemperature{{
+				Readings: []max31865.Readings{{
 					ID:          "1",
 					Temperature: 1,
 					Average:     123.0,
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}, {
-				Bus: "1",
-				Readings: []ds18b20.Readings{{
+				Readings: []max31865.Readings{{
 					ID:          "1",
 					Temperature: 1,
 					Average:     128.0,
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}, {
-				Bus: "1",
-				Readings: []ds18b20.Readings{{
+				Readings: []max31865.Readings{{
 					ID:          "1",
 					Temperature: 1,
 					Average:     -200.0,
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}},
-			expectedTemperatures: []distillation.DSTemperature{{
+			expectedTemperatures: []distillation.PTTemperature{{
 				ID:          "1",
 				Temperature: 123.0,
 			}}}}
 
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
 		m.On("Temperatures").Return(arg.onTemperatures, nil)
 
-		h, err := distillation.New(distillation.WithDS(m))
+		h, err := distillation.New(distillation.WithPT(m))
 		r.NotNil(h, arg.name)
 		r.Nil(err, arg.name)
 
-		r.Len(h.DSHandler.Update(), 0, arg.name)
+		r.Len(h.PTHandler.Update(), 0, arg.name)
 
 		recorder := httptest.NewRecorder()
-		request, _ := http.NewRequest(http.MethodGet, distillation.RoutesGetDSTemperatures, nil)
+		request, _ := http.NewRequest(http.MethodGet, distillation.RoutesGetPTTemperatures, nil)
 
 		h.ServeHTTP(recorder, request)
 		r.Equal(http.StatusOK, recorder.Code, arg.name)
-		var retCfg []distillation.DSTemperature
+		var retCfg []distillation.PTTemperature
 
 		r.Nil(json.NewDecoder(recorder.Body).Decode(&retCfg), arg.name)
 	}
 }
 
-func (t *DSTestSuite) TestConfigureSensor_REST() {
+func (t *PTTestSuite) TestConfigureSensor_REST() {
 	args := []struct {
 		name        string
-		newConfig   distillation.DSConfig
-		onGet       []embedded.DSSensorConfig
+		newConfig   distillation.PTConfig
+		onGet       []embedded.PTSensorConfig
 		onSetErr    error
 		errContains string
 	}{{
 		name: "all good",
-		newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-			Bus:     "1",
+		newConfig: distillation.PTConfig{PTSensorConfig: embedded.PTSensorConfig{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   1,
-				Resolution:   2,
+				ASyncPoll:    false,
 				PollInterval: 3,
 				Samples:      4,
 			}}},
-		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
+		onGet: []embedded.PTSensorConfig{{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   0,
-				Resolution:   0,
+				ASyncPoll:    false,
 				PollInterval: 0,
 				Samples:      0,
 			}}},
@@ -364,23 +354,21 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 		errContains: "",
 	}, {
 		name: "error on set interface",
-		newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-			Bus:     "1",
+		newConfig: distillation.PTConfig{PTSensorConfig: embedded.PTSensorConfig{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   1,
-				Resolution:   2,
+				ASyncPoll:    false,
 				PollInterval: 3,
 				Samples:      4,
 			}}},
-		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
+		onGet: []embedded.PTSensorConfig{{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   0,
-				Resolution:   0,
+				ASyncPoll:    false,
 				PollInterval: 0,
 				Samples:      0,
 			}}},
@@ -388,23 +376,21 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 		errContains: "hello",
 	}, {
 		name: "wrong ID",
-		newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-			Bus:     "1",
+		newConfig: distillation.PTConfig{PTSensorConfig: embedded.PTSensorConfig{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   1,
-				Resolution:   2,
+				ASyncPoll:    false,
 				PollInterval: 3,
 				Samples:      4,
 			}}},
-		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
+		onGet: []embedded.PTSensorConfig{{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "2",
 				Correction:   0,
-				Resolution:   0,
+				ASyncPoll:    false,
 				PollInterval: 0,
 				Samples:      0,
 			}}},
@@ -413,17 +399,17 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 	}}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		m.On("Set", arg.newConfig.DSSensorConfig).Return(arg.onSetErr)
-		h, err := distillation.New(distillation.WithDS(m))
+		m.On("Set", arg.newConfig.PTSensorConfig).Return(arg.onSetErr)
+		h, err := distillation.New(distillation.WithPT(m))
 		r.Nil(err, arg.name)
 
 		recorder := httptest.NewRecorder()
 		var body bytes.Buffer
 		r.Nil(json.NewEncoder(&body).Encode(arg.newConfig))
 
-		request, _ := http.NewRequest(http.MethodPut, distillation.RoutesConfigureDS, &body)
+		request, _ := http.NewRequest(http.MethodPut, distillation.RoutesConfigurePT, &body)
 		request.Header.Add("Content-Type", "application/json")
 
 		h.ServeHTTP(recorder, request)
@@ -436,85 +422,79 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 		}
 
 		r.Equal(http.StatusOK, recorder.Code, recorder.Body.String())
-		retCfg := distillation.DSConfig{}
+		retCfg := distillation.PTConfig{}
 		r.Nil(json.NewDecoder(recorder.Body).Decode(&retCfg), arg.name)
 
 		r.Equal(arg.newConfig, retCfg, arg.name)
 	}
 }
 
-func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
+func (t *PTTestSuite) TestAfterHistory_StillCanReadData() {
 	args := []struct {
 		name            string
-		onGet           []embedded.DSSensorConfig
-		onTemperatures  []embedded.DSTemperature
-		expectedHistory []embedded.DSTemperature
+		onGet           []embedded.PTSensorConfig
+		onTemperatures  []embedded.PTTemperature
+		expectedHistory []embedded.PTTemperature
 		ids             []string
 		temps           []float32
 	}{{
 		name: "single element in history",
-		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
+		onGet: []embedded.PTSensorConfig{{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   0,
-				Resolution:   0,
+				ASyncPoll:    false,
 				PollInterval: 0,
 				Samples:      0,
 			}}},
-		onTemperatures: []embedded.DSTemperature{{
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
+		onTemperatures: []embedded.PTTemperature{{
+			Readings: []max31865.Readings{{
 				ID:          "1",
 				Temperature: 1,
 				Average:     123.0,
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}},
-		expectedHistory: []embedded.DSTemperature{},
+		expectedHistory: []embedded.PTTemperature{},
 		ids:             []string{"1"},
 		temps:           []float32{123.0},
 	}, {
 		name: "return all  but last element in history",
-		onGet: []embedded.DSSensorConfig{
-			{Bus: "1",
+		onGet: []embedded.PTSensorConfig{
+			{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}},
-		onTemperatures: []embedded.DSTemperature{{
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
+		onTemperatures: []embedded.PTTemperature{{
+			Readings: []max31865.Readings{{
 				ID:          "1",
 				Temperature: 1,
 				Average:     -100.0,
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
+			Readings: []max31865.Readings{{
 				ID:          "1",
 				Temperature: 1,
 				Average:     -50.0,
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
+			Readings: []max31865.Readings{{
 				ID:          "1",
 				Temperature: 1,
 				Average:     -150.0,
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}},
-		expectedHistory: []embedded.DSTemperature{{
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
+		expectedHistory: []embedded.PTTemperature{{
+			Readings: []max31865.Readings{{
 				ID:          "1",
 				Temperature: 1,
 				Average:     -100.0,
@@ -529,141 +509,133 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 			}}}},
 		ids:   []string{"1"},
 		temps: []float32{-150.0},
-	}, {
-		name: "return all  but last element in history - more and mixed data",
-		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
-			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
-				ID:           "1",
-				Correction:   0,
-				Resolution:   0,
-				PollInterval: 0,
-				Samples:      0,
-			}}, {
-			Bus:     "2",
-			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
-				ID:           "2",
-				Correction:   0,
-				Resolution:   0,
-				PollInterval: 0,
-				Samples:      0,
-			}}, {
-			Bus:     "1",
-			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
-				ID:           "3",
-				Correction:   0,
-				Resolution:   0,
-				PollInterval: 0,
-				Samples:      0,
-			}}},
-		onTemperatures: []embedded.DSTemperature{{
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
-				ID:          "1",
-				Temperature: 1,
-				Average:     -100.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "3",
-				Temperature: 1,
-				Average:     -100.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "1",
-				Temperature: 1,
-				Average:     -125.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "3",
-				Temperature: 1,
-				Average:     -12300.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}}}, {
-			Bus: "2",
-			Readings: []ds18b20.Readings{{
-				ID:          "2",
-				Temperature: 1,
-				Average:     -50.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "2",
-				Temperature: 1,
-				Average:     -510.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "2",
-				Temperature: 1,
-				Average:     -520.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}}}, {
-			Bus: "1",
-			Readings: []ds18b20.Readings{
-				{
-					ID:          "3",
-					Temperature: 1,
-					Average:     -150.0,
-					Stamp:       time.Time{},
-					Error:       "",
-				}}}},
-		expectedHistory: []embedded.DSTemperature{{
-			Bus: "1",
-			Readings: []ds18b20.Readings{
-				{
+	},
+		{
+			name: "return all  but last element in history - more and mixed data",
+			onGet: []embedded.PTSensorConfig{{
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "1",
+					Correction:   0,
+					ASyncPoll:    false,
+					PollInterval: 0,
+					Samples:      0,
+				}}, {
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "2",
+					Correction:   0,
+					ASyncPoll:    false,
+					PollInterval: 0,
+					Samples:      0,
+				}}, {
+				Enabled: false,
+				SensorConfig: max31865.SensorConfig{
+					ID:           "3",
+					Correction:   0,
+					ASyncPoll:    false,
+					PollInterval: 0,
+					Samples:      0,
+				}}},
+			onTemperatures: []embedded.PTTemperature{{
+				Readings: []max31865.Readings{{
 					ID:          "1",
 					Temperature: 1,
 					Average:     -100.0,
 					Stamp:       time.Time{},
 					Error:       "",
+				}, {
+					ID:          "3",
+					Temperature: 1,
+					Average:     -100.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}, {
+					ID:          "1",
+					Temperature: 1,
+					Average:     -125.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}, {
+					ID:          "3",
+					Temperature: 1,
+					Average:     -12300.0,
+					Stamp:       time.Time{},
+					Error:       "",
 				}}}, {
-			Bus: "1",
-			Readings: []ds18b20.Readings{{
-				ID:          "3",
-				Temperature: 1,
-				Average:     -100.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "3",
-				Temperature: 1,
-				Average:     -12300.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}}}, {
-			Bus: "2",
-			Readings: []ds18b20.Readings{{
-				ID:          "2",
-				Temperature: 1,
-				Average:     -50.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}, {
-				ID:          "2",
-				Temperature: 1,
-				Average:     -510.0,
-				Stamp:       time.Time{},
-				Error:       "",
-			}}}},
-		ids:   []string{"1", "2", "3"},
-		temps: []float32{-125.0, -520.0, -150.0},
-	},
+				Readings: []max31865.Readings{{
+					ID:          "2",
+					Temperature: 1,
+					Average:     -50.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}, {
+					ID:          "2",
+					Temperature: 1,
+					Average:     -510.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}, {
+					ID:          "2",
+					Temperature: 1,
+					Average:     -520.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}}}, {
+				Readings: []max31865.Readings{
+					{
+						ID:          "3",
+						Temperature: 1,
+						Average:     -150.0,
+						Stamp:       time.Time{},
+						Error:       "",
+					}}}},
+			expectedHistory: []embedded.PTTemperature{{
+				Readings: []max31865.Readings{
+					{
+						ID:          "1",
+						Temperature: 1,
+						Average:     -100.0,
+						Stamp:       time.Time{},
+						Error:       "",
+					}}}, {
+				Readings: []max31865.Readings{{
+					ID:          "3",
+					Temperature: 1,
+					Average:     -100.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}, {
+					ID:          "3",
+					Temperature: 1,
+					Average:     -12300.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}}}, {
+				Readings: []max31865.Readings{{
+					ID:          "2",
+					Temperature: 1,
+					Average:     -50.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}, {
+					ID:          "2",
+					Temperature: 1,
+					Average:     -510.0,
+					Stamp:       time.Time{},
+					Error:       "",
+				}}}},
+			ids:   []string{"1", "2", "3"},
+			temps: []float32{-125.0, -520.0, -150.0},
+		},
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
 		m.On("Temperatures").Return(arg.onTemperatures, nil)
 
-		h, err := distillation.NewDSHandler(m)
+		h, err := distillation.NewPTHandler(m)
 		r.NotNil(h, arg.name)
 		r.Nil(err, arg.name)
 
@@ -683,32 +655,30 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 
 	}
 }
-func (t *DSTestSuite) TestHistory() {
+func (t *PTTestSuite) TestHistory() {
 	args := []struct {
 		name            string
-		onGet           []embedded.DSSensorConfig
-		onTemperatures  []embedded.DSTemperature
-		expectedHistory []embedded.DSTemperature
+		onGet           []embedded.PTSensorConfig
+		onTemperatures  []embedded.PTTemperature
+		expectedHistory []embedded.PTTemperature
 	}{
 		{
 			name: "single element in history",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures: []embedded.DSTemperature{
+			onTemperatures: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -719,27 +689,25 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 			},
-			expectedHistory: []embedded.DSTemperature{},
+			expectedHistory: []embedded.PTTemperature{},
 		},
 		{
 			name: "return all  but last element in history",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures: []embedded.DSTemperature{
+			onTemperatures: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -750,8 +718,7 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -762,8 +729,7 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -774,10 +740,9 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 			},
-			expectedHistory: []embedded.DSTemperature{
+			expectedHistory: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -798,45 +763,41 @@ func (t *DSTestSuite) TestHistory() {
 		},
 		{
 			name: "return all  but last element in history - more and mixed data",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 				{
-					Bus:     "2",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "2",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "3",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures: []embedded.DSTemperature{
+			onTemperatures: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -868,8 +829,7 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "2",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "2",
 							Temperature: 1,
@@ -894,8 +854,7 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "3",
 							Temperature: 1,
@@ -906,10 +865,9 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 			},
-			expectedHistory: []embedded.DSTemperature{
+			expectedHistory: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -920,8 +878,7 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "3",
 							Temperature: 1,
@@ -939,8 +896,7 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "2",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "2",
 							Temperature: 1,
@@ -962,11 +918,11 @@ func (t *DSTestSuite) TestHistory() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
 		m.On("Temperatures").Return(arg.onTemperatures, nil)
 
-		h, err := distillation.NewDSHandler(m)
+		h, err := distillation.NewPTHandler(m)
 		r.NotNil(h, arg.name)
 		r.Nil(err, arg.name)
 
@@ -977,34 +933,32 @@ func (t *DSTestSuite) TestHistory() {
 	}
 }
 
-func (t *DSTestSuite) TestTemperature() {
+func (t *PTTestSuite) TestTemperature() {
 	args := []struct {
 		name                string
 		id                  string
-		onGet               []embedded.DSSensorConfig
-		onTemperatures      []embedded.DSTemperature
+		onGet               []embedded.PTSensorConfig
+		onTemperatures      []embedded.PTTemperature
 		expectedTemperature float32
 	}{
 		{
 			name: "return average",
 			id:   "1",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures: []embedded.DSTemperature{
+			onTemperatures: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -1020,23 +974,21 @@ func (t *DSTestSuite) TestTemperature() {
 		{
 			name: "return last average",
 			id:   "1",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures: []embedded.DSTemperature{
+			onTemperatures: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -1047,8 +999,7 @@ func (t *DSTestSuite) TestTemperature() {
 					},
 				},
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -1059,8 +1010,7 @@ func (t *DSTestSuite) TestTemperature() {
 					},
 				},
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "1",
 							Temperature: 1,
@@ -1076,11 +1026,11 @@ func (t *DSTestSuite) TestTemperature() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
 		m.On("Temperatures").Return(arg.onTemperatures, nil)
 
-		h, err := distillation.NewDSHandler(m)
+		h, err := distillation.NewPTHandler(m)
 		r.NotNil(h, arg.name)
 		r.Nil(err, arg.name)
 
@@ -1092,52 +1042,49 @@ func (t *DSTestSuite) TestTemperature() {
 	}
 }
 
-func (t *DSTestSuite) TestUpdate_Errors() {
+func (t *PTTestSuite) TestUpdate_Errors() {
 	args := []struct {
 		name              string
-		onGet             []embedded.DSSensorConfig
-		onTemperatures    []embedded.DSTemperature
+		onGet             []embedded.PTSensorConfig
+		onTemperatures    []embedded.PTTemperature
 		onTemperaturesErr error
 		expectedErr       []error
 	}{
 		{
 			name: "interface error",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures:    []embedded.DSTemperature{},
+			onTemperatures:    []embedded.PTTemperature{},
 			onTemperaturesErr: errors.New("hello world"),
 			expectedErr:       []error{errors.New("hello world")},
 		},
 		{
 			name: "unexpected ID",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
 				},
 			},
-			onTemperatures: []embedded.DSTemperature{
+			onTemperatures: []embedded.PTTemperature{
 				{
-					Bus: "1",
-					Readings: []ds18b20.Readings{
+					Readings: []max31865.Readings{
 						{
 							ID:          "2",
 							Temperature: 1,
@@ -1154,11 +1101,11 @@ func (t *DSTestSuite) TestUpdate_Errors() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
 		m.On("Temperatures").Return(arg.onTemperatures, arg.onTemperaturesErr)
 
-		h, err := distillation.NewDSHandler(m)
+		h, err := distillation.NewPTHandler(m)
 		r.NotNil(h, arg.name)
 		r.Nil(err, arg.name)
 
@@ -1170,23 +1117,22 @@ func (t *DSTestSuite) TestUpdate_Errors() {
 	}
 }
 
-func (t *DSTestSuite) TestTemperatureErrors() {
+func (t *PTTestSuite) TestTemperatureErrors() {
 	args := []struct {
 		name        string
-		onGet       []embedded.DSSensorConfig
+		onGet       []embedded.PTSensorConfig
 		id          string
 		expectedErr error
 	}{
 		{
 			name: "wrong ID",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
@@ -1197,14 +1143,13 @@ func (t *DSTestSuite) TestTemperatureErrors() {
 		},
 		{
 			name: "no temps",
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
@@ -1216,9 +1161,9 @@ func (t *DSTestSuite) TestTemperatureErrors() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		h, err := distillation.NewDSHandler(m)
+		h, err := distillation.NewPTHandler(m)
 		r.NotNil(h, arg.name)
 		r.Nil(err, arg.name)
 
@@ -1228,35 +1173,33 @@ func (t *DSTestSuite) TestTemperatureErrors() {
 	}
 }
 
-func (t *DSTestSuite) TestConfigureSensor() {
+func (t *PTTestSuite) TestConfigureSensor() {
 	args := []struct {
 		name        string
-		newConfig   distillation.DSConfig
-		onGet       []embedded.DSSensorConfig
+		newConfig   distillation.PTConfig
+		onGet       []embedded.PTSensorConfig
 		onSetErr    error
 		errContains string
 	}{
 		{
 			name: "all good",
-			newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-				Bus:     "1",
+			newConfig: distillation.PTConfig{PTSensorConfig: embedded.PTSensorConfig{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   1,
-					Resolution:   2,
+					ASyncPoll:    false,
 					PollInterval: 3,
 					Samples:      4,
 				},
 			}},
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
@@ -1266,25 +1209,23 @@ func (t *DSTestSuite) TestConfigureSensor() {
 		},
 		{
 			name: "error on set interface",
-			newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-				Bus:     "1",
+			newConfig: distillation.PTConfig{PTSensorConfig: embedded.PTSensorConfig{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   1,
-					Resolution:   2,
+					ASyncPoll:    false,
 					PollInterval: 3,
 					Samples:      4,
 				},
 			}},
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
@@ -1294,25 +1235,23 @@ func (t *DSTestSuite) TestConfigureSensor() {
 		},
 		{
 			name: "wrong ID",
-			newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-				Bus:     "1",
+			newConfig: distillation.PTConfig{PTSensorConfig: embedded.PTSensorConfig{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   1,
-					Resolution:   2,
+					ASyncPoll:    false,
 					PollInterval: 3,
 					Samples:      4,
 				},
 			}},
-			onGet: []embedded.DSSensorConfig{
+			onGet: []embedded.PTSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "2",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					},
@@ -1323,10 +1262,10 @@ func (t *DSTestSuite) TestConfigureSensor() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		m.On("Set", arg.newConfig.DSSensorConfig).Return(arg.onSetErr)
-		ds, err := distillation.NewDSHandler(m)
+		m.On("Set", arg.newConfig.PTSensorConfig).Return(arg.onSetErr)
+		ds, err := distillation.NewPTHandler(m)
 		r.Nil(err, arg.name)
 
 		err = ds.ConfigureSensor(arg.newConfig)
@@ -1338,11 +1277,11 @@ func (t *DSTestSuite) TestConfigureSensor() {
 	}
 }
 
-func (t *DSTestSuite) TestGetSensors() {
+func (t *PTTestSuite) TestGetSensors() {
 	args := []struct {
 		name     string
-		onGet    []embedded.DSSensorConfig
-		expected []distillation.DSConfig
+		onGet    []embedded.PTSensorConfig
+		expected []distillation.PTConfig
 	}{
 		{
 			name:     "empty slice",
@@ -1351,169 +1290,153 @@ func (t *DSTestSuite) TestGetSensors() {
 		},
 		{
 			name: "single element",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}},
-			expected: []distillation.DSConfig{{
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+			expected: []distillation.PTConfig{{
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}},
 		},
 		{
-			name: "two sensors on one bus",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			name: "two sensors",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    true,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "2",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}},
 			},
-			expected: []distillation.DSConfig{{
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+			expected: []distillation.PTConfig{{
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    true,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "2",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}},
 		},
 		{
-			name: "multiple sensors on multiple bus",
-			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
+			name: "multiple sensors",
+			onGet: []embedded.PTSensorConfig{{
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "2",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "4",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "5",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "5",
 				Enabled: false,
-				SensorConfig: ds18b20.SensorConfig{
+				SensorConfig: max31865.SensorConfig{
 					ID:           "12",
 					Correction:   0,
-					Resolution:   0,
+					ASyncPoll:    false,
 					PollInterval: 0,
 					Samples:      0,
 				}},
 			},
-			expected: []distillation.DSConfig{{
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+			expected: []distillation.PTConfig{{
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "1",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "2",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "4",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "5",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}, {
-				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "5",
+				PTSensorConfig: embedded.PTSensorConfig{
 					Enabled: false,
-					SensorConfig: ds18b20.SensorConfig{
+					SensorConfig: max31865.SensorConfig{
 						ID:           "12",
 						Correction:   0,
-						Resolution:   0,
+						ASyncPoll:    false,
 						PollInterval: 0,
 						Samples:      0,
 					}}}},
@@ -1521,68 +1444,52 @@ func (t *DSTestSuite) TestGetSensors() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		m := new(DSMock)
+		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		h, err := distillation.NewDSHandler(m)
-		r.NotNil(h)
-		r.Nil(err)
+		h, err := distillation.NewPTHandler(m)
+		r.NotNil(h, arg.name)
+		r.Nil(err, arg.name)
 
-		r.ElementsMatch(arg.expected, h.GetSensors())
+		r.ElementsMatch(arg.expected, h.GetSensors(), arg.name)
 	}
 }
 
-func (t *DSTestSuite) TestNew() {
+func (t *PTTestSuite) TestNew() {
 	r := t.Require()
 	{
-		h, err := distillation.NewDSHandler(nil)
+		h, err := distillation.NewPTHandler(nil)
 		r.Nil(h)
 		r.NotNil(err)
-		r.ErrorContains(err, distillation.ErrNoDSInterface.Error())
+		r.ErrorContains(err, distillation.ErrNoPTInterface.Error())
 	}
 	{
-		m := new(DSMock)
+		m := new(PTMock)
 		mockErr := errors.New("hello buddy")
-		m.On("Get").Return([]embedded.DSSensorConfig{}, mockErr)
-		h, err := distillation.NewDSHandler(m)
+		m.On("Get").Return([]embedded.PTSensorConfig{}, mockErr)
+		h, err := distillation.NewPTHandler(m)
 		r.Nil(h)
 		r.NotNil(err)
 		r.ErrorContains(err, mockErr.Error())
 	}
 	{
-		m := new(DSMock)
-		sensor := embedded.DSSensorConfig{
-			Bus:     "blah",
+		m := new(PTMock)
+		sensor := embedded.PTSensorConfig{
 			Enabled: false,
-			SensorConfig: ds18b20.SensorConfig{
+			SensorConfig: max31865.SensorConfig{
 				ID:           "1",
 				Correction:   1,
-				Resolution:   1,
+				ASyncPoll:    false,
 				PollInterval: 1,
 				Samples:      1,
 			},
 		}
 
-		m.On("Get").Return([]embedded.DSSensorConfig{sensor}, nil)
-		h, err := distillation.NewDSHandler(m)
+		m.On("Get").Return([]embedded.PTSensorConfig{sensor}, nil)
+		h, err := distillation.NewPTHandler(m)
 		r.NotNil(h)
 		r.Nil(err)
 
-		sensors := []distillation.DSConfig{{DSSensorConfig: sensor}}
+		sensors := []distillation.PTConfig{{PTSensorConfig: sensor}}
 		r.ElementsMatch(sensors, h.GetSensors())
 	}
-}
-
-func (m *DSMock) Get() ([]embedded.DSSensorConfig, error) {
-	args := m.Called()
-	return args.Get(0).([]embedded.DSSensorConfig), args.Error(1)
-}
-
-func (m *DSMock) Set(s embedded.DSSensorConfig) error {
-	args := m.Called(s)
-	return args.Error(0)
-}
-
-func (m *DSMock) Temperatures() ([]embedded.DSTemperature, error) {
-	args := m.Called()
-	return args.Get(0).([]embedded.DSTemperature), args.Error(1)
 }
