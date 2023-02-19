@@ -13,6 +13,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+type GPIOError struct {
+	ID  string `json:"ID"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (e *GPIOError) Error() string {
+	if e.Err == "" {
+		return "<nil>"
+	}
+	s := e.Op
+	if e.ID != "" {
+		s += ":" + e.ID
+	}
+	s += ": " + e.Err
+	return s
+}
+
 type GPIO interface {
 	ID() string
 	Get() (bool, error)
@@ -47,13 +65,21 @@ func (h *Handler) configGPIO() gin.HandlerFunc {
 
 		err := h.GPIO.SetConfig(cfg)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, toError(err))
+			if gpioError, ok := err.(*GPIOError); ok {
+				h.respond(ctx, http.StatusInternalServerError, gpioError)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			}
 			return
 		}
 
 		cfg, err = h.GPIO.GetConfig(cfg.ID)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, toError(err))
+			if gpioError, ok := err.(*GPIOError); ok {
+				h.respond(ctx, http.StatusInternalServerError, gpioError)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			}
 			return
 		}
 		h.respond(ctx, http.StatusOK, cfg)
@@ -63,7 +89,8 @@ func (h *Handler) getGPIOS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		gpios, err := h.GPIO.GetConfigAll()
 		if len(gpios) == 0 || err != nil {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			notImpl := GPIOError{ID: "", Op: "GetConfigAll", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
 		h.respond(ctx, http.StatusOK, gpios)
@@ -73,10 +100,12 @@ func (h *Handler) getGPIOS() gin.HandlerFunc {
 func (g *GPIOHandler) SetConfig(cfg GPIOConfig) error {
 	gp, err := g.gpioBy(cfg.ID)
 	if err != nil {
-		return err
+		return &GPIOError{ID: cfg.ID, Op: "SetConfig.gpioBy", Err: err.Error()}
 	}
-
-	return gp.Configure(cfg.Config)
+	if err := gp.Configure(cfg.Config); err != nil {
+		return &GPIOError{ID: cfg.ID, Op: "SetConfig.Configure", Err: err.Error()}
+	}
+	return nil
 }
 
 func (g *GPIOHandler) GetConfigAll() ([]GPIOConfig, error) {
@@ -85,7 +114,7 @@ func (g *GPIOHandler) GetConfigAll() ([]GPIOConfig, error) {
 	for _, gpi := range g.gpios {
 		cfg, err := gpi.getConfig()
 		if err != nil {
-			return configs, err
+			return configs, &GPIOError{ID: cfg.ID, Op: "GetConfigAll.getConfig", Err: err.Error()}
 		}
 		configs[pos] = cfg
 		pos++
@@ -93,16 +122,16 @@ func (g *GPIOHandler) GetConfigAll() ([]GPIOConfig, error) {
 	return configs, nil
 
 }
-func (g *GPIOHandler) GetConfig(hwid string) (GPIOConfig, error) {
-	gp, err := g.gpioBy(hwid)
+func (g *GPIOHandler) GetConfig(id string) (GPIOConfig, error) {
+	gp, err := g.gpioBy(id)
 	if err != nil {
-		return GPIOConfig{}, err
+		return GPIOConfig{}, &GPIOError{ID: id, Op: "GetConfig.gpioBy", Err: err.Error()}
 	}
 	return gp.getConfig()
 }
 
-func (g *GPIOHandler) gpioBy(hwid string) (*gpioHandler, error) {
-	gp, ok := g.gpios[hwid]
+func (g *GPIOHandler) gpioBy(id string) (*gpioHandler, error) {
+	gp, ok := g.gpios[id]
 	if !ok {
 		return nil, ErrNoSuchGPIO
 	}

@@ -9,16 +9,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/max31865"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded"
+	"github.com/a-clap/iot/internal/embedded/max31865"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type PTTestSuite struct {
@@ -428,7 +429,7 @@ func (t *PTTestSuite) TestPT_GetConfig() {
 
 	_, err := pt.GetConfig("not exist")
 	t.NotNil(err)
-	t.ErrorIs(embedded.ErrNoSuchSensor, err)
+	t.ErrorContains(err, embedded.ErrNoSuchSensor.Error())
 }
 
 func (p *PTSensorMock) ID() string {

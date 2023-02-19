@@ -13,10 +13,6 @@ type Error struct {
 
 var _ error = Error{}
 
-var (
-	ErrHeaterDoesntExist = Error{Err: "heater doesn't exist"}
-)
-
 func (e Error) Error() string {
 	return e.Err
 }

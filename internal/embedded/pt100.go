@@ -6,9 +6,10 @@
 package embedded
 
 import (
+	"net/http"
+
 	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 type PTSensor interface {
@@ -20,6 +21,23 @@ type PTSensor interface {
 	Temperature() (actual float32, average float32, err error)
 	GetReadings() []max31865.Readings
 	Close() error
+}
+type PTError struct {
+	ID  string `json:"ID"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (e *PTError) Error() string {
+	if e.Err == "" {
+		return "<nil>"
+	}
+	s := e.Op
+	if e.ID != "" {
+		s += ":" + e.ID
+	}
+	s += ": " + e.Err
+	return s
 }
 
 type PTSensorConfig struct {
@@ -52,7 +70,11 @@ func (h *Handler) configPTSensor() gin.HandlerFunc {
 
 		cfg, err := h.PT.SetConfig(cfg)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, toError(err))
+			if ptError, ok := err.(*PTError); ok {
+				h.respond(ctx, http.StatusInternalServerError, ptError)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			}
 			return
 		}
 
@@ -63,7 +85,8 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ds := h.PT.GetTemperatures()
 		if len(ds) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			notImpl := PTError{ID: "", Op: "GetTemperatures", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
 		h.respond(ctx, http.StatusOK, ds)
@@ -74,7 +97,8 @@ func (h *Handler) getPTSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		pt := h.PT.GetSensors()
 		if len(pt) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			notImpl := PTError{ID: "", Op: "GetSensors", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
 		h.respond(ctx, http.StatusOK, pt)
@@ -101,20 +125,24 @@ func (p *PTHandler) GetSensors() []PTSensorConfig {
 func (p *PTHandler) SetConfig(cfg PTSensorConfig) (newCfg PTSensorConfig, err error) {
 	sensor, err := p.sensorBy(cfg.ID)
 	if err != nil {
+		err = &PTError{ID: cfg.ID, Op: "SetConfig.sensorBy", Err: err.Error()}
 		return
 	}
 
 	if err = sensor.Configure(cfg.SensorConfig); err != nil {
+		err = &PTError{ID: cfg.ID, Op: "SetConfig.Configure", Err: err.Error()}
 		return
 	}
 
 	if cfg.Enabled != sensor.Enabled {
 		if cfg.Enabled {
 			if err = sensor.Poll(); err != nil {
+				err = &PTError{ID: cfg.ID, Op: "SetConfig.Poll", Err: err.Error()}
 				return
 			}
 		} else {
 			if err = sensor.Close(); err != nil {
+				err = &PTError{ID: cfg.ID, Op: "SetConfig.Close", Err: err.Error()}
 				return
 			}
 		}
@@ -127,7 +155,7 @@ func (p *PTHandler) SetConfig(cfg PTSensorConfig) (newCfg PTSensorConfig, err er
 func (p *PTHandler) GetConfig(id string) (PTSensorConfig, error) {
 	sensor, err := p.sensorBy(id)
 	if err != nil {
-		return PTSensorConfig{}, err
+		return PTSensorConfig{}, &PTError{ID: id, Op: "GetConfig.sensorBy", Err: err.Error()}
 	}
 	sensor.SensorConfig = sensor.GetConfig()
 	return sensor.PTSensorConfig, nil
@@ -143,13 +171,17 @@ func (p *PTHandler) sensorBy(id string) (*ptSensor, error) {
 
 func (p *PTHandler) Open() {
 }
-func (p *PTHandler) Close() {
+
+func (p *PTHandler) Close() []error {
+	var errs []error
 	for name, sensor := range p.sensors {
 		if sensor.Enabled {
 			sensor.Enabled = false
 			if err := sensor.Close(); err != nil {
-				log.Error("close failed on sensor: ", name, ", with error ", err)
+				err = &PTError{ID: name, Op: "Close", Err: err.Error()}
+				errs = append(errs, err)
 			}
 		}
 	}
+	return errs
 }

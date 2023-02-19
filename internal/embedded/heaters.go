@@ -6,10 +6,33 @@
 package embedded
 
 import (
+	"errors"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
+
+var (
+	ErrHeaterDoesntExist = errors.New("heater doesn't exist")
+)
+
+type HeaterError struct {
+	ID  string `json:"ID"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (e *HeaterError) Error() string {
+	if e.Err == "" {
+		return "<nil>"
+	}
+	s := e.Op
+	if e.ID != "" {
+		s += ":" + e.ID
+	}
+	s += ": " + e.Err
+	return s
+}
 
 type Heater interface {
 	Enable(ena bool)
@@ -37,7 +60,11 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 		}
 
 		if err := h.Heaters.Config(cfg); err != nil {
-			h.respond(ctx, http.StatusInternalServerError, toError(err))
+			if heaterError, ok := err.(*HeaterError); ok {
+				h.respond(ctx, http.StatusInternalServerError, heaterError)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			}
 			return
 		}
 
@@ -50,7 +77,8 @@ func (h *Handler) getHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		heaters := h.Heaters.Status()
 		if len(heaters) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			notImpl := HeaterError{ID: "", Op: "GetTemperatures", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
 		h.respond(ctx, http.StatusOK, heaters)
@@ -60,7 +88,7 @@ func (h *Handler) getHeaters() gin.HandlerFunc {
 func (h *HeaterHandler) Config(cfg HeaterConfig) error {
 	heater, err := h.by(cfg.ID)
 	if err != nil {
-		return err
+		return &HeaterError{ID: cfg.ID, Op: "Config", Err: err.Error()}
 	}
 
 	if err := heater.SetPower(cfg.Power); err != nil {
@@ -70,31 +98,34 @@ func (h *HeaterHandler) Config(cfg HeaterConfig) error {
 	return nil
 }
 
-func (h *HeaterHandler) Enable(hwid string, ena bool) error {
-	heat, err := h.by(hwid)
+func (h *HeaterHandler) Enable(id string, ena bool) error {
+	heat, err := h.by(id)
 	if err != nil {
-		return err
+		return &HeaterError{ID: id, Op: "Enable", Err: err.Error()}
 	}
 
 	heat.Enable(ena)
 	return nil
 }
 
-func (h *HeaterHandler) Power(hwid string, pwr uint) error {
-	heat, err := h.by(hwid)
+func (h *HeaterHandler) Power(id string, pwr uint) error {
+	heat, err := h.by(id)
 	if err != nil {
-		return err
+		return &HeaterError{ID: id, Op: "Power", Err: err.Error()}
 	}
-	return heat.SetPower(pwr)
+	if err := heat.SetPower(pwr); err != nil {
+		return &HeaterError{ID: id, Op: "Power.SetPower", Err: err.Error()}
+	}
+	return nil
 }
 
-func (h *HeaterHandler) StatusBy(hwid string) (HeaterConfig, error) {
-	heat, err := h.by(hwid)
+func (h *HeaterHandler) StatusBy(id string) (HeaterConfig, error) {
+	heat, err := h.by(id)
 	if err != nil {
-		return HeaterConfig{}, err
+		return HeaterConfig{}, &HeaterError{ID: id, Op: "StatusBy", Err: err.Error()}
 	}
 	return HeaterConfig{
-		ID:      hwid,
+		ID:      id,
 		Enabled: heat.Enabled(),
 		Power:   heat.Power(),
 	}, nil
@@ -103,9 +134,9 @@ func (h *HeaterHandler) StatusBy(hwid string) (HeaterConfig, error) {
 func (h *HeaterHandler) Status() []HeaterConfig {
 	status := make([]HeaterConfig, len(h.heaters))
 	pos := 0
-	for hwid, heat := range h.heaters {
+	for id, heat := range h.heaters {
 		status[pos] = HeaterConfig{
-			ID:      hwid,
+			ID:      id,
 			Enabled: heat.Enabled(),
 			Power:   heat.Power(),
 		}
@@ -114,10 +145,9 @@ func (h *HeaterHandler) Status() []HeaterConfig {
 	return status
 }
 
-func (h *HeaterHandler) by(hwid string) (Heater, error) {
-	maybeHeater, ok := h.heaters[hwid]
+func (h *HeaterHandler) by(id string) (Heater, error) {
+	maybeHeater, ok := h.heaters[id]
 	if !ok {
-		log.Debug("requested heater doesn't exist: ", hwid)
 		return nil, ErrHeaterDoesntExist
 	}
 	return maybeHeater, nil

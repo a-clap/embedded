@@ -230,7 +230,7 @@ func (t *HeaterTestSuite) TestHeater_GetZeroHeaters() {
 	b, _ := io.ReadAll(t.resp.Body)
 
 	t.Equal(http.StatusInternalServerError, t.resp.Code)
-	t.JSONEq(toJSON(embedded.ErrNotImplemented), string(b))
+	t.Contains(string(b), embedded.ErrNotImplemented.Error())
 }
 
 func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
@@ -329,10 +329,10 @@ func (t *HeaterTestSuite) TestHeater_NoHeaters() {
 	handler := mainHandler.Heaters
 
 	err = handler.Power("b", 1)
-	t.ErrorIs(err, embedded.ErrHeaterDoesntExist)
+	t.ErrorContains(err, embedded.ErrHeaterDoesntExist.Error())
 
 	err = handler.Enable("", true)
-	t.ErrorIs(err, embedded.ErrHeaterDoesntExist)
+	t.ErrorContains(err, embedded.ErrHeaterDoesntExist.Error())
 
 	stat := handler.Status()
 	t.Len(stat, 0)

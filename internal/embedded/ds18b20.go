@@ -7,14 +7,33 @@ package embedded
 
 import (
 	"errors"
+	"net/http"
+
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/gin-gonic/gin"
-	"net/http"
 )
 
 var (
 	ErrNoSuchSensor = errors.New("specified dsSensor doesnt' exist")
 )
+
+type DSError struct {
+	ID  string `json:"ID"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (d *DSError) Error() string {
+	if d.Err == "" {
+		return "<nil>"
+	}
+	s := d.Op
+	if d.ID != "" {
+		s += ":" + d.ID
+	}
+	s += ": " + d.Err
+	return s
+}
 
 type DSSensor interface {
 	Name() (bus string, id string)
@@ -57,7 +76,11 @@ func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 
 		cfg, err := h.DS.SetConfig(cfg)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, toError(err))
+			if dsError, ok := err.(*DSError); ok {
+				h.respond(ctx, http.StatusInternalServerError, dsError)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			}
 			return
 		}
 
@@ -68,7 +91,8 @@ func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ds := h.DS.GetTemperatures()
 		if len(ds) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			notImpl := DSError{ID: "", Op: "GetTemperatures", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
 		h.respond(ctx, http.StatusOK, ds)
@@ -79,7 +103,8 @@ func (h *Handler) getOnewireSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ds := h.DS.GetSensors()
 		if len(ds) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			notImpl := DSError{ID: "", Op: "GetSenors", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
 		h.respond(ctx, http.StatusOK, ds)
@@ -103,29 +128,36 @@ func (d *DSHandler) GetTemperatures() []DSTemperature {
 func (d *DSHandler) Temperature(cfg ds18b20.SensorConfig) (float32, float32, error) {
 	ds, err := d.sensorBy(cfg.ID)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, &DSError{ID: cfg.ID, Op: "Temperature", Err: err.Error()}
 	}
-
-	return ds.Temperature()
+	actual, average, err := ds.Temperature()
+	if err != nil {
+		err = &DSError{ID: cfg.ID, Op: "Temperature", Err: err.Error()}
+	}
+	return actual, average, err
 }
 
 func (d *DSHandler) SetConfig(cfg DSSensorConfig) (newConfig DSSensorConfig, err error) {
 	ds, err := d.sensorBy(cfg.ID)
 	if err != nil {
+		err = &DSError{ID: cfg.ID, Op: "SetConfig.sensoryBy", Err: err.Error()}
 		return
 	}
 
 	if err = ds.Configure(cfg.SensorConfig); err != nil {
+		err = &DSError{ID: cfg.ID, Op: "SetConfig.Configure", Err: err.Error()}
 		return
 	}
 
 	if cfg.Enabled != ds.cfg.Enabled {
 		if cfg.Enabled {
 			if err = ds.Poll(); err != nil {
+				err = &DSError{ID: cfg.ID, Op: "SetConfig.Poll", Err: err.Error()}
 				return
 			}
 		} else {
 			if err = ds.Close(); err != nil {
+				err = &DSError{ID: cfg.ID, Op: "SetConfig.Close", Err: err.Error()}
 				return
 			}
 		}
@@ -138,7 +170,7 @@ func (d *DSHandler) SetConfig(cfg DSSensorConfig) (newConfig DSSensorConfig, err
 func (d *DSHandler) GetConfig(id string) (DSSensorConfig, error) {
 	s, err := d.sensorBy(id)
 	if err != nil {
-		return DSSensorConfig{}, err
+		return DSSensorConfig{}, &DSError{ID: id, Op: "GetConfig", Err: err.Error()}
 	}
 	s.cfg.SensorConfig = s.GetConfig()
 	return s.cfg, nil
@@ -162,10 +194,13 @@ func (d *DSHandler) GetSensors() []DSSensorConfig {
 func (d *DSHandler) Open() {
 }
 
-func (d *DSHandler) Close() {
+func (d *DSHandler) Close() []error {
+	var errs []error
 	for name, sensor := range d.sensors {
 		if err := sensor.Close(); err != nil {
-			log.Error("close ", name, " :", err)
+			err = &DSError{ID: name, Op: "Close", Err: err.Error()}
+			errs = append(errs, err)
 		}
 	}
+	return errs
 }
