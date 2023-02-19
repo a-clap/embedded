@@ -919,7 +919,7 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal() {
 		for i, global := range arg.newGlobal {
 			err = h.ConfigureGlobal(global)
 			if arg.errs[i] != nil {
-				r.ErrorIs(err, arg.errs[i])
+				r.ErrorContains(err, arg.errs[i].Error())
 				continue
 			}
 			r.Nil(err)
