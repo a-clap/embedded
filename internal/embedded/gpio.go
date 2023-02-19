@@ -16,12 +16,12 @@ import (
 type GPIO interface {
 	ID() string
 	Get() (bool, error)
-	Configure(config gpio.GPIOConfig) error
-	GetConfig() (gpio.GPIOConfig, error)
+	Configure(config gpio.Config) error
+	GetConfig() (gpio.Config, error)
 }
 
 type GPIOConfig struct {
-	gpio.GPIOConfig
+	gpio.Config
 }
 
 type gpioHandler struct {
@@ -76,7 +76,7 @@ func (g *GPIOHandler) SetConfig(cfg GPIOConfig) error {
 		return err
 	}
 
-	return gp.Configure(cfg.GPIOConfig)
+	return gp.Configure(cfg.Config)
 }
 
 func (g *GPIOHandler) GetConfigAll() ([]GPIOConfig, error) {
@@ -111,7 +111,7 @@ func (g *GPIOHandler) gpioBy(hwid string) (*gpioHandler, error) {
 
 func (g *gpioHandler) getConfig() (GPIOConfig, error) {
 	var err error
-	g.GPIOConfig.GPIOConfig, err = g.GetConfig()
+	g.GPIOConfig.Config, err = g.GetConfig()
 	return g.GPIOConfig, err
 }
 

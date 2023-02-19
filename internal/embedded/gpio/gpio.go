@@ -23,7 +23,7 @@ const (
 	DirOutput
 )
 
-type GPIOConfig struct {
+type Config struct {
 	ID          string      `json:"id"`
 	Direction   Direction   `json:"direction"`
 	ActiveLevel ActiveLevel `json:"active_level"`
@@ -36,15 +36,36 @@ type Pin struct {
 }
 
 type In struct {
-	GPIOConfig
+	pin Pin
+	Config
 	level ActiveLevel
 	*gpiod.Line
 }
 
 type Out struct {
-	GPIOConfig
+	pin Pin
+	Config
 	level ActiveLevel
 	*gpiod.Line
+}
+
+type Error struct {
+	Pin Pin    `json:"pin"`
+	Op  string `json:"op"`
+	Err string `json:"error"`
+}
+
+func (e *Error) Error() string {
+	if e.Err == "" {
+		return "<nil>"
+	}
+	s := e.Op
+	if e.Pin.Chip != "" {
+		s += ":" + e.Pin.Chip
+		s += ":" + strconv.FormatInt(int64(e.Pin.Line), 10)
+	}
+	s += ": " + e.Err
+	return s
 }
 
 // init checks if there are any gpiochips available
@@ -105,13 +126,13 @@ func Input(pin Pin, options ...gpiod.LineReqOption) (*In, error) {
 	options = append(options, gpiod.AsInput)
 	line, err := getLine(pin, options...)
 	if err != nil {
-		return nil, err
+		return nil, &Error{Pin: pin, Op: "input.getLine", Err: err.Error()}
 	}
 	lvl, err := getActiveLevel(line)
 	if err != nil {
-		return nil, err
+		return nil, &Error{Pin: pin, Op: "input.getActiveLevel", Err: err.Error()}
 	}
-	return &In{level: lvl, Line: line}, nil
+	return &In{pin: pin, level: lvl, Line: line}, nil
 }
 
 func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, error) {
@@ -123,14 +144,14 @@ func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, erro
 	options = append(options, gpiod.AsOutput(startValue))
 	line, err := getLine(pin, options...)
 	if err != nil {
-		return nil, err
+		return nil, &Error{Pin: pin, Op: "output.getLine", Err: err.Error()}
 	}
 
 	lvl, err := getActiveLevel(line)
 	if err != nil {
-		return nil, err
+		return nil, &Error{Pin: pin, Op: "output.getActiveLevel", Err: err.Error()}
 	}
-	return &Out{level: lvl, Line: line}, nil
+	return &Out{pin: pin, level: lvl, Line: line}, nil
 }
 
 func (in *In) ID() string {
@@ -140,28 +161,31 @@ func (in *In) ID() string {
 func (in *In) Get() (bool, error) {
 	var value bool
 	val, err := in.Line.Value()
+	if err != nil {
+		return value, &Error{Pin: in.pin, Op: "in.Get", Err: err.Error()}
+	}
+
 	if val > 0 {
 		value = true
 	}
-
 	return value, err
 }
 
-func (in *In) Configure(new GPIOConfig) error {
-	last := in.GPIOConfig
+func (in *In) Configure(new Config) error {
+	last := in.Config
 	if last.ActiveLevel != new.ActiveLevel {
 		if err := setActiveLevel(in.Line, new.ActiveLevel); err != nil {
-			return err
+			return &Error{Pin: in.pin, Op: "Configure.setActiveLevel", Err: err.Error()}
 		}
 	}
 	last.ActiveLevel = new.ActiveLevel
 	return nil
 }
 
-func (in *In) GetConfig() (GPIOConfig, error) {
+func (in *In) GetConfig() (Config, error) {
 	var err error
-	in.GPIOConfig.Value, err = in.Get()
-	return in.GPIOConfig, err
+	in.Config.Value, err = in.Get()
+	return in.Config, &Error{Pin: in.pin, Op: "GetConfig.Get", Err: err.Error()}
 }
 
 func (o *Out) Set(value bool) error {
@@ -169,28 +193,34 @@ func (o *Out) Set(value bool) error {
 	if value {
 		setValue = 1
 	}
-	return o.SetValue(setValue)
+	err := o.SetValue(setValue)
+	return &Error{Pin: o.pin, Op: "Set.SetValue", Err: err.Error()}
+
 }
 
 func (o *Out) Get() (bool, error) {
 	var value bool
 	val, err := o.Line.Value()
+	if err != nil {
+		return value, &Error{Pin: o.pin, Op: "Get", Err: err.Error()}
+	}
+
 	if val > 0 {
 		value = true
 	}
 
-	return value, err
+	return value, nil
 }
 
 func (o *Out) ID() string {
 	return o.Chip() + ":" + strconv.FormatInt(int64(o.Offset()), 32)
 }
 
-func (o *Out) Configure(new GPIOConfig) error {
-	last := o.GPIOConfig
+func (o *Out) Configure(new Config) error {
+	last := o.Config
 	if last.ActiveLevel != new.ActiveLevel {
 		if err := setActiveLevel(o.Line, new.ActiveLevel); err != nil {
-			return err
+			return &Error{Pin: o.pin, Op: "Configure.setActiveLevel", Err: err.Error()}
 		}
 	}
 	last.ActiveLevel = new.ActiveLevel
@@ -203,8 +233,8 @@ func (o *Out) Configure(new GPIOConfig) error {
 	return nil
 }
 
-func (o *Out) GetConfig() (GPIOConfig, error) {
+func (o *Out) GetConfig() (Config, error) {
 	var err error
-	o.GPIOConfig.Value, err = o.Get()
-	return o.GPIOConfig, err
+	o.Config.Value, err = o.Get()
+	return o.Config, err
 }

@@ -141,7 +141,7 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 			}
 			maybeGpio = &gpioHandler{GPIO: gp}
 		}
-		cfg := gpio.GPIOConfig{
+		cfg := gpio.Config{
 			ID:          "",
 			Direction:   gpioConfig.Direction,
 			ActiveLevel: gpioConfig.ActiveLevel,

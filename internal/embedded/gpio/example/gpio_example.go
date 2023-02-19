@@ -6,9 +6,10 @@
 package main
 
 import (
-	"github.com/a-clap/iot/internal/embedded/gpio"
 	"log"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded/gpio"
 )
 
 func main() {
