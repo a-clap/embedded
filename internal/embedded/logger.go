@@ -3,7 +3,7 @@
  * Use of this source code is governed by a MIT-style license that can be found in the LICENSE file.
  */
 
-package logger
+package embedded
 
 import (
 	"go.uber.org/zap"
@@ -43,4 +43,4 @@ func NewNopLogger() *zap.SugaredLogger {
 	return zap.NewNop().Sugar()
 }
 
-var Log Logger = NewDefaultLogger(zapcore.DebugLevel)
+var log Logger = NewDefaultLogger(zapcore.DebugLevel)

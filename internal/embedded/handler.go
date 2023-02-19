@@ -6,7 +6,6 @@
 package embedded
 
 import (
-	"github.com/a-clap/iot/internal/embedded/logger"
 	"github.com/gin-gonic/gin"
 )
 
@@ -17,8 +16,6 @@ type Handler struct {
 	PT      *PTHandler
 	GPIO    *GPIOHandler
 }
-
-var log = logger.Log
 
 func New(options ...Option) (*Handler, error) {
 	h := &Handler{
