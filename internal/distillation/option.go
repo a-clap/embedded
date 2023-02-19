@@ -13,3 +13,10 @@ func WithHeaters(heaters Heaters) Option {
 		return err
 	}
 }
+
+func WithDS(ds DS) Option {
+	return func(h *Handler) (err error) {
+		h.DSHandler, err = NewDSHandler(ds)
+		return err
+	}
+}

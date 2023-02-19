@@ -14,6 +14,7 @@ import (
 type Handler struct {
 	*gin.Engine
 	HeatersHandler *HeatersHandler
+	DSHandler      *DSHandler
 }
 
 func New(opts ...Option) (*Handler, error) {
@@ -32,8 +33,11 @@ func New(opts ...Option) (*Handler, error) {
 const (
 	RoutesConfigHeater        = "/api/heater/all"
 	RoutesGetAllHeaters       = "/api/heater/all"
-	RoutesGetEnabledHeaters   = "/api/heater/enabled"
-	RoutesConfigEnabledHeater = "/api/heater/enabled"
+	RoutesGetEnabledHeaters   = "/api/heater/phase"
+	RoutesConfigEnabledHeater = "/api/heater/phase"
+	RoutesGetDS               = "/api/ds"
+	RoutesConfigureDS         = "/api/ds"
+	RoutesGetDSTemperatures   = "/api/ds/temperatures"
 )
 
 var (
@@ -46,6 +50,10 @@ func (h *Handler) routes() {
 	h.GET(RoutesGetEnabledHeaters, h.getEnabledHeaters())
 	h.PUT(RoutesConfigHeater, h.configHeater())
 	h.PUT(RoutesConfigEnabledHeater, h.configEnabledHeater())
+
+	h.GET(RoutesGetDS, h.getDS())
+	h.GET(RoutesGetDSTemperatures, h.getDSTemperatures())
+	h.PUT(RoutesConfigureDS, h.configureDS())
 }
 
 // common respond for whole rest API
