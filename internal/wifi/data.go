@@ -6,14 +6,14 @@
 package wifi
 
 type Event struct {
-	ID      ID
+	ID      EventID
 	Message string
 }
 
-type ID int
+type EventID int
 
 const (
-	Connected ID = iota
+	Connected EventID = iota
 	Disconnected
 	NetworkNotFound
 	AuthReject

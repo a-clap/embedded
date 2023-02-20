@@ -7,11 +7,12 @@ package wifi_test
 
 import (
 	"errors"
+	"testing"
+	"time"
+
 	"github.com/a-clap/iot/internal/wifi"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"testing"
-	"time"
 )
 
 type WifiSuite struct {
@@ -310,7 +311,7 @@ func (c *ClientMock) Scan() ([]wifi.AP, error) {
 	return aps, args.Error(1)
 }
 
-func (c *ClientMock) ConnectWithEvents(n wifi.Network, events ...wifi.ID) (<-chan wifi.Event, error) {
+func (c *ClientMock) ConnectWithEvents(n wifi.Network, events ...wifi.EventID) (<-chan wifi.Event, error) {
 	args := c.Called(n, events)
 	ch, _ := args.Get(0).(chan wifi.Event)
 	return ch, args.Error(1)

@@ -6,8 +6,9 @@
 package wifi
 
 import (
-	"github.com/theojulienne/go-wireless"
 	"time"
+
+	"github.com/theojulienne/go-wireless"
 )
 
 const (
@@ -18,7 +19,7 @@ var (
 	_ Client   = (*wirelessClient)(nil)
 	_ Wireless = (*wirelessWireless)(nil)
 
-	eventMap = map[ID]string{
+	eventMap = map[EventID]string{
 		NetworkNotFound: wireless.EventNetworkNotFound,
 		Connected:       wireless.EventConnected,
 		Disconnected:    wireless.EventDisconnected,
@@ -90,9 +91,9 @@ func (c *wirelessClient) Scan() ([]AP, error) {
 	return aps, nil
 }
 
-func (c *wirelessClient) ConnectWithEvents(n Network, events ...ID) (<-chan Event, error) {
+func (c *wirelessClient) ConnectWithEvents(n Network, events ...EventID) (<-chan Event, error) {
 	var wirelessEvents []string
-	handlingEvents := make(map[string]ID)
+	handlingEvents := make(map[string]EventID)
 	for _, event := range events {
 		if ev, ok := eventMap[event]; ok {
 			wirelessEvents = append(wirelessEvents, ev)
@@ -114,10 +115,10 @@ func (c *wirelessClient) ConnectWithEvents(n Network, events ...ID) (<-chan Even
 	return ch, nil
 }
 
-func (c *wirelessClient) handleEvents(s *wireless.Subscription, events map[string]ID) <-chan Event {
+func (c *wirelessClient) handleEvents(s *wireless.Subscription, events map[string]EventID) <-chan Event {
 	// 99, because go-wireless internally creates channel like that
 	evCh := make(chan Event, 99)
-	passEvent := func(id ID, msg string) {
+	passEvent := func(id EventID, msg string) {
 		evCh <- Event{
 			ID:      id,
 			Message: msg,

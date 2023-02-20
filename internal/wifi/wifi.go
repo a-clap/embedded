@@ -28,7 +28,7 @@ type Client interface {
 
 	Status() (Status, error)
 	Scan() ([]AP, error)
-	ConnectWithEvents(n Network, events ...ID) (<-chan Event, error)
+	ConnectWithEvents(n Network, events ...EventID) (<-chan Event, error)
 	Disconnect() error
 }
 
@@ -181,7 +181,7 @@ func (w *Wifi) Connect(n Network) error {
 		return fmt.Errorf("%w to: %s", ErrAlreadyConnected, s.SSID)
 	}
 
-	events := []ID{Connected, Disconnected, NetworkNotFound, AuthReject, OtherError}
+	events := []EventID{Connected, Disconnected, NetworkNotFound, AuthReject, OtherError}
 
 	w.extEvents, err = w.client.ConnectWithEvents(n, events...)
 	if err != nil {
