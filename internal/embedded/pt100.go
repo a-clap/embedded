@@ -7,6 +7,7 @@ package embedded
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/gin-gonic/gin"
@@ -64,17 +65,25 @@ func (h *Handler) configPTSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := PTSensorConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind PTSensorConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigPT100Sensor,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		cfg, err := h.PT.SetConfig(cfg)
 		if err != nil {
-			if ptError, ok := err.(*PTError); ok {
-				h.respond(ctx, http.StatusInternalServerError, ptError)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			e := &Error{
+				Title:     "Failed to SetConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigPT100Sensor,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
@@ -85,8 +94,13 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ds := h.PT.GetTemperatures()
 		if len(ds) == 0 {
-			notImpl := PTError{ID: "", Op: "GetTemperatures", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, &notImpl)
+			e := &Error{
+				Title:     "Failed to GetTemperatures",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetPT100Temperatures,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, ds)
@@ -97,8 +111,13 @@ func (h *Handler) getPTSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		pt := h.PT.GetSensors()
 		if len(pt) == 0 {
-			notImpl := PTError{ID: "", Op: "GetSensors", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, &notImpl)
+			e := &Error{
+				Title:     "Failed to GetSensors",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetPT100Temperatures,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, pt)

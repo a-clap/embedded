@@ -184,7 +184,6 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterInterfaceError() {
 
 	t.Equal(http.StatusInternalServerError, t.resp.Code)
 	t.Contains(string(b), errOnSetPower.Error())
-
 }
 
 func (t *HeaterTestSuite) TestHeater_GetHeater() {

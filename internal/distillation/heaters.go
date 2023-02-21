@@ -8,6 +8,7 @@ package distillation
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/gin-gonic/gin"
@@ -59,23 +60,36 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := embedded.HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind HeaterConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigEnabledHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		if err := h.HeatersHandler.Configure(cfg); err != nil {
-			if hErr, ok := err.(*HeaterError); ok {
-				h.respond(ctx, http.StatusInternalServerError, hErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to Configure",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigEnabledHeater,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
 		newCfg, err := h.HeatersHandler.Config(cfg.ID)
 		if err != nil {
-			err = &HeaterError{ID: cfg.ID, Op: "Config", Err: err.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to Config",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigEnabledHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
@@ -86,25 +100,35 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := HeaterConfigGlobal{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind HeaterConfigGlobal",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 		if err := h.HeatersHandler.ConfigureGlobal(cfg); err != nil {
-			if hErr, ok := err.(*HeaterError); ok {
-				h.respond(ctx, http.StatusInternalServerError, hErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to ConfigureGlobal",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
 		newCfg, err := h.HeatersHandler.ConfigGlobal(cfg.ID)
 		if err != nil {
-			if hErr, ok := err.(*HeaterError); ok {
-				h.respond(ctx, http.StatusInternalServerError, hErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to ConfigGlobal",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
@@ -116,8 +140,13 @@ func (h *Handler) getAllHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		heaters := h.HeatersHandler.ConfigsGlobal()
 		if len(heaters) == 0 {
-			err := &DSError{ID: "", Op: "ConfigsGlobal", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to ConfigsGlobal",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetAllHeaters,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, heaters)
@@ -128,8 +157,13 @@ func (h *Handler) getEnabledHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		heaters := h.HeatersHandler.Configs()
 		if len(heaters) == 0 {
-			err := &DSError{ID: "", Op: "Configs", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to ConfigsGlobal",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetEnabledHeaters,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, heaters)

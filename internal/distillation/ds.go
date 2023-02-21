@@ -8,6 +8,7 @@ package distillation
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
@@ -68,8 +69,13 @@ func (h *Handler) getDS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		sensors := h.DSHandler.GetSensors()
 		if len(sensors) == 0 {
-			err := &DSError{ID: "", Op: "GetSensors", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to GetSensors",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetDS,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, sensors)
@@ -80,8 +86,13 @@ func (h *Handler) getDSTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		temperatures := h.DSHandler.Temperatures()
 		if len(temperatures) == 0 {
-			err := &DSError{ID: "", Op: "Temperatures", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to get Temperatures",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetDSTemperatures,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, temperatures)
@@ -92,25 +103,35 @@ func (h *Handler) configureDS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := DSConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind DSConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigureDS,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		if err := h.DSHandler.ConfigureSensor(cfg); err != nil {
-			if dsErr, ok := err.(*DSError); ok {
-				h.respond(ctx, http.StatusInternalServerError, dsErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to ConfigureSensor",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigureDS,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		cfg, err := h.DSHandler.GetConfig(cfg.ID)
 		if err != nil {
-			if dsErr, ok := err.(*DSError); ok {
-				h.respond(ctx, http.StatusInternalServerError, dsErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to GetConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigureDS,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, cfg)

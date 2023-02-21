@@ -8,6 +8,7 @@ package embedded
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -55,16 +56,24 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind HeaterConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		if err := h.Heaters.Config(cfg); err != nil {
-			if heaterError, ok := err.(*HeaterError); ok {
-				h.respond(ctx, http.StatusInternalServerError, heaterError)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			e := &Error{
+				Title:     "Failed to Config",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 

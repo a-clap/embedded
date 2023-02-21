@@ -8,6 +8,7 @@ package embedded
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/a-clap/iot/internal/embedded/gpio"
 	"github.com/gin-gonic/gin"
@@ -59,27 +60,37 @@ func (h *Handler) configGPIO() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := GPIOConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind GPIOConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigGPIO,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		err := h.GPIO.SetConfig(cfg)
 		if err != nil {
-			if gpioError, ok := err.(*GPIOError); ok {
-				h.respond(ctx, http.StatusInternalServerError, gpioError)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			e := &Error{
+				Title:     "Failed to SetConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigGPIO,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
 		cfg, err = h.GPIO.GetConfig(cfg.ID)
 		if err != nil {
-			if gpioError, ok := err.(*GPIOError); ok {
-				h.respond(ctx, http.StatusInternalServerError, gpioError)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			e := &Error{
+				Title:     "Failed to GetConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigGPIO,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, cfg)

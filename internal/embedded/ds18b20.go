@@ -8,6 +8,7 @@ package embedded
 import (
 	"errors"
 	"net/http"
+	"time"
 
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/gin-gonic/gin"
@@ -70,17 +71,25 @@ func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := DSSensorConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind DSSensorConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigOnewireSensor,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		cfg, err := h.DS.SetConfig(cfg)
 		if err != nil {
-			if dsError, ok := err.(*DSError); ok {
-				h.respond(ctx, http.StatusInternalServerError, dsError)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, toError(err))
+			e := &Error{
+				Title:     "Failed to SetConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigOnewireSensor,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
@@ -91,8 +100,13 @@ func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ds := h.DS.GetTemperatures()
 		if len(ds) == 0 {
-			notImpl := DSError{ID: "", Op: "GetTemperatures", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, &notImpl)
+			e := &Error{
+				Title:     "Failed to GetTemperatures",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetOnewireTemperatures,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, ds)
@@ -103,8 +117,13 @@ func (h *Handler) getOnewireSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		ds := h.DS.GetSensors()
 		if len(ds) == 0 {
-			notImpl := DSError{ID: "", Op: "GetSenors", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, &notImpl)
+			e := &Error{
+				Title:     "Failed to GetTemperatures",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetOnewireSensors,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, ds)

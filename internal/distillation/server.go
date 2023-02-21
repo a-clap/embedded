@@ -16,13 +16,12 @@ const (
 	RoutesGetAllHeaters       = "/api/heater/all"
 	RoutesGetEnabledHeaters   = "/api/heater/phase"
 	RoutesConfigEnabledHeater = "/api/heater/phase"
-	RoutesGetDS               = "/api/ds"
-	RoutesConfigureDS         = "/api/ds"
-	RoutesGetDSTemperatures   = "/api/ds/temperatures"
-
-	RoutesGetPT             = "/api/pt"
-	RoutesConfigurePT       = "/api/pt"
-	RoutesGetPTTemperatures = "/api/pt/temperatures"
+	RoutesGetDS               = "/api/onewire"
+	RoutesConfigureDS         = "/api/onewire"
+	RoutesGetDSTemperatures   = "/api/onewire/temperatures"
+	RoutesGetPT               = "/api/pt100"
+	RoutesConfigurePT         = "/api/pt100"
+	RoutesGetPTTemperatures   = "/api/pt100/temperatures"
 )
 
 var (

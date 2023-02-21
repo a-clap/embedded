@@ -414,10 +414,10 @@ func (t *PTTestSuite) TestConfigureSensor_REST() {
 
 		h.ServeHTTP(recorder, request)
 		if arg.errContains != "" {
-			err := distillation.PTError{}
+			err := distillation.Error{}
 			r.Nil(json.NewDecoder(recorder.Body).Decode(&err), arg.name)
-			r.Equal(http.StatusInternalServerError, recorder.Code, arg.name+":"+err.Error())
-			r.ErrorContains(&err, arg.errContains, arg.name)
+			r.Equal(http.StatusInternalServerError, recorder.Code, arg.name+":"+err.Detail)
+			r.Contains(err.Detail, arg.errContains, arg.name)
 			continue
 		}
 

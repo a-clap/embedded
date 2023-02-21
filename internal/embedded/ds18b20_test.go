@@ -9,16 +9,17 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
-	"github.com/gin-gonic/gin"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded"
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/gin-gonic/gin"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type DS18B20TestSuite struct {

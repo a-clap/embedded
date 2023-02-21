@@ -67,8 +67,13 @@ func (h *Handler) getPT() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		sensors := h.PTHandler.GetSensors()
 		if len(sensors) == 0 {
-			err := &PTError{ID: "", Op: "GetSensors", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to GetSensors",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetPT,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, sensors)
@@ -79,8 +84,13 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		temperatures := h.PTHandler.Temperatures()
 		if len(temperatures) == 0 {
-			err := &PTError{ID: "", Op: "Temperatures", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to get Temperatures",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetPT,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, temperatures)
@@ -91,25 +101,35 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := PTConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			h.respond(ctx, http.StatusBadRequest, err)
+			e := &Error{
+				Title:     "Failed to bind PTConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigurePT,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
 
 		if err := h.PTHandler.ConfigureSensor(cfg); err != nil {
-			if ptErr, ok := err.(*PTError); ok {
-				h.respond(ctx, http.StatusInternalServerError, ptErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to ConfigureSensor",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigurePT,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		cfg, err := h.PTHandler.GetConfig(cfg.ID)
 		if err != nil {
-			if ptErr, ok := err.(*PTError); ok {
-				h.respond(ctx, http.StatusInternalServerError, ptErr)
-			} else {
-				h.respond(ctx, http.StatusInternalServerError, err)
+			e := &Error{
+				Title:     "Failed to GetConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesConfigurePT,
+				Timestamp: time.Now(),
 			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, cfg)
