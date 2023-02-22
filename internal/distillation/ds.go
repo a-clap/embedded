@@ -67,7 +67,10 @@ type DSTemperature struct {
 
 func (h *Handler) getDS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		sensors := h.DSHandler.GetSensors()
+		var sensors []DSConfig
+		if h.DSHandler != nil {
+			sensors = h.DSHandler.GetSensors()
+		}
 		if len(sensors) == 0 {
 			e := &Error{
 				Title:     "Failed to GetSensors",
@@ -84,7 +87,10 @@ func (h *Handler) getDS() gin.HandlerFunc {
 
 func (h *Handler) getDSTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		temperatures := h.DSHandler.Temperatures()
+		var temperatures []DSTemperature
+		if h.DSHandler != nil {
+			temperatures = h.DSHandler.Temperatures()
+		}
 		if len(temperatures) == 0 {
 			e := &Error{
 				Title:     "Failed to get Temperatures",
@@ -101,6 +107,16 @@ func (h *Handler) getDSTemperatures() gin.HandlerFunc {
 
 func (h *Handler) configureDS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if h.DSHandler == nil {
+			e := &Error{
+				Title:     "Failed to ConfigureSensor",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigureDS,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
 		cfg := DSConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{

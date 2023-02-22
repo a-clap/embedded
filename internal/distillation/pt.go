@@ -93,7 +93,7 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 			e := &Error{
 				Title:     "Failed to get Temperatures",
 				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesGetPT,
+				Instance:  RoutesGetPTTemperatures,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusInternalServerError, e)
@@ -109,7 +109,7 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 			e := &Error{
 				Title:     "Failed to ConfigurePT",
 				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesGetPT,
+				Instance:  RoutesConfigurePT,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusInternalServerError, e)

@@ -89,6 +89,7 @@ func (p *PTClientSuite) Test_Configure() {
 	_, err = pt.Configure(distillation.PTConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, distillation.ErrNoSuchID.Error())
+	t.ErrorContains(err, distillation.RoutesConfigurePT)
 
 	// Error on set now
 	errSet := errors.New("hello world")
@@ -117,13 +118,16 @@ func (p *PTClientSuite) Test_NotImplemented() {
 	t.Nil(s)
 	t.NotNil(err)
 	t.ErrorContains(err, distillation.ErrNotImplemented.Error())
+	t.ErrorContains(err, distillation.RoutesGetPT)
 
 	_, err = pt.Configure(distillation.PTConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, distillation.ErrNotImplemented.Error())
+	t.ErrorContains(err, distillation.RoutesConfigurePT)
 
 	temps, err := pt.Temperatures()
 	t.Nil(temps)
 	t.NotNil(err)
 	t.ErrorContains(err, distillation.ErrNotImplemented.Error())
+	t.ErrorContains(err, distillation.RoutesGetPTTemperatures)
 }
