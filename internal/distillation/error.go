@@ -6,6 +6,7 @@
 package distillation
 
 import (
+	"fmt"
 	"time"
 )
 
@@ -15,4 +16,8 @@ type Error struct {
 	Detail    string    `json:"detail"`
 	Instance  string    `json:"instance"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s:%s %s:%v", e.Title, e.Detail, e.Instance, e.Timestamp)
 }

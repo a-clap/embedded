@@ -65,7 +65,10 @@ type PTTemperature struct {
 
 func (h *Handler) getPT() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		sensors := h.PTHandler.GetSensors()
+		var sensors []PTConfig
+		if h.PTHandler != nil {
+			sensors = h.PTHandler.GetSensors()
+		}
 		if len(sensors) == 0 {
 			e := &Error{
 				Title:     "Failed to GetSensors",
@@ -82,7 +85,10 @@ func (h *Handler) getPT() gin.HandlerFunc {
 
 func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		temperatures := h.PTHandler.Temperatures()
+		var temperatures []PTTemperature
+		if h.PTHandler != nil {
+			temperatures = h.PTHandler.Temperatures()
+		}
 		if len(temperatures) == 0 {
 			e := &Error{
 				Title:     "Failed to get Temperatures",
@@ -99,6 +105,17 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 
 func (h *Handler) configurePT() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if h.PTHandler == nil {
+			e := &Error{
+				Title:     "Failed to ConfigurePT",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesGetPT,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
+
 		cfg := PTConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
