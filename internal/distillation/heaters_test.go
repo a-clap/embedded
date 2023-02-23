@@ -18,7 +18,6 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
-	"golang.org/x/exp/slices"
 )
 
 type HeaterHandlerSuite struct {
@@ -151,7 +150,7 @@ func (t *HeaterHandlerSuite) TestRestAPI_ConfigHeater() {
 			var body bytes.Buffer
 			r.Nil(json.NewEncoder(&body).Encode(cfg))
 
-			t.req, _ = http.NewRequest(http.MethodPut, distillation.RoutesConfigEnabledHeater, &body)
+			t.req, _ = http.NewRequest(http.MethodPut, distillation.RoutesConfigureHeater, &body)
 			t.req.Header.Add("Content-Type", "application/json")
 
 			// Should be called
@@ -251,7 +250,7 @@ func (t *HeaterHandlerSuite) Test_RestAPI_ConfigureGlobal() {
 			t.resp = httptest.NewRecorder()
 			var body bytes.Buffer
 			r.Nil(json.NewEncoder(&body).Encode(global))
-			t.req, _ = http.NewRequest(http.MethodPut, distillation.RoutesConfigHeater, &body)
+			t.req, _ = http.NewRequest(http.MethodPut, distillation.RoutesEnableHeater, &body)
 			t.req.Header.Add("Content-Type", "application/json")
 
 			h.ServeHTTP(t.resp, t.req)
@@ -275,7 +274,7 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 	args := []struct {
 		heaters   []embedded.HeaterConfig
 		newGlobal []distillation.HeaterConfigGlobal
-		newConfig []embedded.HeaterConfig
+		newConfig []distillation.HeaterConfig
 	}{
 		{
 			heaters: []embedded.HeaterConfig{
@@ -300,16 +299,20 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 					Enabled: true,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "1",
-					Enabled: true,
-					Power:   77,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "1",
+						Enabled: true,
+						Power:   77,
+					},
 				},
 				{
-					ID:      "2",
-					Enabled: false,
-					Power:   91,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "2",
+						Enabled: false,
+						Power:   91,
+					},
 				},
 			},
 		},
@@ -336,16 +339,20 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 					Enabled: true,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "4",
-					Enabled: false,
-					Power:   100,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "4",
+						Enabled: false,
+						Power:   100,
+					},
 				},
 				{
-					ID:      "5",
-					Enabled: true,
-					Power:   0,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "5",
+						Enabled: true,
+						Power:   0,
+					},
 				},
 			},
 		},
@@ -377,12 +384,12 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 		for i, glob := range arg.newGlobal {
 			r.Nil(heaters.ConfigureGlobal(glob))
 			if glob.Enabled {
-				expectedEnabled = append(expectedEnabled, arg.newConfig[i])
+				expectedEnabled = append(expectedEnabled, arg.newConfig[i].HeaterConfig)
 			}
 		}
 		// Enable heaters
 		for _, newcfg := range arg.newConfig {
-			m.Mock.On("Set", newcfg).Return(nil).Once()
+			m.Mock.On("Set", newcfg.HeaterConfig).Return(nil).Once()
 			r.Nil(heaters.Configure(newcfg))
 		}
 
@@ -391,12 +398,19 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 		h.ServeHTTP(t.resp, t.req)
 		r.Equal(http.StatusOK, t.resp.Code)
 
-		var bodyJson []embedded.HeaterConfig
-		if err := json.NewDecoder(t.resp.Body).Decode(&bodyJson); err != nil {
+		var enabled []distillation.HeaterConfig
+		if err := json.NewDecoder(t.resp.Body).Decode(&enabled); err != nil {
 			panic(err)
 		}
-		r.Equal(len(expectedEnabled), len(bodyJson))
-		r.ElementsMatch(expectedEnabled, bodyJson)
+
+		enabledEmbeddedConfigs := make([]embedded.HeaterConfig, len(enabled))
+		for i, elem := range enabled {
+			enabledEmbeddedConfigs[i] = elem.HeaterConfig
+		}
+
+		r.Len(expectedEnabled, len(enabledEmbeddedConfigs))
+		r.ElementsMatch(expectedEnabled, enabledEmbeddedConfigs)
+
 	}
 }
 
@@ -481,7 +495,7 @@ func (t *HeaterHandlerSuite) Test_GetEnabled() {
 	args := []struct {
 		heaters   []embedded.HeaterConfig
 		newGlobal []distillation.HeaterConfigGlobal
-		newConfig []embedded.HeaterConfig
+		newConfig []distillation.HeaterConfig
 	}{
 		{
 			heaters: []embedded.HeaterConfig{
@@ -506,16 +520,20 @@ func (t *HeaterHandlerSuite) Test_GetEnabled() {
 					Enabled: true,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "1",
-					Enabled: true,
-					Power:   77,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "1",
+						Enabled: true,
+						Power:   77,
+					},
 				},
 				{
-					ID:      "2",
-					Enabled: false,
-					Power:   91,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "2",
+						Enabled: false,
+						Power:   91,
+					},
 				},
 			},
 		},
@@ -542,17 +560,20 @@ func (t *HeaterHandlerSuite) Test_GetEnabled() {
 					Enabled: true,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "4",
-					Enabled: false,
-					Power:   100,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "4",
+						Enabled: false,
+						Power:   100,
+					},
 				},
 				{
-					ID:      "5",
-					Enabled: true,
-					Power:   0,
-				},
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "5",
+						Enabled: true,
+						Power:   0,
+					}},
 			},
 		},
 	}
@@ -576,22 +597,26 @@ func (t *HeaterHandlerSuite) Test_GetEnabled() {
 		}
 
 		h, _ := distillation.NewHandlerHeaters(m)
-
-		expectedEnabled := make([]embedded.HeaterConfig, 0, 1)
+		expectedEnabled := make([]embedded.HeaterConfig, 0)
 		for i, glob := range arg.newGlobal {
 			r.Nil(h.ConfigureGlobal(glob))
 			if glob.Enabled {
-				expectedEnabled = append(expectedEnabled, arg.newConfig[i])
+				expectedEnabled = append(expectedEnabled, arg.newConfig[i].HeaterConfig)
 			}
 		}
 		for _, newcfg := range arg.newConfig {
-			m.Mock.On("Set", newcfg).Return(nil).Once()
+			m.Mock.On("Set", newcfg.HeaterConfig).Return(nil).Once()
 			r.Nil(h.Configure(newcfg))
 		}
 
 		enabled := h.Configs()
-		r.Len(expectedEnabled, len(enabled))
-		r.ElementsMatch(expectedEnabled, enabled)
+		enabledEmbeddedConfigs := make([]embedded.HeaterConfig, len(enabled))
+		for i, elem := range enabled {
+			enabledEmbeddedConfigs[i] = elem.HeaterConfig
+		}
+
+		r.Len(expectedEnabled, len(enabledEmbeddedConfigs))
+		r.ElementsMatch(expectedEnabled, enabledEmbeddedConfigs)
 	}
 }
 
@@ -613,10 +638,12 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal_DisableEnabledHeater() {
 		Enabled: true,
 	}
 
-	expectedConfig := embedded.HeaterConfig{
-		ID:      "",
-		Enabled: false,
-		Power:   0,
+	expectedConfig := distillation.HeaterConfig{
+		HeaterConfig: embedded.HeaterConfig{
+			ID:      "",
+			Enabled: false,
+			Power:   0,
+		},
 	}
 	r := t.Require()
 	m := new(HeaterMock)
@@ -624,7 +651,7 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal_DisableEnabledHeater() {
 	// On new handler should set config to initial state - disabled and power = 0
 	for _, heater := range heaters {
 		expectedConfig.ID = heater.ID
-		m.Mock.On("Set", expectedConfig).Return(nil).Once()
+		m.Mock.On("Set", expectedConfig.HeaterConfig).Return(nil).Once()
 	}
 
 	h, err := distillation.NewHandlerHeaters(m)
@@ -632,24 +659,31 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal_DisableEnabledHeater() {
 	// Enabling heater in global
 	r.Nil(h.ConfigureGlobal(globalConfig))
 
-	cfg := embedded.HeaterConfig{
-		ID:      heaters[0].ID,
-		Enabled: true,
-		Power:   13,
+	cfg := distillation.HeaterConfig{
+		HeaterConfig: embedded.HeaterConfig{
+			ID:      heaters[0].ID,
+			Enabled: true,
+			Power:   13,
+		},
 	}
 	// Enabling heater
-	m.On("Set", cfg).Return(nil).Once()
+	m.On("Set", cfg.HeaterConfig).Return(nil).Once()
 	r.Nil(h.Configure(cfg))
 
 	// Verify
 	configs := h.Configs()
-	pos := slices.Index(configs, cfg)
+	pos := -1
+	for i, elem := range configs {
+		if elem.ID == cfg.ID {
+			pos = i
+		}
+	}
 	r.True(configs[pos].Enabled)
 
 	// Now configure global should call set and disable heater
 	globalConfig.Enabled = false
 	cfg.Enabled = false
-	m.On("Set", cfg).Return(nil).Once()
+	m.On("Set", cfg.HeaterConfig).Return(nil).Once()
 	r.Nil(h.ConfigureGlobal(globalConfig))
 }
 
@@ -657,7 +691,7 @@ func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
 	args := []struct {
 		heaters   []embedded.HeaterConfig
 		newGlobal []distillation.HeaterConfigGlobal
-		newConfig []embedded.HeaterConfig
+		newConfig []distillation.HeaterConfig
 	}{
 		{
 			heaters: []embedded.HeaterConfig{
@@ -682,16 +716,20 @@ func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
 					Enabled: true,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "1",
-					Enabled: true,
-					Power:   77,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "1",
+						Enabled: true,
+						Power:   77,
+					},
 				},
 				{
-					ID:      "2",
-					Enabled: false,
-					Power:   91,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "2",
+						Enabled: false,
+						Power:   91,
+					},
 				},
 			},
 		},
@@ -718,16 +756,20 @@ func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
 					Enabled: true,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "4",
-					Enabled: false,
-					Power:   100,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "4",
+						Enabled: false,
+						Power:   100,
+					},
 				},
 				{
-					ID:      "5",
-					Enabled: true,
-					Power:   0,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "5",
+						Enabled: true,
+						Power:   0,
+					},
 				},
 			},
 		},
@@ -760,7 +802,7 @@ func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
 		}
 
 		for _, cfg := range arg.newConfig {
-			m.Mock.On("Set", cfg).Return(nil).Once()
+			m.Mock.On("Set", cfg.HeaterConfig).Return(nil).Once()
 			r.Nil(h.Configure(cfg))
 		}
 	}
@@ -769,7 +811,7 @@ func (t *HeaterHandlerSuite) TestConfigure_CantEnableHeater() {
 	r := t.Require()
 	args := []struct {
 		heaters       []embedded.HeaterConfig
-		newConfig     []embedded.HeaterConfig
+		newConfig     []distillation.HeaterConfig
 		expectedWrite []embedded.HeaterConfig
 	}{
 		{
@@ -785,16 +827,20 @@ func (t *HeaterHandlerSuite) TestConfigure_CantEnableHeater() {
 					Power:   99,
 				},
 			},
-			newConfig: []embedded.HeaterConfig{
+			newConfig: []distillation.HeaterConfig{
 				{
-					ID:      "1",
-					Enabled: true,
-					Power:   17,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "1",
+						Enabled: true,
+						Power:   17,
+					},
 				},
 				{
-					ID:      "2",
-					Enabled: true,
-					Power:   55,
+					HeaterConfig: embedded.HeaterConfig{
+						ID:      "2",
+						Enabled: true,
+						Power:   55,
+					},
 				},
 			},
 			expectedWrite: []embedded.HeaterConfig{
@@ -811,10 +857,12 @@ func (t *HeaterHandlerSuite) TestConfigure_CantEnableHeater() {
 			},
 		},
 	}
-	expectedConfig := embedded.HeaterConfig{
-		ID:      "",
-		Enabled: false,
-		Power:   0,
+	expectedConfig := distillation.HeaterConfig{
+		HeaterConfig: embedded.HeaterConfig{
+			ID:      "",
+			Enabled: false,
+			Power:   0,
+		},
 	}
 	for _, arg := range args {
 		r.Equal(len(arg.heaters), len(arg.newConfig))
@@ -824,7 +872,7 @@ func (t *HeaterHandlerSuite) TestConfigure_CantEnableHeater() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Set", expectedConfig.HeaterConfig).Return(nil).Once()
 		}
 
 		h, err := distillation.NewHandlerHeaters(m)

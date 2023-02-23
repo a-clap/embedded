@@ -58,12 +58,22 @@ func (e *HeaterError) Error() string {
 
 func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		cfg := embedded.HeaterConfig{}
+		if h.HeatersHandler == nil {
+			e := &Error{
+				Title:     "Failed to ConfigEnableHeater",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigureHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
+		cfg := HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
 				Title:     "Failed to bind HeaterConfig",
 				Detail:    err.Error(),
-				Instance:  RoutesConfigEnabledHeater,
+				Instance:  RoutesConfigureHeater,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusBadRequest, e)
@@ -74,7 +84,7 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 			e := &Error{
 				Title:     "Failed to Configure",
 				Detail:    err.Error(),
-				Instance:  RoutesConfigEnabledHeater,
+				Instance:  RoutesConfigureHeater,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusInternalServerError, e)
@@ -86,7 +96,7 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 			e := &Error{
 				Title:     "Failed to Config",
 				Detail:    err.Error(),
-				Instance:  RoutesConfigEnabledHeater,
+				Instance:  RoutesConfigureHeater,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusInternalServerError, e)
@@ -96,14 +106,24 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 		h.respond(ctx, http.StatusOK, newCfg)
 	}
 }
-func (h *Handler) configHeater() gin.HandlerFunc {
+func (h *Handler) enableHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if h.HeatersHandler == nil {
+			e := &Error{
+				Title:     "Failed to ConfigHeater",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesEnableHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
 		cfg := HeaterConfigGlobal{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
 				Title:     "Failed to bind HeaterConfigGlobal",
 				Detail:    err.Error(),
-				Instance:  RoutesConfigHeater,
+				Instance:  RoutesEnableHeater,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusBadRequest, e)
@@ -113,7 +133,7 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 			e := &Error{
 				Title:     "Failed to ConfigureGlobal",
 				Detail:    err.Error(),
-				Instance:  RoutesConfigHeater,
+				Instance:  RoutesEnableHeater,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusInternalServerError, e)
@@ -125,7 +145,7 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 			e := &Error{
 				Title:     "Failed to ConfigGlobal",
 				Detail:    err.Error(),
-				Instance:  RoutesConfigHeater,
+				Instance:  RoutesEnableHeater,
 				Timestamp: time.Now(),
 			}
 			h.respond(ctx, http.StatusInternalServerError, e)
@@ -138,7 +158,10 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 
 func (h *Handler) getAllHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		heaters := h.HeatersHandler.ConfigsGlobal()
+		var heaters []HeaterConfigGlobal
+		if h.HeatersHandler != nil {
+			heaters = h.HeatersHandler.ConfigsGlobal()
+		}
 		if len(heaters) == 0 {
 			e := &Error{
 				Title:     "Failed to ConfigsGlobal",
@@ -155,7 +178,10 @@ func (h *Handler) getAllHeaters() gin.HandlerFunc {
 
 func (h *Handler) getEnabledHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		heaters := h.HeatersHandler.Configs()
+		var heaters []HeaterConfig
+		if h.HeatersHandler != nil {
+			heaters = h.HeatersHandler.Configs()
+		}
 		if len(heaters) == 0 {
 			e := &Error{
 				Title:     "Failed to ConfigsGlobal",
@@ -205,7 +231,7 @@ func (h *HeatersHandler) init() error {
 		}
 
 		h.heaters[id] = &cfg
-		if err = h.Configure(cfg.HeaterConfig); err != nil {
+		if err = h.Configure(cfg); err != nil {
 			return err
 		}
 
@@ -232,7 +258,7 @@ func (h *HeatersHandler) ConfigureGlobal(cfg HeaterConfigGlobal) error {
 		// Do we need to disable heater?
 		if !maybeHeater.global.Enabled && maybeHeater.HeaterConfig.Enabled {
 			maybeHeater.HeaterConfig.Enabled = false
-			if err := h.Configure(maybeHeater.HeaterConfig); err != nil {
+			if err := h.Configure(*maybeHeater); err != nil {
 				return err
 			}
 		}
@@ -240,11 +266,11 @@ func (h *HeatersHandler) ConfigureGlobal(cfg HeaterConfigGlobal) error {
 	return nil
 }
 
-func (h *HeatersHandler) Configs() []embedded.HeaterConfig {
-	heaters := make([]embedded.HeaterConfig, 0, len(h.heaters))
+func (h *HeatersHandler) Configs() []HeaterConfig {
+	heaters := make([]HeaterConfig, 0, len(h.heaters))
 	for _, v := range h.heaters {
 		if v.global.Enabled {
-			heaters = append(heaters, v.HeaterConfig)
+			heaters = append(heaters, *v)
 		}
 	}
 	return heaters
@@ -266,7 +292,7 @@ func (h *HeatersHandler) ConfigGlobal(id string) (HeaterConfigGlobal, error) {
 	return cfg.global, nil
 }
 
-func (h *HeatersHandler) Configure(cfg embedded.HeaterConfig) error {
+func (h *HeatersHandler) Configure(cfg HeaterConfig) error {
 	maybeHeater, ok := h.heaters[cfg.ID]
 	if !ok {
 		return &HeaterError{ID: cfg.ID, Op: "ConfigureGlobal", Err: ErrNoSuchHeater.Error()}

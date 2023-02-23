@@ -12,16 +12,16 @@ import (
 )
 
 const (
-	RoutesConfigHeater        = "/api/heater/all"
-	RoutesGetAllHeaters       = "/api/heater/all"
-	RoutesGetEnabledHeaters   = "/api/heater/phase"
-	RoutesConfigEnabledHeater = "/api/heater/phase"
-	RoutesGetDS               = "/api/onewire"
-	RoutesConfigureDS         = "/api/onewire"
-	RoutesGetDSTemperatures   = "/api/onewire/temperatures"
-	RoutesGetPT               = "/api/pt100"
-	RoutesConfigurePT         = "/api/pt100"
-	RoutesGetPTTemperatures   = "/api/pt100/temperatures"
+	RoutesEnableHeater      = "/api/heater"
+	RoutesGetAllHeaters     = "/api/heater"
+	RoutesGetEnabledHeaters = "/api/heater/enabled"
+	RoutesConfigureHeater   = "/api/heater/enabled"
+	RoutesGetDS             = "/api/onewire"
+	RoutesConfigureDS       = "/api/onewire"
+	RoutesGetDSTemperatures = "/api/onewire/temperatures"
+	RoutesGetPT             = "/api/pt100"
+	RoutesConfigurePT       = "/api/pt100"
+	RoutesGetPTTemperatures = "/api/pt100/temperatures"
 )
 
 var (
@@ -32,8 +32,8 @@ var (
 func (h *Handler) routes() {
 	h.GET(RoutesGetAllHeaters, h.getAllHeaters())
 	h.GET(RoutesGetEnabledHeaters, h.getEnabledHeaters())
-	h.PUT(RoutesConfigHeater, h.configHeater())
-	h.PUT(RoutesConfigEnabledHeater, h.configEnabledHeater())
+	h.PUT(RoutesEnableHeater, h.enableHeater())
+	h.PUT(RoutesConfigureHeater, h.configEnabledHeater())
 
 	h.GET(RoutesGetDS, h.getDS())
 	h.GET(RoutesGetDSTemperatures, h.getDSTemperatures())
