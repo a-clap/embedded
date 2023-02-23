@@ -6,7 +6,13 @@
 package embedded
 
 import (
+	"errors"
+	"fmt"
 	"time"
+)
+
+var (
+	ErrNoSuchID = errors.New("specified ID doesnt' exist")
 )
 
 // Error is common struct returned via rest api
@@ -15,4 +21,8 @@ type Error struct {
 	Detail    string    `json:"detail"`
 	Instance  string    `json:"instance"`
 	Timestamp time.Time `json:"timestamp"`
+}
+
+func (e *Error) Error() string {
+	return fmt.Sprintf("%s:%s %s:%v", e.Title, e.Detail, e.Instance, e.Timestamp)
 }

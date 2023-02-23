@@ -6,16 +6,11 @@
 package embedded
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/gin-gonic/gin"
-)
-
-var (
-	ErrNoSuchSensor = errors.New("specified dsSensor doesnt' exist")
 )
 
 type DSError struct {
@@ -199,7 +194,7 @@ func (d *DSHandler) sensorBy(id string) (*dsSensor, error) {
 	if s, ok := d.sensors[id]; ok {
 		return s, nil
 	}
-	return nil, ErrNoSuchSensor
+	return nil, ErrNoSuchID
 }
 
 func (d *DSHandler) GetSensors() []DSSensorConfig {

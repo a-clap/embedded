@@ -63,6 +63,17 @@ type PTHandler struct {
 // configPTSensor is middleware for configuring specified by ID PTSensor
 func (h *Handler) configPTSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if h.PT.sensors == nil {
+			e := &Error{
+				Title:     "Failed to Configure",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigPT100Sensor,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
+
 		cfg := PTSensorConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
@@ -92,8 +103,11 @@ func (h *Handler) configPTSensor() gin.HandlerFunc {
 }
 func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ds := h.PT.GetTemperatures()
-		if len(ds) == 0 {
+		var temperatures []PTTemperature
+		if h.PT.sensors != nil {
+			temperatures = h.PT.GetTemperatures()
+		}
+		if len(temperatures) == 0 {
 			e := &Error{
 				Title:     "Failed to GetTemperatures",
 				Detail:    ErrNotImplemented.Error(),
@@ -103,14 +117,17 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-		h.respond(ctx, http.StatusOK, ds)
+		h.respond(ctx, http.StatusOK, temperatures)
 	}
 }
 
 func (h *Handler) getPTSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		pt := h.PT.GetSensors()
-		if len(pt) == 0 {
+		var sensors []PTSensorConfig
+		if h.PT.sensors != nil {
+			sensors = h.PT.GetSensors()
+		}
+		if len(sensors) == 0 {
 			e := &Error{
 				Title:     "Failed to GetSensors",
 				Detail:    ErrNotImplemented.Error(),
@@ -120,7 +137,7 @@ func (h *Handler) getPTSensors() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-		h.respond(ctx, http.StatusOK, pt)
+		h.respond(ctx, http.StatusOK, sensors)
 	}
 }
 
@@ -183,7 +200,7 @@ func (p *PTHandler) GetConfig(id string) (PTSensorConfig, error) {
 func (p *PTHandler) sensorBy(id string) (*ptSensor, error) {
 	maybeSensor, ok := p.sensors[id]
 	if !ok {
-		return nil, ErrNoSuchSensor
+		return nil, ErrNoSuchID
 	}
 	return maybeSensor, nil
 }

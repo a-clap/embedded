@@ -24,19 +24,19 @@ import (
 
 type PTTestSuite struct {
 	suite.Suite
-	mock []*PTSensorMock
+	mock []*PTMock
 	req  *http.Request
 	resp *httptest.ResponseRecorder
 }
 
-// PTSensorMock implements embedded.PTSensor
-type PTSensorMock struct {
+// PTMock implements embedded.PTSensor
+type PTMock struct {
 	mock.Mock
 }
 
 func (t *PTTestSuite) SetupTest() {
 	gin.DefaultWriter = io.Discard
-	t.mock = make([]*PTSensorMock, 1)
+	t.mock = make([]*PTMock, 1)
 	t.resp = httptest.NewRecorder()
 }
 
@@ -101,9 +101,9 @@ func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 			},
 		},
 	}
-	t.mock = make([]*PTSensorMock, 0, len(args))
+	t.mock = make([]*PTMock, 0, len(args))
 	for _, elem := range args {
-		m := new(PTSensorMock)
+		m := new(PTMock)
 		m.On("ID").Return(elem.old.ID)
 		m.On("GetConfig").Return(elem.new.SensorConfig)
 		m.On("Configure", elem.new.SensorConfig).Return(nil)
@@ -166,9 +166,9 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 			},
 		},
 	}
-	t.mock = make([]*PTSensorMock, 0, len(args))
+	t.mock = make([]*PTMock, 0, len(args))
 	for _, elem := range args {
-		m := new(PTSensorMock)
+		m := new(PTMock)
 		m.On("ID").Return(elem.cfg.ID)
 		m.On("GetConfig").Return(elem.cfg.SensorConfig)
 		m.On("GetReadings").Return(elem.stat.Readings)
@@ -215,9 +215,9 @@ func (t *PTTestSuite) TestPTRestAPI_GetSensors() {
 			},
 		},
 	}
-	t.mock = make([]*PTSensorMock, 0, len(args))
+	t.mock = make([]*PTMock, 0, len(args))
 	for _, elem := range args {
-		m := new(PTSensorMock)
+		m := new(PTMock)
 		m.On("ID").Return(elem.ID)
 		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
@@ -259,8 +259,8 @@ func (t *PTTestSuite) TestPT_SetConfig_EnableDisable() {
 		},
 	}
 
-	t.mock = make([]*PTSensorMock, 0, 1)
-	m := new(PTSensorMock)
+	t.mock = make([]*PTMock, 0, 1)
+	m := new(PTMock)
 	m.On("ID").Return(disabled.ID)
 	m.On("GetConfig").Return(disabled.SensorConfig)
 	m.On("Configure", enabled.SensorConfig).Return(nil)
@@ -331,9 +331,9 @@ func (t *PTTestSuite) TestPT_SetConfig() {
 			},
 		},
 	}
-	t.mock = make([]*PTSensorMock, 0, len(args))
+	t.mock = make([]*PTMock, 0, len(args))
 	for _, elem := range args {
-		m := new(PTSensorMock)
+		m := new(PTMock)
 		m.On("ID").Return(elem.old.ID)
 		m.On("GetConfig").Return(elem.new.SensorConfig)
 		m.On("Configure", elem.new.SensorConfig).Return(nil)
@@ -374,9 +374,9 @@ func (t *PTTestSuite) TestPT_GetSensors() {
 			},
 		},
 	}
-	t.mock = make([]*PTSensorMock, 0, len(args))
+	t.mock = make([]*PTMock, 0, len(args))
 	for _, elem := range args {
-		m := new(PTSensorMock)
+		m := new(PTMock)
 		m.On("ID").Return(elem.ID)
 		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
@@ -411,9 +411,9 @@ func (t *PTTestSuite) TestPT_GetConfig() {
 			},
 		},
 	}
-	t.mock = make([]*PTSensorMock, 0, len(args))
+	t.mock = make([]*PTMock, 0, len(args))
 	for _, elem := range args {
-		m := new(PTSensorMock)
+		m := new(PTMock)
 		m.On("ID").Return(elem.ID)
 		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
@@ -429,45 +429,45 @@ func (t *PTTestSuite) TestPT_GetConfig() {
 
 	_, err := pt.GetConfig("not exist")
 	t.NotNil(err)
-	t.ErrorContains(err, embedded.ErrNoSuchSensor.Error())
+	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 }
 
-func (p *PTSensorMock) ID() string {
+func (p *PTMock) ID() string {
 	args := p.Called()
 	return args.String(0)
 }
 
-func (p *PTSensorMock) Poll() (err error) {
+func (p *PTMock) Poll() (err error) {
 	args := p.Called()
 	return args.Error(0)
 }
 
-func (p *PTSensorMock) Configure(config max31865.SensorConfig) error {
+func (p *PTMock) Configure(config max31865.SensorConfig) error {
 	args := p.Called(config)
 	return args.Error(0)
 }
 
-func (p *PTSensorMock) GetConfig() max31865.SensorConfig {
+func (p *PTMock) GetConfig() max31865.SensorConfig {
 	args := p.Called()
 	return args.Get(0).(max31865.SensorConfig)
 }
 
-func (p *PTSensorMock) Average() float32 {
+func (p *PTMock) Average() float32 {
 	args := p.Called()
 	return args.Get(0).(float32)
 }
 
-func (p *PTSensorMock) Temperature() (actual float32, average float32, err error) {
+func (p *PTMock) Temperature() (actual float32, average float32, err error) {
 	args := p.Called()
 	return args.Get(0).(float32), args.Get(1).(float32), args.Error(2)
 }
 
-func (p *PTSensorMock) GetReadings() []max31865.Readings {
+func (p *PTMock) GetReadings() []max31865.Readings {
 	args := p.Called()
 	return args.Get(0).([]max31865.Readings)
 }
 
-func (p *PTSensorMock) Close() error {
+func (p *PTMock) Close() error {
 	args := p.Called()
 	return args.Error(0)
 }
