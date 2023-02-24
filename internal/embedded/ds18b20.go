@@ -64,6 +64,17 @@ type DSHandler struct {
 
 func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if h.DS.sensors == nil {
+			e := &Error{
+				Title:     "Failed to Configure",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigOnewireSensor,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
+
 		cfg := DSSensorConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
@@ -93,8 +104,11 @@ func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 }
 func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ds := h.DS.GetTemperatures()
-		if len(ds) == 0 {
+		var temperatures []DSTemperature
+		if h.DS.sensors != nil {
+			temperatures = h.DS.GetTemperatures()
+		}
+		if len(temperatures) == 0 {
 			e := &Error{
 				Title:     "Failed to GetTemperatures",
 				Detail:    ErrNotImplemented.Error(),
@@ -104,14 +118,17 @@ func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-		h.respond(ctx, http.StatusOK, ds)
+		h.respond(ctx, http.StatusOK, temperatures)
 	}
 }
 
 func (h *Handler) getOnewireSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ds := h.DS.GetSensors()
-		if len(ds) == 0 {
+		var sensors []DSSensorConfig
+		if h.DS.sensors != nil {
+			sensors = h.DS.GetSensors()
+		}
+		if len(sensors) == 0 {
 			e := &Error{
 				Title:     "Failed to GetTemperatures",
 				Detail:    ErrNotImplemented.Error(),
@@ -121,7 +138,7 @@ func (h *Handler) getOnewireSensors() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-		h.respond(ctx, http.StatusOK, ds)
+		h.respond(ctx, http.StatusOK, sensors)
 	}
 }
 
