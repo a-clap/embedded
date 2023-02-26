@@ -6,7 +6,6 @@
 package embedded
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
@@ -52,12 +51,19 @@ type GPIOHandler struct {
 	gpios map[string]*gpioHandler
 }
 
-var (
-	ErrNoSuchGPIO = errors.New("specified input doesnt' exist")
-)
-
 func (h *Handler) configGPIO() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if len(h.GPIO.gpios) == 0 {
+			e := &Error{
+				Title:     "Failed to Config GPIO",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigGPIO,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
+			return
+		}
+
 		cfg := GPIOConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
@@ -98,6 +104,17 @@ func (h *Handler) configGPIO() gin.HandlerFunc {
 }
 func (h *Handler) getGPIOS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if len(h.GPIO.gpios) == 0 {
+			e := &Error{
+				Title:     "Failed to GetGPIO",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigGPIO,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
+			return
+		}
+
 		gpios, err := h.GPIO.GetConfigAll()
 		if len(gpios) == 0 || err != nil {
 			notImpl := GPIOError{ID: "", Op: "GetConfigAll", Err: ErrNotImplemented.Error()}
@@ -144,7 +161,7 @@ func (g *GPIOHandler) GetConfig(id string) (GPIOConfig, error) {
 func (g *GPIOHandler) gpioBy(id string) (*gpioHandler, error) {
 	gp, ok := g.gpios[id]
 	if !ok {
-		return nil, ErrNoSuchGPIO
+		return nil, ErrNoSuchID
 	}
 	return gp, nil
 }
