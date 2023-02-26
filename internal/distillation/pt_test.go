@@ -37,8 +37,9 @@ func (p *PTMock) Get() ([]embedded.PTSensorConfig, error) {
 	return args.Get(0).([]embedded.PTSensorConfig), args.Error(1)
 }
 
-func (p *PTMock) Set(s embedded.PTSensorConfig) error {
-	return p.Called(s).Error(0)
+func (p *PTMock) Configure(s embedded.PTSensorConfig) (embedded.PTSensorConfig, error) {
+	args := p.Called(s)
+	return args.Get(0).(embedded.PTSensorConfig), args.Error(1)
 }
 
 func (p *PTMock) Temperatures() ([]embedded.PTTemperature, error) {
@@ -401,7 +402,7 @@ func (t *PTTestSuite) TestConfigureSensor_REST() {
 	for _, arg := range args {
 		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		m.On("Set", arg.newConfig.PTSensorConfig).Return(arg.onSetErr)
+		m.On("Configure", arg.newConfig.PTSensorConfig).Return(arg.newConfig.PTSensorConfig, arg.onSetErr)
 		h, err := distillation.New(distillation.WithPT(m))
 		r.Nil(err, arg.name)
 
@@ -1264,11 +1265,11 @@ func (t *PTTestSuite) TestConfigureSensor() {
 	for _, arg := range args {
 		m := new(PTMock)
 		m.On("Get").Return(arg.onGet, nil)
-		m.On("Set", arg.newConfig.PTSensorConfig).Return(arg.onSetErr)
-		ds, err := distillation.NewPTHandler(m)
+		m.On("Configure", arg.newConfig.PTSensorConfig).Return(arg.newConfig.PTSensorConfig, arg.onSetErr)
+		pt, err := distillation.NewPTHandler(m)
 		r.Nil(err, arg.name)
 
-		err = ds.ConfigureSensor(arg.newConfig)
+		_, err = pt.Configure(arg.newConfig)
 		if arg.errContains != "" {
 			r.ErrorContains(err, arg.errContains, arg.name)
 			continue

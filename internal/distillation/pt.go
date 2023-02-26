@@ -40,7 +40,7 @@ func (e *PTError) Error() string {
 // PT access to on-board PT100 sensors
 type PT interface {
 	Get() ([]embedded.PTSensorConfig, error)
-	Set(s embedded.PTSensorConfig) error
+	Configure(s embedded.PTSensorConfig) (embedded.PTSensorConfig, error)
 	Temperatures() ([]embedded.PTTemperature, error)
 }
 
@@ -128,20 +128,10 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 			return
 		}
 
-		if err := h.PTHandler.ConfigureSensor(cfg); err != nil {
-			e := &Error{
-				Title:     "Failed to ConfigureSensor",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigurePT,
-				Timestamp: time.Now(),
-			}
-			h.respond(ctx, http.StatusInternalServerError, e)
-			return
-		}
-		cfg, err := h.PTHandler.GetConfig(cfg.ID)
+		c, err := h.PTHandler.Configure(cfg)
 		if err != nil {
 			e := &Error{
-				Title:     "Failed to GetConfig",
+				Title:     "Failed to Configure",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigurePT,
 				Timestamp: time.Now(),
@@ -149,7 +139,7 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-		h.respond(ctx, http.StatusOK, cfg)
+		h.respond(ctx, http.StatusOK, c)
 	}
 }
 
@@ -235,16 +225,18 @@ func (p *PTHandler) Temperature(id string) (float32, error) {
 	return pt.temps.Readings[size-1].Average, nil
 }
 
-func (p *PTHandler) ConfigureSensor(cfg PTConfig) error {
+func (p *PTHandler) Configure(cfg PTConfig) (PTConfig, error) {
+	c := PTConfig{}
 	pt, ok := p.sensors[cfg.ID]
 	if !ok {
-		return &PTError{ID: cfg.ID, Op: "ConfigureSensor", Err: ErrNoSuchID.Error()}
+		return c, &PTError{ID: cfg.ID, Op: "Configure", Err: ErrNoSuchID.Error()}
 	}
-	if err := p.PT.Set(cfg.PTSensorConfig); err != nil {
-		return &PTError{ID: cfg.ID, Op: "ConfigureSensor.Set", Err: err.Error()}
+	newCfg, err := p.PT.Configure(cfg.PTSensorConfig)
+	if err != nil {
+		return c, &PTError{ID: cfg.ID, Op: "Configure.Set", Err: err.Error()}
 	}
-	pt.PTSensorConfig = cfg.PTSensorConfig
-	return nil
+	pt.PTSensorConfig = newCfg
+	return *pt, nil
 }
 
 func (p *PTHandler) GetConfig(id string) (PTConfig, error) {

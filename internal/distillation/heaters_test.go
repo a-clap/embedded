@@ -134,7 +134,7 @@ func (t *HeaterHandlerSuite) TestRestAPI_ConfigHeater() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, err := distillation.New(distillation.WithHeaters(m))
@@ -142,7 +142,8 @@ func (t *HeaterHandlerSuite) TestRestAPI_ConfigHeater() {
 		r.NotNil(h)
 
 		for _, glob := range arg.newGlobal {
-			r.Nil(h.HeatersHandler.ConfigureGlobal(glob))
+			_, err := h.HeatersHandler.ConfigureGlobal(glob)
+			r.Nil(err)
 		}
 
 		for _, cfg := range arg.newConfig {
@@ -154,7 +155,7 @@ func (t *HeaterHandlerSuite) TestRestAPI_ConfigHeater() {
 			t.req.Header.Add("Content-Type", "application/json")
 
 			// Should be called
-			m.Mock.On("Set", cfg).Return(nil).Once()
+			m.Mock.On("Configure", cfg).Return(expectedConfig, nil).Once()
 			h.ServeHTTP(t.resp, t.req)
 			r.Equal(http.StatusOK, t.resp.Code, t.resp.Body.String())
 
@@ -223,7 +224,7 @@ func (t *HeaterHandlerSuite) Test_RestAPI_ConfigureGlobal() {
 					Enabled: true,
 				},
 			},
-			errs: []error{distillation.ErrNoSuchHeater, nil},
+			errs: []error{distillation.ErrNoSuchID, nil},
 		},
 	}
 	expectedConfig := embedded.HeaterConfig{
@@ -239,7 +240,7 @@ func (t *HeaterHandlerSuite) Test_RestAPI_ConfigureGlobal() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, err := distillation.New(distillation.WithHeaters(m))
@@ -373,7 +374,7 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, _ := distillation.New(distillation.WithHeaters(m))
@@ -382,15 +383,17 @@ func (t *HeaterHandlerSuite) Test_RestAPI_GetEnabled() {
 		// Get list of enabled heaters
 		expectedEnabled := make([]embedded.HeaterConfig, 0, 1)
 		for i, glob := range arg.newGlobal {
-			r.Nil(heaters.ConfigureGlobal(glob))
+			_, err := heaters.ConfigureGlobal(glob)
+			r.Nil(err)
 			if glob.Enabled {
 				expectedEnabled = append(expectedEnabled, arg.newConfig[i].HeaterConfig)
 			}
 		}
 		// Enable heaters
 		for _, newcfg := range arg.newConfig {
-			m.Mock.On("Set", newcfg.HeaterConfig).Return(nil).Once()
-			r.Nil(heaters.Configure(newcfg))
+			m.Mock.On("Configure", newcfg.HeaterConfig).Return(newcfg.HeaterConfig, nil).Once()
+			_, err := heaters.Configure(newcfg)
+			r.Nil(err)
 		}
 
 		t.req, _ = http.NewRequest(http.MethodGet, distillation.RoutesGetEnabledHeaters, nil)
@@ -461,7 +464,7 @@ func (t *HeaterHandlerSuite) TestRest_GetGlobalHeaters() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, err := distillation.New(distillation.WithHeaters(m))
@@ -593,20 +596,22 @@ func (t *HeaterHandlerSuite) Test_GetEnabled() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, _ := distillation.NewHandlerHeaters(m)
 		expectedEnabled := make([]embedded.HeaterConfig, 0)
 		for i, glob := range arg.newGlobal {
-			r.Nil(h.ConfigureGlobal(glob))
+			_, err := h.ConfigureGlobal(glob)
+			r.Nil(err)
 			if glob.Enabled {
 				expectedEnabled = append(expectedEnabled, arg.newConfig[i].HeaterConfig)
 			}
 		}
 		for _, newcfg := range arg.newConfig {
-			m.Mock.On("Set", newcfg.HeaterConfig).Return(nil).Once()
-			r.Nil(h.Configure(newcfg))
+			m.Mock.On("Configure", newcfg.HeaterConfig).Return(newcfg.HeaterConfig, nil).Once()
+			_, err := h.Configure(newcfg)
+			r.Nil(err)
 		}
 
 		enabled := h.Configs()
@@ -651,13 +656,14 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal_DisableEnabledHeater() {
 	// On new handler should set config to initial state - disabled and power = 0
 	for _, heater := range heaters {
 		expectedConfig.ID = heater.ID
-		m.Mock.On("Set", expectedConfig.HeaterConfig).Return(nil).Once()
+		m.Mock.On("Configure", expectedConfig.HeaterConfig).Return(expectedConfig.HeaterConfig, nil).Once()
 	}
 
 	h, err := distillation.NewHandlerHeaters(m)
 	r.Nil(err)
 	// Enabling heater in global
-	r.Nil(h.ConfigureGlobal(globalConfig))
+	_, err = h.ConfigureGlobal(globalConfig)
+	r.Nil(err)
 
 	cfg := distillation.HeaterConfig{
 		HeaterConfig: embedded.HeaterConfig{
@@ -667,8 +673,9 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal_DisableEnabledHeater() {
 		},
 	}
 	// Enabling heater
-	m.On("Set", cfg.HeaterConfig).Return(nil).Once()
-	r.Nil(h.Configure(cfg))
+	m.On("Configure", cfg.HeaterConfig).Return(cfg.HeaterConfig, nil).Once()
+	_, err = h.Configure(cfg)
+	r.Nil(err)
 
 	// Verify
 	configs := h.Configs()
@@ -683,8 +690,9 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal_DisableEnabledHeater() {
 	// Now configure global should call set and disable heater
 	globalConfig.Enabled = false
 	cfg.Enabled = false
-	m.On("Set", cfg.HeaterConfig).Return(nil).Once()
-	r.Nil(h.ConfigureGlobal(globalConfig))
+	m.On("Configure", cfg.HeaterConfig).Return(cfg.HeaterConfig, nil).Once()
+	_, err = h.ConfigureGlobal(globalConfig)
+	r.Nil(err)
 }
 
 func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
@@ -790,7 +798,7 @@ func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, err := distillation.NewHandlerHeaters(m)
@@ -798,12 +806,15 @@ func (t *HeaterHandlerSuite) TestConfigure_EnableHeater() {
 		r.NotNil(h)
 
 		for _, glob := range arg.newGlobal {
-			r.Nil(h.ConfigureGlobal(glob))
+			_, err = h.ConfigureGlobal(glob)
+			r.Nil(err)
 		}
 
 		for _, cfg := range arg.newConfig {
-			m.Mock.On("Set", cfg.HeaterConfig).Return(nil).Once()
-			r.Nil(h.Configure(cfg))
+			m.Mock.On("Configure", cfg.HeaterConfig).Return(cfg.HeaterConfig, nil).Once()
+			c, err := h.Configure(cfg)
+			r.Nil(err)
+			r.Equal(cfg.HeaterConfig, c.HeaterConfig)
 		}
 	}
 }
@@ -872,15 +883,16 @@ func (t *HeaterHandlerSuite) TestConfigure_CantEnableHeater() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig.HeaterConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig.HeaterConfig).Return(expectedConfig.HeaterConfig, nil).Once()
 		}
 
 		h, err := distillation.NewHandlerHeaters(m)
 		r.Nil(err)
 		r.NotNil(h)
 		for i := range arg.expectedWrite {
-			m.Mock.On("Set", arg.expectedWrite[i]).Return(nil).Once()
-			r.Nil(h.Configure(arg.newConfig[i]))
+			m.Mock.On("Configure", arg.expectedWrite[i]).Return(arg.expectedWrite[i], nil).Once()
+			_, err := h.Configure(arg.newConfig[i])
+			r.Nil(err)
 		}
 	}
 
@@ -941,7 +953,7 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal() {
 					Enabled: true,
 				},
 			},
-			errs: []error{distillation.ErrNoSuchHeater, nil},
+			errs: []error{distillation.ErrNoSuchID, nil},
 		},
 	}
 	expectedConfig := embedded.HeaterConfig{
@@ -957,7 +969,7 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, err := distillation.NewHandlerHeaters(m)
@@ -965,7 +977,7 @@ func (t *HeaterHandlerSuite) TestConfigureGlobal() {
 		r.NotNil(h)
 
 		for i, global := range arg.newGlobal {
-			err = h.ConfigureGlobal(global)
+			_, err = h.ConfigureGlobal(global)
 			if arg.errs[i] != nil {
 				r.ErrorContains(err, arg.errs[i].Error())
 				continue
@@ -1027,7 +1039,7 @@ func (t *HeaterHandlerSuite) TestNew_GetGetGlobal() {
 		// On new handler should set config to initial state - disabled and power = 0
 		for _, heater := range arg.heaters {
 			expectedConfig.ID = heater.ID
-			m.Mock.On("Set", expectedConfig).Return(nil).Once()
+			m.Mock.On("Configure", expectedConfig).Return(expectedConfig, nil).Once()
 		}
 
 		h, err := distillation.NewHandlerHeaters(m)
@@ -1054,6 +1066,7 @@ func (m *HeaterMock) Get() ([]embedded.HeaterConfig, error) {
 	return args.Get(0).([]embedded.HeaterConfig), args.Error(1)
 }
 
-func (m *HeaterMock) Set(heater embedded.HeaterConfig) error {
-	return m.Called(heater).Error(0)
+func (m *HeaterMock) Configure(heater embedded.HeaterConfig) (embedded.HeaterConfig, error) {
+	args := m.Called(heater)
+	return args.Get(0).(embedded.HeaterConfig), args.Error(1)
 }

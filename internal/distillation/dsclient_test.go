@@ -93,14 +93,14 @@ func (d *DSClientSuite) Test_Configure() {
 
 	// Error on set now
 	errSet := errors.New("hello world")
-	m.On("Set", mock.Anything).Return(errSet).Once()
+	m.On("Configure", mock.Anything).Return(embedded.DSSensorConfig{}, errSet).Once()
 	_, err = ds.Configure(distillation.DSConfig{DSSensorConfig: onGet[0]})
 	t.NotNil(err)
 	t.ErrorContains(err, errSet.Error())
 
 	// All good now
 	onGet[0].Enabled = true
-	m.On("Set", mock.Anything).Return(nil).Once()
+	m.On("Configure", onGet[0]).Return(onGet[0], nil).Once()
 	cfg, err := ds.Configure(distillation.DSConfig{DSSensorConfig: onGet[0]})
 	t.Nil(err)
 	t.Equal(cfg, distillation.DSConfig{DSSensorConfig: onGet[0]})

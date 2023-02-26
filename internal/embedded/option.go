@@ -53,9 +53,9 @@ func WithPT(pt []PTSensor) Option {
 
 func WithGPIOs(gpios []GPIO) Option {
 	return func(h *Handler) error {
-		h.GPIO.gpios = make(map[string]*gpioHandler)
+		h.GPIO.io = make(map[string]*gpioHandler)
 		for _, gpio := range gpios {
-			h.GPIO.gpios[gpio.ID()] = &gpioHandler{
+			h.GPIO.io[gpio.ID()] = &gpioHandler{
 				GPIO: gpio}
 		}
 		return nil

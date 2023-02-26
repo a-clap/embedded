@@ -166,7 +166,6 @@ func (p *PTClientSuite) Test_Configure() {
 
 	// Error on set now
 	errSet := errors.New("hello world")
-	// m.On("Set", mock.Anything).Return(errSet).Once()
 	cfgs[0].Samples = 15
 	mocks[0].On("Configure", mock.Anything).Return(errSet).Once()
 	_, err = pt.Configure(cfgs[0])

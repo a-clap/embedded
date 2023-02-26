@@ -14,13 +14,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-var (
-	ErrNoSuchHeater = errors.New("no such heater with id: ")
-)
-
 type Heaters interface {
 	Get() ([]embedded.HeaterConfig, error)
-	Set(heater embedded.HeaterConfig) error
+	Configure(heater embedded.HeaterConfig) (embedded.HeaterConfig, error)
 }
 
 type HeaterConfigGlobal struct {
@@ -80,7 +76,8 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 			return
 		}
 
-		if err := h.HeatersHandler.Configure(cfg); err != nil {
+		cfg, err := h.HeatersHandler.Configure(cfg)
+		if err != nil {
 			e := &Error{
 				Title:     "Failed to Configure",
 				Detail:    err.Error(),
@@ -90,20 +87,7 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-
-		newCfg, err := h.HeatersHandler.Config(cfg.ID)
-		if err != nil {
-			e := &Error{
-				Title:     "Failed to Config",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigureHeater,
-				Timestamp: time.Now(),
-			}
-			h.respond(ctx, http.StatusInternalServerError, e)
-			return
-		}
-
-		h.respond(ctx, http.StatusOK, newCfg)
+		h.respond(ctx, http.StatusOK, cfg)
 	}
 }
 func (h *Handler) enableHeater() gin.HandlerFunc {
@@ -129,7 +113,8 @@ func (h *Handler) enableHeater() gin.HandlerFunc {
 			h.respond(ctx, http.StatusBadRequest, e)
 			return
 		}
-		if err := h.HeatersHandler.ConfigureGlobal(cfg); err != nil {
+		newCfg, err := h.HeatersHandler.ConfigureGlobal(cfg)
+		if err != nil {
 			e := &Error{
 				Title:     "Failed to ConfigureGlobal",
 				Detail:    err.Error(),
@@ -139,19 +124,6 @@ func (h *Handler) enableHeater() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-
-		newCfg, err := h.HeatersHandler.ConfigGlobal(cfg.ID)
-		if err != nil {
-			e := &Error{
-				Title:     "Failed to ConfigGlobal",
-				Detail:    err.Error(),
-				Instance:  RoutesEnableHeater,
-				Timestamp: time.Now(),
-			}
-			h.respond(ctx, http.StatusInternalServerError, e)
-			return
-		}
-
 		h.respond(ctx, http.StatusOK, newCfg)
 	}
 }
@@ -231,7 +203,7 @@ func (h *HeatersHandler) init() error {
 		}
 
 		h.heaters[id] = &cfg
-		if err = h.Configure(cfg); err != nil {
+		if _, err = h.Configure(cfg); err != nil {
 			return err
 		}
 
@@ -247,10 +219,11 @@ func (h *HeatersHandler) ConfigsGlobal() []HeaterConfigGlobal {
 	return heaters
 }
 
-func (h *HeatersHandler) ConfigureGlobal(cfg HeaterConfigGlobal) error {
+func (h *HeatersHandler) ConfigureGlobal(cfg HeaterConfigGlobal) (HeaterConfigGlobal, error) {
+	c := HeaterConfigGlobal{}
 	maybeHeater, ok := h.heaters[cfg.ID]
 	if !ok {
-		return &HeaterError{ID: cfg.ID, Op: "ConfigureGlobal", Err: ErrNoSuchHeater.Error()}
+		return c, &HeaterError{ID: cfg.ID, Op: "ConfigureGlobal", Err: ErrNoSuchID.Error()}
 	}
 
 	if maybeHeater.global.Enabled != cfg.Enabled {
@@ -258,12 +231,12 @@ func (h *HeatersHandler) ConfigureGlobal(cfg HeaterConfigGlobal) error {
 		// Do we need to disable heater?
 		if !maybeHeater.global.Enabled && maybeHeater.HeaterConfig.Enabled {
 			maybeHeater.HeaterConfig.Enabled = false
-			if err := h.Configure(*maybeHeater); err != nil {
-				return err
+			if _, err := h.Configure(*maybeHeater); err != nil {
+				return c, err
 			}
 		}
 	}
-	return nil
+	return maybeHeater.global, nil
 }
 
 func (h *HeatersHandler) Configs() []HeaterConfig {
@@ -279,7 +252,7 @@ func (h *HeatersHandler) Configs() []HeaterConfig {
 func (h *HeatersHandler) Config(id string) (embedded.HeaterConfig, error) {
 	cfg, ok := h.heaters[id]
 	if !ok {
-		return embedded.HeaterConfig{}, &HeaterError{ID: id, Op: "Config", Err: ErrNoSuchHeater.Error()}
+		return embedded.HeaterConfig{}, &HeaterError{ID: id, Op: "Config", Err: ErrNoSuchID.Error()}
 	}
 	return cfg.HeaterConfig, nil
 }
@@ -287,19 +260,24 @@ func (h *HeatersHandler) Config(id string) (embedded.HeaterConfig, error) {
 func (h *HeatersHandler) ConfigGlobal(id string) (HeaterConfigGlobal, error) {
 	cfg, ok := h.heaters[id]
 	if !ok {
-		return HeaterConfigGlobal{}, &HeaterError{ID: id, Op: "Config", Err: ErrNoSuchHeater.Error()}
+		return HeaterConfigGlobal{}, &HeaterError{ID: id, Op: "Config", Err: ErrNoSuchID.Error()}
 	}
 	return cfg.global, nil
 }
 
-func (h *HeatersHandler) Configure(cfg HeaterConfig) error {
+func (h *HeatersHandler) Configure(cfg HeaterConfig) (HeaterConfig, error) {
+	c := HeaterConfig{}
 	maybeHeater, ok := h.heaters[cfg.ID]
 	if !ok {
-		return &HeaterError{ID: cfg.ID, Op: "ConfigureGlobal", Err: ErrNoSuchHeater.Error()}
+		return c, &HeaterError{ID: cfg.ID, Op: "ConfigureGlobal", Err: ErrNoSuchID.Error()}
 	}
 	// Global has to be set
 	maybeHeater.Enabled = maybeHeater.global.Enabled && cfg.Enabled
 	maybeHeater.Power = cfg.Power
-	err := h.Heaters.Set(maybeHeater.HeaterConfig)
-	return err
+	newConfig, err := h.Heaters.Configure(maybeHeater.HeaterConfig)
+	if err != nil {
+		maybeHeater.HeaterConfig = newConfig
+	}
+
+	return *maybeHeater, err
 }

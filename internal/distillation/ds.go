@@ -43,7 +43,7 @@ func (d *DSError) Error() string {
 // DS access to on-board DS18B20 sensors
 type DS interface {
 	Get() ([]embedded.DSSensorConfig, error)
-	Set(s embedded.DSSensorConfig) error
+	Configure(s embedded.DSSensorConfig) (embedded.DSSensorConfig, error)
 	Temperatures() ([]embedded.DSTemperature, error)
 }
 
@@ -129,7 +129,8 @@ func (h *Handler) configureDS() gin.HandlerFunc {
 			return
 		}
 
-		if err := h.DSHandler.ConfigureSensor(cfg); err != nil {
+		newcfg, err := h.DSHandler.ConfigureSensor(cfg)
+		if err != nil {
 			e := &Error{
 				Title:     "Failed to ConfigureSensor",
 				Detail:    err.Error(),
@@ -139,18 +140,7 @@ func (h *Handler) configureDS() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
-		cfg, err := h.DSHandler.GetConfig(cfg.ID)
-		if err != nil {
-			e := &Error{
-				Title:     "Failed to GetConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigureDS,
-				Timestamp: time.Now(),
-			}
-			h.respond(ctx, http.StatusInternalServerError, e)
-			return
-		}
-		h.respond(ctx, http.StatusOK, cfg)
+		h.respond(ctx, http.StatusOK, newcfg)
 	}
 }
 
@@ -237,16 +227,18 @@ func (d *DSHandler) Temperature(id string) (float32, error) {
 	return ds.temps.Readings[size-1].Average, nil
 }
 
-func (d *DSHandler) ConfigureSensor(cfg DSConfig) error {
+func (d *DSHandler) ConfigureSensor(cfg DSConfig) (DSConfig, error) {
+	newConfig := DSConfig{}
 	ds, ok := d.sensors[cfg.ID]
 	if !ok {
-		return &DSError{ID: cfg.ID, Op: "ConfigureSensor", Err: ErrNoSuchID.Error()}
+		return newConfig, &DSError{ID: cfg.ID, Op: "ConfigureSensor", Err: ErrNoSuchID.Error()}
 	}
-	if err := d.DS.Set(cfg.DSSensorConfig); err != nil {
-		return &DSError{ID: cfg.ID, Op: "ConfigureSensor.Set", Err: err.Error()}
+	newCfg, err := d.DS.Configure(cfg.DSSensorConfig)
+	if err != nil {
+		return newConfig, &DSError{ID: cfg.ID, Op: "ConfigureSensor.Set", Err: err.Error()}
 	}
-	ds.DSSensorConfig = cfg.DSSensorConfig
-	return nil
+	ds.DSSensorConfig = newCfg
+	return *ds, nil
 }
 
 func (d *DSHandler) GetConfig(id string) (DSConfig, error) {

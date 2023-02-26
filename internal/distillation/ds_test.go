@@ -415,7 +415,7 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 	for _, arg := range args {
 		m := new(DSMock)
 		m.On("Get").Return(arg.onGet, nil)
-		m.On("Set", arg.newConfig.DSSensorConfig).Return(arg.onSetErr)
+		m.On("Configure", arg.newConfig.DSSensorConfig).Return(arg.newConfig.DSSensorConfig, arg.onSetErr)
 		h, err := distillation.New(distillation.WithDS(m))
 		r.Nil(err, arg.name)
 
@@ -1325,15 +1325,16 @@ func (t *DSTestSuite) TestConfigureSensor() {
 	for _, arg := range args {
 		m := new(DSMock)
 		m.On("Get").Return(arg.onGet, nil)
-		m.On("Set", arg.newConfig.DSSensorConfig).Return(arg.onSetErr)
+		m.On("Configure", arg.newConfig.DSSensorConfig).Return(arg.newConfig.DSSensorConfig, arg.onSetErr)
 		ds, err := distillation.NewDSHandler(m)
 		r.Nil(err, arg.name)
 
-		err = ds.ConfigureSensor(arg.newConfig)
+		cfg, err := ds.ConfigureSensor(arg.newConfig)
 		if arg.errContains != "" {
 			r.ErrorContains(err, arg.errContains, arg.name)
 			continue
 		}
+		r.EqualValues(arg.newConfig, cfg)
 		r.Nil(err, arg.name)
 	}
 }
@@ -1577,9 +1578,9 @@ func (m *DSMock) Get() ([]embedded.DSSensorConfig, error) {
 	return args.Get(0).([]embedded.DSSensorConfig), args.Error(1)
 }
 
-func (m *DSMock) Set(s embedded.DSSensorConfig) error {
+func (m *DSMock) Configure(s embedded.DSSensorConfig) (embedded.DSSensorConfig, error) {
 	args := m.Called(s)
-	return args.Error(0)
+	return args.Get(0).(embedded.DSSensorConfig), args.Error(1)
 }
 
 func (m *DSMock) Temperatures() ([]embedded.DSTemperature, error) {

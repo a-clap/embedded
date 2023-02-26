@@ -93,14 +93,14 @@ func (p *PTClientSuite) Test_Configure() {
 
 	// Error on set now
 	errSet := errors.New("hello world")
-	m.On("Set", mock.Anything).Return(errSet).Once()
+	m.On("Configure", mock.Anything).Return(embedded.PTSensorConfig{}, errSet).Once()
 	_, err = pt.Configure(distillation.PTConfig{PTSensorConfig: onGet[0]})
 	t.NotNil(err)
 	t.ErrorContains(err, errSet.Error())
 
 	// All good now
 	onGet[0].Enabled = true
-	m.On("Set", mock.Anything).Return(nil).Once()
+	m.On("Configure", onGet[0]).Return(onGet[0], nil).Once()
 	cfg, err := pt.Configure(distillation.PTConfig{PTSensorConfig: onGet[0]})
 	t.Nil(err)
 	t.Equal(cfg, distillation.PTConfig{PTSensorConfig: onGet[0]})

@@ -42,7 +42,7 @@ func (p *HeaterClientSuite) Test_Configure() {
 		},
 	}
 	m.On("Get").Return(onGet, nil)
-	m.On("Set", mock.Anything).Return(nil).Once()
+	m.On("Configure", mock.Anything).Return(onGet[0], nil).Once()
 	h, _ := distillation.New(distillation.WithHeaters(m))
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -53,19 +53,19 @@ func (p *HeaterClientSuite) Test_Configure() {
 	// Expected error - heater doesn't exist
 	_, err := hc.Configure(distillation.HeaterConfig{})
 	t.NotNil(err)
-	t.ErrorContains(err, distillation.ErrNoSuchHeater.Error())
+	t.ErrorContains(err, distillation.ErrNoSuchID.Error())
 	t.ErrorContains(err, distillation.RoutesConfigureHeater)
 
 	// Error on set
 	errSet := errors.New("hello world")
-	m.On("Set", mock.Anything).Return(errSet).Once()
+	m.On("Configure", mock.Anything).Return(onGet[0], errSet).Once()
 	_, err = hc.Configure(distillation.HeaterConfig{HeaterConfig: onGet[0]})
 	t.NotNil(err)
 	t.ErrorContains(err, errSet.Error())
 
 	// All good
-	m.On("Set", mock.Anything).Return(nil).Once()
 	onGet[0].Power = 17
+	m.On("Configure", mock.Anything).Return(onGet[0], nil).Once()
 	cfg, err := hc.Configure(distillation.HeaterConfig{HeaterConfig: onGet[0]})
 	t.Nil(err)
 	t.EqualValues(onGet[0], cfg.HeaterConfig)
@@ -83,7 +83,7 @@ func (p *HeaterClientSuite) Test_Enable() {
 	}
 
 	m.On("Get").Return(onGet, nil)
-	m.On("Set", mock.Anything).Return(nil).Once()
+	m.On("Configure", mock.Anything).Return(onGet[0], nil).Once()
 	h, _ := distillation.New(distillation.WithHeaters(m))
 	srv := httptest.NewServer(h)
 	defer srv.Close()
@@ -97,7 +97,7 @@ func (p *HeaterClientSuite) Test_Enable() {
 	// Expected error - heater doesn't exist
 	_, err = hc.Enable(distillation.HeaterConfigGlobal{})
 	t.NotNil(err)
-	t.ErrorContains(err, distillation.ErrNoSuchHeater.Error())
+	t.ErrorContains(err, distillation.ErrNoSuchID.Error())
 	t.ErrorContains(err, distillation.RoutesEnableHeater)
 
 	// All good now
