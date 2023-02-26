@@ -18,6 +18,7 @@ type Handler struct {
 	HeatersHandler *HeatersHandler
 	DSHandler      *DSHandler
 	PTHandler      *PTHandler
+	GPIOHandler    *GPIOHandler
 	running        atomic.Bool
 }
 

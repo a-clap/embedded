@@ -22,6 +22,9 @@ const (
 	RoutesGetPT             = "/api/pt100"
 	RoutesConfigurePT       = "/api/pt100"
 	RoutesGetPTTemperatures = "/api/pt100/temperatures"
+
+	RoutesGetGPIO       = "/api/gpio"
+	RoutesConfigureGPIO = "/api/gpio"
 )
 
 var (
@@ -42,6 +45,10 @@ func (h *Handler) routes() {
 	h.GET(RoutesGetPT, h.getPT())
 	h.GET(RoutesGetPTTemperatures, h.getPTTemperatures())
 	h.PUT(RoutesConfigurePT, h.configurePT())
+
+	h.GET(RoutesGetGPIO, h.getGPIO())
+	h.PUT(RoutesConfigureGPIO, h.configureGPIO())
+
 }
 
 // common respond for whole rest API

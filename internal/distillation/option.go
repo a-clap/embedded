@@ -13,6 +13,12 @@ func WithHeaters(heaters Heaters) Option {
 		return err
 	}
 }
+func WithGPIO(gpio GPIO) Option {
+	return func(h *Handler) (err error) {
+		h.GPIOHandler, err = NewGPIOHandler(gpio)
+		return err
+	}
+}
 
 func WithDS(ds DS) Option {
 	return func(h *Handler) (err error) {
