@@ -6,15 +6,10 @@
 package embedded
 
 import (
-	"errors"
 	"net/http"
 	"time"
 
 	"github.com/gin-gonic/gin"
-)
-
-var (
-	ErrHeaterDoesntExist = errors.New("heater doesn't exist")
 )
 
 type HeaterError struct {
@@ -54,6 +49,17 @@ type HeaterHandler struct {
 
 func (h *Handler) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		if len(h.Heaters.heaters) == 0 {
+			e := &Error{
+				Title:     "Failed to Config",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
+			return
+		}
+
 		cfg := HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
 			e := &Error{
@@ -84,10 +90,18 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 
 func (h *Handler) getHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		heaters := h.Heaters.Status()
+		var heaters []HeaterConfig
+		if len(h.Heaters.heaters) != 0 {
+			heaters = h.Heaters.Status()
+		}
 		if len(heaters) == 0 {
-			notImpl := HeaterError{ID: "", Op: "GetTemperatures", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, &notImpl)
+			e := &Error{
+				Title:     "Failed to Config",
+				Detail:    ErrNotImplemented.Error(),
+				Instance:  RoutesConfigHeater,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 		h.respond(ctx, http.StatusOK, heaters)
@@ -157,7 +171,7 @@ func (h *HeaterHandler) Status() []HeaterConfig {
 func (h *HeaterHandler) by(id string) (Heater, error) {
 	maybeHeater, ok := h.heaters[id]
 	if !ok {
-		return nil, ErrHeaterDoesntExist
+		return nil, ErrNoSuchID
 	}
 	return maybeHeater, nil
 }

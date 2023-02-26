@@ -328,10 +328,10 @@ func (t *HeaterTestSuite) TestHeater_NoHeaters() {
 	handler := mainHandler.Heaters
 
 	err = handler.Power("b", 1)
-	t.ErrorContains(err, embedded.ErrHeaterDoesntExist.Error())
+	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 
 	err = handler.Enable("", true)
-	t.ErrorContains(err, embedded.ErrHeaterDoesntExist.Error())
+	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 
 	stat := handler.Status()
 	t.Len(stat, 0)

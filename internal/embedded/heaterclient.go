@@ -5,24 +5,25 @@
 
 package embedded
 
-// type HeaterClient struct {
-// 	addr    string
-// 	timeout time.Duration
-// }
-//
-// func NewHeaterClient(addr string, timeout time.Duration) *HeaterClient {
-// 	return &HeaterClient{addr: addr, timeout: timeout}
-// }
-//
-// func (p *HeaterClient) GetSensors() ([]HeaterConfig, error) {
-// 	return restclient.Get[[]HeaterConfig, *Error](p.addr+RoutesGetPT, p.timeout)
-// }
-//
-// func (p *HeaterClient) Configure(setConfig HeaterConfig) (HeaterConfig, error) {
-// 	return restclient.Put[HeaterConfig, *Error](p.addr+RoutesConfigurePT, p.timeout, setConfig)
-// }
-//
-// func (p *HeaterClient) Temperatures() ([]PTTemperature, error) {
-// 	return restclient.Get[[]PTTemperature, *Error](p.addr+RoutesGetPTTemperatures, p.timeout)
-// }
-//
+import (
+	"time"
+
+	"github.com/a-clap/iot/internal/restclient"
+)
+
+type HeaterClient struct {
+	addr    string
+	timeout time.Duration
+}
+
+func NewHeaterClient(addr string, timeout time.Duration) *HeaterClient {
+	return &HeaterClient{addr: addr, timeout: timeout}
+}
+
+func (p *HeaterClient) Get() ([]HeaterConfig, error) {
+	return restclient.Get[[]HeaterConfig, *Error](p.addr+RoutesGetHeaters, p.timeout)
+}
+
+func (p *HeaterClient) Configure(setConfig HeaterConfig) (HeaterConfig, error) {
+	return restclient.Put[HeaterConfig, *Error](p.addr+RoutesConfigHeater, p.timeout, setConfig)
+}
