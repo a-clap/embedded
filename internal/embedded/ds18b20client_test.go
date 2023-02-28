@@ -156,7 +156,7 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 	defer srv.Close()
 
 	pt := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
-	s, err := pt.GetSensors()
+	s, err := pt.Get()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(cfgs, s)
@@ -193,7 +193,7 @@ func (p *DS18B20ClientSuite) Test_NotImplemented() {
 
 	pt := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
 
-	s, err := pt.GetSensors()
+	s, err := pt.Get()
 	t.Nil(s)
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())

@@ -20,7 +20,7 @@ func NewDS18B20Client(addr string, timeout time.Duration) *DS18B20Client {
 	return &DS18B20Client{addr: addr, timeout: timeout}
 }
 
-func (p *DS18B20Client) GetSensors() ([]DSSensorConfig, error) {
+func (p *DS18B20Client) Get() ([]DSSensorConfig, error) {
 	return restclient.Get[[]DSSensorConfig, *Error](p.addr+RoutesGetOnewireSensors, p.timeout)
 }
 

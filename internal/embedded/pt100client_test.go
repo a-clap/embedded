@@ -153,7 +153,7 @@ func (p *PTClientSuite) Test_Configure() {
 	defer srv.Close()
 
 	pt := embedded.NewPTClient(srv.URL, 1*time.Second)
-	s, err := pt.GetSensors()
+	s, err := pt.Get()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(cfgs, s)
@@ -190,7 +190,7 @@ func (p *PTClientSuite) Test_NotImplemented() {
 
 	pt := embedded.NewPTClient(srv.URL, 1*time.Second)
 
-	s, err := pt.GetSensors()
+	s, err := pt.Get()
 	t.Nil(s)
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())

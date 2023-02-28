@@ -20,7 +20,7 @@ func NewPTClient(addr string, timeout time.Duration) *PTClient {
 	return &PTClient{addr: addr, timeout: timeout}
 }
 
-func (p *PTClient) GetSensors() ([]PTSensorConfig, error) {
+func (p *PTClient) Get() ([]PTSensorConfig, error) {
 	return restclient.Get[[]PTSensorConfig, *Error](p.addr+RoutesGetPT100Sensors, p.timeout)
 }
 
