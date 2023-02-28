@@ -6,7 +6,9 @@
 package distillation
 
 import (
-	"errors"
+	"log"
+	"sync/atomic"
+	"time"
 
 	"github.com/gin-gonic/gin"
 )
@@ -16,6 +18,7 @@ type Handler struct {
 	HeatersHandler *HeatersHandler
 	DSHandler      *DSHandler
 	PTHandler      *PTHandler
+	running        atomic.Bool
 }
 
 func New(opts ...Option) (*Handler, error) {
@@ -31,41 +34,23 @@ func New(opts ...Option) (*Handler, error) {
 	return h, nil
 }
 
-const (
-	RoutesConfigHeater        = "/api/heater/all"
-	RoutesGetAllHeaters       = "/api/heater/all"
-	RoutesGetEnabledHeaters   = "/api/heater/phase"
-	RoutesConfigEnabledHeater = "/api/heater/phase"
-	RoutesGetDS               = "/api/ds"
-	RoutesConfigureDS         = "/api/ds"
-	RoutesGetDSTemperatures   = "/api/ds/temperatures"
+func (h *Handler) Run(addr ...string) error {
+	h.running.Store(true)
+	if h.PTHandler != nil {
+		go h.updatePTs()
+	}
+	err := h.Engine.Run(addr...)
+	h.running.Store(false)
 
-	RoutesGetPT             = "/api/pt"
-	RoutesConfigurePT       = "/api/pt"
-	RoutesGetPTTemperatures = "/api/pt/temperatures"
-)
-
-var (
-	ErrNotImplemented = errors.New("not implemented")
-)
-
-// routes configures default handlers for paths above
-func (h *Handler) routes() {
-	h.GET(RoutesGetAllHeaters, h.getAllHeaters())
-	h.GET(RoutesGetEnabledHeaters, h.getEnabledHeaters())
-	h.PUT(RoutesConfigHeater, h.configHeater())
-	h.PUT(RoutesConfigEnabledHeater, h.configEnabledHeater())
-
-	h.GET(RoutesGetDS, h.getDS())
-	h.GET(RoutesGetDSTemperatures, h.getDSTemperatures())
-	h.PUT(RoutesConfigureDS, h.configureDS())
-
-	h.GET(RoutesGetPT, h.getPT())
-	h.GET(RoutesGetPTTemperatures, h.getPTTemperatures())
-	h.PUT(RoutesConfigurePT, h.configurePT())
+	return err
 }
 
-// common respond for whole rest API
-func (*Handler) respond(ctx *gin.Context, code int, obj any) {
-	ctx.JSON(code, obj)
+func (h *Handler) updatePTs() {
+	for h.running.Load() {
+		<-time.After(1 * time.Second)
+		errs := h.PTHandler.Update()
+		if errs != nil {
+			log.Println(errs)
+		}
+	}
 }
