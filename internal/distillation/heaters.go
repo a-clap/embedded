@@ -150,13 +150,9 @@ func (h *Handler) getAllHeaters() gin.HandlerFunc {
 
 func (h *Handler) getEnabledHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var heaters []HeaterConfig
-		if h.HeatersHandler != nil {
-			heaters = h.HeatersHandler.Configs()
-		}
-		if len(heaters) == 0 {
+		if h.HeatersHandler == nil {
 			e := &Error{
-				Title:     "Failed to ConfigsGlobal",
+				Title:     "Failed to GetEnabledHeaters",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesGetEnabledHeaters,
 				Timestamp: time.Now(),
@@ -164,6 +160,7 @@ func (h *Handler) getEnabledHeaters() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
+		heaters := h.HeatersHandler.Configs()
 		h.respond(ctx, http.StatusOK, heaters)
 	}
 }
