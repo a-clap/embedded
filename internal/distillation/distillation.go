@@ -6,7 +6,6 @@
 package distillation
 
 import (
-	"log"
 	"sync/atomic"
 	"time"
 
@@ -51,7 +50,7 @@ func (h *Handler) updatePTs() {
 		<-time.After(1 * time.Second)
 		errs := h.PTHandler.Update()
 		if errs != nil {
-			log.Println(errs)
+			log.Debug(errs)
 		}
 	}
 }

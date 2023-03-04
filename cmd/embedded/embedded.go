@@ -39,7 +39,11 @@ func getMockedEmbedded() *embedded.Handler {
 	}{
 		{
 			bus: "1",
-			id:  "2",
+			id:  "ds_1",
+		},
+		{
+			bus: "1",
+			id:  "ds_2",
 		},
 	}
 	dss := make([]embedded.DSSensor, len(dsIds))
