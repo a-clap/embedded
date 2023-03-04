@@ -34,9 +34,9 @@ func (d *DSError) Error() string {
 type DSSensor interface {
 	Name() (bus string, id string)
 	Poll() (err error)
-	Temperature() (actual, average float32, err error)
+	Temperature() (actual, average float64, err error)
 	GetReadings() []ds18b20.Readings
-	Average() float32
+	Average() float64
 	Configure(config ds18b20.SensorConfig) error
 	GetConfig() ds18b20.SensorConfig
 	Close() error
@@ -156,7 +156,7 @@ func (d *DSHandler) GetTemperatures() []DSTemperature {
 
 	return sensors
 }
-func (d *DSHandler) Temperature(cfg ds18b20.SensorConfig) (float32, float32, error) {
+func (d *DSHandler) Temperature(cfg ds18b20.SensorConfig) (float64, float64, error) {
 	ds, err := d.sensorBy(cfg.ID)
 	if err != nil {
 		return 0, 0, &DSError{ID: cfg.ID, Op: "Temperature", Err: err.Error()}

@@ -61,11 +61,11 @@ func (p *PT) GetConfig() max31865.SensorConfig {
 	return p.cfg
 }
 
-func (p *PT) Average() float32 {
+func (p *PT) Average() float64 {
 	return p.average.Average()
 }
 
-func (p *PT) Temperature() (actual float32, average float32, err error) {
+func (p *PT) Temperature() (actual float64, average float64, err error) {
 	return p.r.Temperature, p.Average(), nil
 }
 
@@ -75,7 +75,7 @@ func (p *PT) GetReadings() []max31865.Readings {
 	const max = 76.0
 
 	if p.polling {
-		t := min + rand.Float32()*(max-min)
+		t := min + rand.Float64()*(max-min)
 		t += p.cfg.Correction
 
 		p.average.Add(t)

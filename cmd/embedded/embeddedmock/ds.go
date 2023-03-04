@@ -49,7 +49,7 @@ func (d *DS) Poll() (err error) {
 	return nil
 }
 
-func (d *DS) Temperature() (actual, average float32, err error) {
+func (d *DS) Temperature() (actual, average float64, err error) {
 	return d.r.Temperature, d.Average(), nil
 }
 
@@ -58,7 +58,7 @@ func (d *DS) GetReadings() []ds18b20.Readings {
 	const max = 76.0
 
 	if d.polling {
-		t := min + rand.Float32()*(max-min)
+		t := min + rand.Float64()*(max-min)
 		t += d.cfg.Correction
 
 		d.average.Add(t)
@@ -75,7 +75,7 @@ func (d *DS) GetReadings() []ds18b20.Readings {
 	return []ds18b20.Readings{d.r}
 }
 
-func (d *DS) Average() float32 {
+func (d *DS) Average() float64 {
 	return d.average.Average()
 }
 

@@ -31,14 +31,14 @@ func WithWiring(wiring Wiring) Option {
 	}
 }
 
-func WithRefRes(res float32) Option {
+func WithRefRes(res float64) Option {
 	return func(s *Sensor) error {
 		s.configReg.refRes = res
 		return nil
 	}
 }
 
-func WithRNominal(nominal float32) Option {
+func WithRNominal(nominal float64) Option {
 	return func(s *Sensor) error {
 		s.configReg.rNominal = nominal
 		return nil

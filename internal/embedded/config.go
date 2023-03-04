@@ -35,8 +35,8 @@ type ConfigDS18B20 struct {
 type ConfigPT100 struct {
 	Path     string          `json:"path"`
 	ID       string          `json:"id"`
-	RNominal float32         `json:"r_nominal"`
-	RRef     float32         `json:"r_ref"`
+	RNominal float64         `json:"r_nominal"`
+	RRef     float64         `json:"r_ref"`
 	Wiring   max31865.Wiring `json:"wiring"`
 	ReadyPin gpio.Pin        `json:"ready_pin"`
 }

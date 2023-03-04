@@ -42,15 +42,15 @@ func (t *AvgTestSuite) TestResize() {
 	args := []struct {
 		name                                            string
 		initSize, newSize                               uint
-		initValues, nextValues                          []int
+		initValues, nextValues                          []float64
 		initExpected, afterResizeExpected, nextExpected int
 	}{
 		{
 			name:                "make buffer bigger (values alredy present)",
 			initSize:            2,
 			newSize:             5,
-			initValues:          []int{2, 2},
-			nextValues:          []int{104, 104, 103},
+			initValues:          []float64{2, 2},
+			nextValues:          []float64{104, 104, 103},
 			initExpected:        2,
 			afterResizeExpected: 2,
 			nextExpected:        63,
@@ -59,8 +59,8 @@ func (t *AvgTestSuite) TestResize() {
 			name:                "make buffer bigger (no values inside)",
 			initSize:            2,
 			newSize:             5,
-			initValues:          []int{2, 2},
-			nextValues:          []int{104, 104, 103},
+			initValues:          []float64{2, 2},
+			nextValues:          []float64{104, 104, 103},
 			initExpected:        2,
 			afterResizeExpected: 2,
 			nextExpected:        63,
@@ -69,8 +69,8 @@ func (t *AvgTestSuite) TestResize() {
 			name:                "make buffer smaller (no values)",
 			initSize:            5,
 			newSize:             2,
-			initValues:          []int{},
-			nextValues:          []int{510},
+			initValues:          []float64{},
+			nextValues:          []float64{510},
 			initExpected:        0,
 			afterResizeExpected: 0,
 			nextExpected:        510,
@@ -79,8 +79,8 @@ func (t *AvgTestSuite) TestResize() {
 			name:                "make buffer bigger (no values)",
 			initSize:            2,
 			newSize:             5,
-			initValues:          []int{},
-			nextValues:          []int{510},
+			initValues:          []float64{},
+			nextValues:          []float64{510},
 			initExpected:        0,
 			afterResizeExpected: 0,
 			nextExpected:        510,
@@ -89,8 +89,8 @@ func (t *AvgTestSuite) TestResize() {
 			name:                "make buffer single (values already present)",
 			initSize:            5,
 			newSize:             1,
-			initValues:          []int{101, 102, 103, 104, 105},
-			nextValues:          []int{523},
+			initValues:          []float64{101, 102, 103, 104, 105},
+			nextValues:          []float64{523},
 			initExpected:        103,
 			afterResizeExpected: 105,
 			nextExpected:        523,
@@ -99,8 +99,8 @@ func (t *AvgTestSuite) TestResize() {
 			name:                "grow from single",
 			initSize:            1,
 			newSize:             5,
-			initValues:          []int{105},
-			nextValues:          []int{101, 102, 103, 104},
+			initValues:          []float64{105},
+			nextValues:          []float64{101, 102, 103, 104},
 			initExpected:        105,
 			afterResizeExpected: 105,
 			nextExpected:        103,
@@ -109,7 +109,7 @@ func (t *AvgTestSuite) TestResize() {
 	for _, arg := range args {
 		a, _ := avg.New(arg.initSize)
 		for _, initV := range arg.initValues {
-			a.Add(float32(initV))
+			a.Add(initV)
 		}
 		t.EqualValues(arg.initExpected, a.Average(), arg.name)
 
@@ -118,7 +118,7 @@ func (t *AvgTestSuite) TestResize() {
 		t.EqualValues(arg.afterResizeExpected, a.Average(), arg.name)
 
 		for _, next := range arg.nextValues {
-			a.Add(float32(next))
+			a.Add(next)
 		}
 		t.EqualValues(arg.nextExpected, a.Average(), arg.name)
 
@@ -162,7 +162,7 @@ func (t *AvgTestSuite) TestAverage_Float() {
 	for _, arg := range args {
 		a, _ := avg.New(arg.size)
 		for _, elem := range arg.values {
-			a.Add(float32(elem))
+			a.Add(elem)
 		}
 		t.InDelta(arg.expected, a.Average(), 0.01, arg.name)
 
@@ -175,44 +175,44 @@ func (t *AvgTestSuite) TestAverage_Int() {
 	args := []struct {
 		name     string
 		size     uint
-		values   []int
+		values   []float64
 		expected int
 	}{
 		{
 			name:     "basic",
 			size:     3,
-			values:   []int{1, 2, 3},
+			values:   []float64{1, 2, 3},
 			expected: 2,
 		},
 		{
 			name:     "less elements than size",
 			size:     3,
-			values:   []int{1, 9},
+			values:   []float64{1, 9},
 			expected: 5,
 		},
 		{
 			name:     "more elements than size",
 			size:     3,
-			values:   []int{3, 3, 3, 6},
+			values:   []float64{3, 3, 3, 6},
 			expected: 4,
 		},
 		{
 			name:     "much more elements than size",
 			size:     2,
-			values:   []int{0, 0, 0, 6, 12, 17, 34, 56, 100, 100},
+			values:   []float64{0, 0, 0, 6, 12, 17, 34, 56, 100, 100},
 			expected: 100,
 		},
 		{
 			name:     "none elements",
 			size:     2,
-			values:   []int{},
+			values:   []float64{},
 			expected: 0,
 		},
 	}
 	for _, arg := range args {
 		a, _ := avg.New(arg.size)
 		for _, elem := range arg.values {
-			a.Add(float32(elem))
+			a.Add(elem)
 		}
 		t.EqualValues(arg.expected, a.Average())
 

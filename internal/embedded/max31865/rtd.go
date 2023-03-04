@@ -34,12 +34,12 @@ func (r *rtd) rtd() uint16 {
 	return r.r
 }
 
-func (r *rtd) toTemperature(refRes float32, rNominal float32) float32 {
+func (r *rtd) toTemperature(refRes float64, rNominal float64) float64 {
 	const (
-		RtdA float32 = 3.9083e-3
-		RtdB float32 = -5.775e-7
+		RtdA float64 = 3.9083e-3
+		RtdB float64 = -5.775e-7
 	)
-	Rt := float32(r.r)
+	Rt := float64(r.r)
 	Rt /= 32768
 	Rt *= refRes
 
@@ -49,7 +49,7 @@ func (r *rtd) toTemperature(refRes float32, rNominal float32) float32 {
 	Z4 := 2 * RtdB
 
 	temp := Z2 + (Z3 * Rt)
-	temp = (float32(math.Sqrt(float64(temp))) + Z1) / Z4
+	temp = (math.Sqrt(temp) + Z1) / Z4
 
 	if temp >= 0 {
 		return temp

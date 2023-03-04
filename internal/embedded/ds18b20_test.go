@@ -452,13 +452,13 @@ func (m *DS18B20SensorMock) Poll() (err error) {
 	return m.Called().Error(0)
 }
 
-func (m *DS18B20SensorMock) Temperature() (actual, average float32, err error) {
+func (m *DS18B20SensorMock) Temperature() (actual, average float64, err error) {
 	args := m.Called()
-	return args.Get(0).(float32), args.Get(1).(float32), args.Error(2)
+	return args.Get(0).(float64), args.Get(1).(float64), args.Error(2)
 }
 
-func (m *DS18B20SensorMock) Average() float32 {
-	return m.Called().Get(0).(float32)
+func (m *DS18B20SensorMock) Average() float64 {
+	return m.Called().Get(0).(float64)
 }
 
 func (m *DS18B20SensorMock) Configure(config ds18b20.SensorConfig) error {

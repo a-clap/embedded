@@ -48,7 +48,7 @@ type Sensor struct {
 
 type SensorConfig struct {
 	ID           string        `json:"id"`
-	Correction   float32       `json:"correction"`
+	Correction   float64       `json:"correction"`
 	ASyncPoll    bool          `json:"a_sync_poll"`
 	PollInterval time.Duration `json:"poll_interval"`
 	Samples      uint          `json:"samples"`
@@ -56,8 +56,8 @@ type SensorConfig struct {
 
 type Readings struct {
 	ID          string    `json:"id"`
-	Temperature float32   `json:"temperature"`
-	Average     float32   `json:"average"`
+	Temperature float64   `json:"temperature"`
+	Average     float64   `json:"average"`
 	Stamp       time.Time `json:"stamp"`
 	Error       string    `json:"error"`
 }
@@ -231,11 +231,11 @@ func (s *Sensor) poll() {
 	close(s.fin)
 }
 
-func (s *Sensor) Average() float32 {
+func (s *Sensor) Average() float64 {
 	return s.average.Average()
 }
 
-func (s *Sensor) Temperature() (actual float32, average float32, err error) {
+func (s *Sensor) Temperature() (actual float64, average float64, err error) {
 	r, err := s.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it

@@ -27,8 +27,8 @@ const (
 type configReg struct {
 	id       string
 	wiring   Wiring
-	refRes   float32
-	rNominal float32
+	refRes   float64
+	rNominal float64
 }
 
 func newConfig() *configReg {

@@ -14,7 +14,7 @@ var (
 )
 
 type Avg struct {
-	buffer []float32
+	buffer []float64
 	size   uint
 }
 
@@ -24,12 +24,12 @@ func New(size uint) (*Avg, error) {
 	}
 
 	return &Avg{
-		buffer: make([]float32, 0, size),
+		buffer: make([]float64, 0, size),
 		size:   size,
 	}, nil
 }
 
-func (a *Avg) Add(value float32) {
+func (a *Avg) Add(value float64) {
 	p := uint(0)
 	newBufSize := uint(len(a.buffer) + 1)
 	if newBufSize > a.size {
@@ -39,7 +39,7 @@ func (a *Avg) Add(value float32) {
 
 }
 
-func (a *Avg) Average() (avg float32) {
+func (a *Avg) Average() (avg float64) {
 	if len(a.buffer) == 0 {
 		return
 	}
@@ -47,7 +47,7 @@ func (a *Avg) Average() (avg float32) {
 	for _, elem := range a.buffer {
 		avg += elem
 	}
-	return avg / float32(len(a.buffer))
+	return avg / float64(len(a.buffer))
 }
 
 func (a *Avg) Resize(newSize uint) error {

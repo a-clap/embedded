@@ -18,8 +18,8 @@ type PTSensor interface {
 	Poll() (err error)
 	Configure(config max31865.SensorConfig) error
 	GetConfig() max31865.SensorConfig
-	Average() float32
-	Temperature() (actual float32, average float32, err error)
+	Average() float64
+	Temperature() (actual float64, average float64, err error)
 	GetReadings() []max31865.Readings
 	Close() error
 }

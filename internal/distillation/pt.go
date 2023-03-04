@@ -60,7 +60,7 @@ type PTHandler struct {
 // PTTemperature - json returned from rest API
 type PTTemperature struct {
 	ID          string  `json:"ID"`
-	Temperature float32 `json:"temperature"`
+	Temperature float64 `json:"temperature"`
 }
 
 func (h *Handler) getPT() gin.HandlerFunc {
@@ -211,7 +211,7 @@ func (p *PTHandler) Temperatures() []PTTemperature {
 }
 
 // Temperature returns last read temperature
-func (p *PTHandler) Temperature(id string) (float32, error) {
+func (p *PTHandler) Temperature(id string) (float64, error) {
 	pt, ok := p.sensors[id]
 	if !ok {
 		return 0.0, &PTError{ID: id, Op: "Temperature", Err: ErrNoSuchID.Error()}

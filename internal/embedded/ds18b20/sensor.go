@@ -34,8 +34,8 @@ var (
 
 type Readings struct {
 	ID          string    `json:"id"`
-	Temperature float32   `json:"temperature"`
-	Average     float32   `json:"average"`
+	Temperature float64   `json:"temperature"`
+	Average     float64   `json:"average"`
 	Stamp       time.Time `json:"stamp"`
 	Error       string    `json:"error"`
 }
@@ -55,7 +55,7 @@ type Sensor struct {
 
 type SensorConfig struct {
 	ID           string        `json:"id"`
-	Correction   float32       `json:"correction"`
+	Correction   float64       `json:"correction"`
 	Resolution   Resolution    `json:"resolution"`
 	PollInterval time.Duration `json:"poll_interval"`
 	Samples      uint          `json:"samples"`
@@ -110,7 +110,7 @@ func (s *Sensor) Poll() (err error) {
 	return nil
 }
 
-func (s *Sensor) Temperature() (actual, avg float32, err error) {
+func (s *Sensor) Temperature() (actual, avg float64, err error) {
 	conv, err := s.readFile(s.temperaturePath)
 	if err != nil {
 		err = &Error{
@@ -132,7 +132,7 @@ func (s *Sensor) Temperature() (actual, avg float32, err error) {
 		}
 		conv = leading + conv
 	}
-	t64, err := strconv.ParseFloat(conv, 32)
+	t64, err := strconv.ParseFloat(conv, 64)
 	if err != nil {
 		err = &Error{
 			Bus: s.bus,
@@ -142,12 +142,12 @@ func (s *Sensor) Temperature() (actual, avg float32, err error) {
 		}
 		return 0, 0, err
 	}
-	tmp := float32(t64) + s.cfg.Correction
+	tmp := t64 + s.cfg.Correction
 	s.average.Add(tmp)
 	return tmp, s.Average(), nil
 }
 
-func (s *Sensor) Average() float32 {
+func (s *Sensor) Average() float64 {
 	return s.average.Average()
 }
 

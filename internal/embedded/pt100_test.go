@@ -452,14 +452,14 @@ func (p *PTMock) GetConfig() max31865.SensorConfig {
 	return args.Get(0).(max31865.SensorConfig)
 }
 
-func (p *PTMock) Average() float32 {
+func (p *PTMock) Average() float64 {
 	args := p.Called()
-	return args.Get(0).(float32)
+	return args.Get(0).(float64)
 }
 
-func (p *PTMock) Temperature() (actual float32, average float32, err error) {
+func (p *PTMock) Temperature() (actual float64, average float64, err error) {
 	args := p.Called()
-	return args.Get(0).(float32), args.Get(1).(float32), args.Error(2)
+	return args.Get(0).(float64), args.Get(1).(float64), args.Error(2)
 }
 
 func (p *PTMock) GetReadings() []max31865.Readings {

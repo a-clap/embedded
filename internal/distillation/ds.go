@@ -62,7 +62,7 @@ type DSHandler struct {
 // DSTemperature - json returned from rest API
 type DSTemperature struct {
 	ID          string  `json:"ID"`
-	Temperature float32 `json:"temperature"`
+	Temperature float64 `json:"temperature"`
 }
 
 func (h *Handler) getDS() gin.HandlerFunc {
@@ -213,7 +213,7 @@ func (d *DSHandler) Temperatures() []DSTemperature {
 }
 
 // Temperature returns last read temperature
-func (d *DSHandler) Temperature(id string) (float32, error) {
+func (d *DSHandler) Temperature(id string) (float64, error) {
 	ds, ok := d.sensors[id]
 	if !ok {
 		return 0.0, &DSError{ID: id, Op: "Temperature", Err: ErrNoSuchID.Error()}
