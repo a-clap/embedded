@@ -49,6 +49,8 @@ type ConfigGPIO struct {
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
+	log.Debugf("parsing ConfigHeater: %#v", config)
+
 	heaters := make(map[string]Heater, len(config))
 	var errs []error
 	for _, maybeHeater := range config {
@@ -57,7 +59,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 			heater.WitTimeTicker(),
 		)
 		if err != nil {
-			log.Error(err)
+			log.Errorf("failed to create Heater with config %#v, err: %v ", maybeHeater, err)
 			errs = append(errs, err)
 			continue
 		}
@@ -67,9 +69,10 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 }
 
 func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
-	onewire := make([]DSSensor, len(config))
-	var errs []error
+	log.Debugf("parsing ConfigDS1B20: %#v", config)
 
+	sensors := make([]DSSensor, len(config))
+	var errs []error
 	for _, busConfig := range config {
 		bus, err := ds18b20.NewBus(ds18b20.WithOnewireOnPath(busConfig.Path))
 		if err != nil {
@@ -85,29 +88,30 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 			continue
 		}
 		for _, s := range sensors {
-			onewire = append(onewire, s)
+			sensors = append(sensors, s)
 		}
 
 	}
-	return WithDS18B20(onewire), errs
+	return WithDS18B20(sensors), errs
 }
 
 func parsePT100(config []ConfigPT100) (Option, []error) {
-	pts := make([]PTSensor, len(config))
+	log.Debugf("parsing ConfigPT100: %#v", config)
 
+	pts := make([]PTSensor, len(config))
 	var errs []error
-	for _, ptConfig := range config {
+	for _, cfg := range config {
 		s, err := max31865.NewSensor(
-			max31865.WithSpidev(ptConfig.Path),
-			max31865.WithID(ptConfig.ID),
-			max31865.WithRNominal(ptConfig.RNominal),
-			max31865.WithRefRes(ptConfig.RRef),
-			max31865.WithWiring(ptConfig.Wiring),
-			max31865.WithReadyPin(ptConfig.ReadyPin),
+			max31865.WithSpidev(cfg.Path),
+			max31865.WithID(cfg.ID),
+			max31865.WithRNominal(cfg.RNominal),
+			max31865.WithRefRes(cfg.RRef),
+			max31865.WithWiring(cfg.Wiring),
+			max31865.WithReadyPin(cfg.ReadyPin),
 		)
 
 		if err != nil {
-			log.Errorf("error on create dsSensor: %v", err)
+			log.Errorf("error to create PT100 with config %#v: %v", cfg, err)
 			errs = append(errs, err)
 			continue
 		}
@@ -119,33 +123,36 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 }
 
 func parseGPIO(config []ConfigGPIO) (Option, []error) {
-	gpios := make([]GPIO, len(config))
+	log.Debugf("parsing ConfigGPIO: %#v", config)
+
+	ios := make([]GPIO, len(config))
 	var errs []error
-	for _, gpioConfig := range config {
+	for _, cfg := range config {
 		var maybeGpio *gpioHandler
-		if gpioConfig.Direction == gpio.DirInput {
-			gp, err := gpio.Input(gpioConfig.Pin)
+		if cfg.Direction == gpio.DirInput {
+			gp, err := gpio.Input(cfg.Pin)
 			if err != nil {
-				log.Errorf("error on create input: %v\n", err)
+				log.Errorf("error on create input with config %#v: %v", cfg, err)
 				errs = append(errs, err)
 				continue
 			}
 			maybeGpio = &gpioHandler{GPIO: gp}
 		} else {
-			initValue := gpioConfig.ActiveLevel == gpio.Low
-			gp, err := gpio.Output(gpioConfig.Pin, initValue)
+			initValue := cfg.ActiveLevel == gpio.Low
+			gp, err := gpio.Output(cfg.Pin, initValue)
 			if err != nil {
-				log.Errorf("error on create output: %v\n", err)
+				log.Errorf("error on create output with config %#v: %v", cfg, err)
 				errs = append(errs, err)
 				continue
 			}
 			maybeGpio = &gpioHandler{GPIO: gp}
 		}
+		
 		cfg := gpio.Config{
 			ID:          "",
-			Direction:   gpioConfig.Direction,
-			ActiveLevel: gpioConfig.ActiveLevel,
-			Value:       gpioConfig.Value,
+			Direction:   cfg.Direction,
+			ActiveLevel: cfg.ActiveLevel,
+			Value:       cfg.Value,
 		}
 
 		if err := maybeGpio.Configure(cfg); err != nil {
@@ -154,7 +161,7 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 			continue
 		}
 
-		gpios = append(gpios, maybeGpio)
+		ios = append(ios, maybeGpio)
 	}
-	return WithGPIOs(gpios), errs
+	return WithGPIOs(ios), errs
 }

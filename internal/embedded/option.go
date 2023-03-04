@@ -9,6 +9,7 @@ type Option func(*Handler) error
 
 func WithHeaters(heaters map[string]Heater) Option {
 	return func(h *Handler) error {
+		log.Debug("with heaters: ", len(heaters))
 		h.Heaters.heaters = heaters
 		return nil
 	}
@@ -16,6 +17,7 @@ func WithHeaters(heaters map[string]Heater) Option {
 
 func WithDS18B20(ds []DSSensor) Option {
 	return func(h *Handler) error {
+		log.Debug("with ds18b20")
 		h.DS.sensors = make(map[string]*dsSensor)
 		for _, ds := range ds {
 			bus, id := ds.Name()
@@ -28,6 +30,7 @@ func WithDS18B20(ds []DSSensor) Option {
 					SensorConfig: cfg,
 				},
 			}
+			log.Debugf("new dsSensor on bus: %v with ID: %v", bus, id)
 		}
 		return nil
 	}
@@ -35,6 +38,7 @@ func WithDS18B20(ds []DSSensor) Option {
 
 func WithPT(pt []PTSensor) Option {
 	return func(h *Handler) error {
+		log.Debug("with pt100s")
 		h.PT.sensors = make(map[string]*ptSensor)
 		for _, p := range pt {
 			id := p.ID()
@@ -46,6 +50,7 @@ func WithPT(pt []PTSensor) Option {
 					SensorConfig: cfg,
 				},
 			}
+			log.Debugf("new ptSensor with ID: %v", id)
 		}
 		return nil
 	}
