@@ -6,19 +6,21 @@
 package max31865
 
 import (
+	"fmt"
+
 	"github.com/a-clap/iot/internal/embedded/gpio"
 	"github.com/warthog618/gpiod"
-	"log"
 )
 
 type gpioReady struct {
-	pin    gpio.Pin
-	in     *gpio.In
-	cb     func(any) error
-	cbArgs any
+	pin         gpio.Pin
+	in          *gpio.In
+	cb          func(any) error
+	cbArgs      any
+	errCallback func(error)
 }
 
-func newGpioReady(in gpio.Pin) (Ready, error) {
+func newGpioReady(in gpio.Pin, errCallback func(err error)) (*gpioReady, error) {
 	var err error
 	m := &gpioReady{pin: in}
 	m.in, err = gpio.Input(m.pin, gpiod.WithPullUp, gpiod.WithFallingEdge, gpiod.WithEventHandler(m.eventHandler))
@@ -38,8 +40,8 @@ func (m *gpioReady) Close() {
 
 func (m *gpioReady) eventHandler(event gpiod.LineEvent) {
 	if m.cb != nil {
-		if err := m.cb(m.cbArgs); err != nil {
-			log.Print(err, event)
+		if err := m.cb(m.cbArgs); err != nil && m.errCallback != nil {
+			m.errCallback(fmt.Errorf("%w: happened on event %v", err, event))
 		}
 	}
 }

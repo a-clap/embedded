@@ -107,7 +107,7 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 			max31865.WithRNominal(cfg.RNominal),
 			max31865.WithRefRes(cfg.RRef),
 			max31865.WithWiring(cfg.Wiring),
-			max31865.WithReadyPin(cfg.ReadyPin),
+			max31865.WithReadyPin(cfg.ReadyPin, nil), // TODO: inject error callback here
 		)
 
 		if err != nil {
@@ -147,7 +147,7 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 			}
 			maybeGpio = &gpioHandler{GPIO: gp}
 		}
-		
+
 		cfg := gpio.Config{
 			ID:          "",
 			Direction:   cfg.Direction,
