@@ -7,31 +7,28 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
-	"github.com/a-clap/iot/internal/embedded/logger"
-
-	"go.uber.org/zap/zapcore"
 )
 
 func main() {
-	log := logger.NewDefaultLogger(zapcore.DebugLevel)
 	ds, err := ds18b20.NewBus(ds18b20.WithOnewire())
 	if err != nil {
-		log.Panic(err)
+		log.Fatalln(err)
 	}
 
 	ids, err := ds.IDs()
 	if err != nil && len(ids) == 0 {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	sensor, _ := ds.NewSensor(ids[0])
 
 	errs := sensor.Poll()
 	if errs != nil {
-		log.Fatal(err)
+		log.Fatalln(err)
 	}
 
 	// Just to end this after time

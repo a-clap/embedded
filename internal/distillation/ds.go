@@ -68,7 +68,8 @@ func (h *Handler) getDS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		sensors := h.DSHandler.GetSensors()
 		if len(sensors) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			err := &DSError{ID: "", Op: "GetSensors", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		h.respond(ctx, http.StatusOK, sensors)
@@ -79,7 +80,8 @@ func (h *Handler) getDSTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		temperatures := h.DSHandler.Temperatures()
 		if len(temperatures) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			err := &DSError{ID: "", Op: "Temperatures", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		h.respond(ctx, http.StatusOK, temperatures)
@@ -104,7 +106,11 @@ func (h *Handler) configureDS() gin.HandlerFunc {
 		}
 		cfg, err := h.DSHandler.GetConfig(cfg.ID)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, err)
+			if dsErr, ok := err.(*DSError); ok {
+				h.respond(ctx, http.StatusInternalServerError, dsErr)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, err)
+			}
 			return
 		}
 		h.respond(ctx, http.StatusOK, cfg)

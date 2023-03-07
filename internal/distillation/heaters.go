@@ -64,12 +64,17 @@ func (h *Handler) configEnabledHeater() gin.HandlerFunc {
 		}
 
 		if err := h.HeatersHandler.Configure(cfg); err != nil {
-			h.respond(ctx, http.StatusInternalServerError, err)
+			if hErr, ok := err.(*HeaterError); ok {
+				h.respond(ctx, http.StatusInternalServerError, hErr)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, err)
+			}
 			return
 		}
 
 		newCfg, err := h.HeatersHandler.Config(cfg.ID)
 		if err != nil {
+			err = &HeaterError{ID: cfg.ID, Op: "Config", Err: err.Error()}
 			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
@@ -85,13 +90,21 @@ func (h *Handler) configHeater() gin.HandlerFunc {
 			return
 		}
 		if err := h.HeatersHandler.ConfigureGlobal(cfg); err != nil {
-			h.respond(ctx, http.StatusInternalServerError, err)
+			if hErr, ok := err.(*HeaterError); ok {
+				h.respond(ctx, http.StatusInternalServerError, hErr)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, err)
+			}
 			return
 		}
 
 		newCfg, err := h.HeatersHandler.ConfigGlobal(cfg.ID)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, err)
+			if hErr, ok := err.(*HeaterError); ok {
+				h.respond(ctx, http.StatusInternalServerError, hErr)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, err)
+			}
 			return
 		}
 
@@ -103,7 +116,8 @@ func (h *Handler) getAllHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		heaters := h.HeatersHandler.ConfigsGlobal()
 		if len(heaters) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			err := &DSError{ID: "", Op: "ConfigsGlobal", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		h.respond(ctx, http.StatusOK, heaters)
@@ -114,7 +128,8 @@ func (h *Handler) getEnabledHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		heaters := h.HeatersHandler.Configs()
 		if len(heaters) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			err := &DSError{ID: "", Op: "Configs", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		h.respond(ctx, http.StatusOK, heaters)

@@ -50,7 +50,7 @@ type PTConfig struct {
 	temps embedded.PTTemperature
 }
 
-// PTHandler main struct used to handle number of DS sensors
+// PTHandler main struct used to handle number of PT sensors
 type PTHandler struct {
 	PT           PT
 	sensors      map[string]*PTConfig
@@ -67,7 +67,8 @@ func (h *Handler) getPT() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		sensors := h.PTHandler.GetSensors()
 		if len(sensors) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			err := &PTError{ID: "", Op: "GetSensors", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		h.respond(ctx, http.StatusOK, sensors)
@@ -78,7 +79,8 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		temperatures := h.PTHandler.Temperatures()
 		if len(temperatures) == 0 {
-			h.respond(ctx, http.StatusInternalServerError, ErrNotImplemented)
+			err := &PTError{ID: "", Op: "Temperatures", Err: ErrNotImplemented.Error()}
+			h.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		h.respond(ctx, http.StatusOK, temperatures)
@@ -94,8 +96,8 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 		}
 
 		if err := h.PTHandler.ConfigureSensor(cfg); err != nil {
-			if dsErr, ok := err.(*PTError); ok {
-				h.respond(ctx, http.StatusInternalServerError, dsErr)
+			if ptErr, ok := err.(*PTError); ok {
+				h.respond(ctx, http.StatusInternalServerError, ptErr)
 			} else {
 				h.respond(ctx, http.StatusInternalServerError, err)
 			}
@@ -103,7 +105,11 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 		}
 		cfg, err := h.PTHandler.GetConfig(cfg.ID)
 		if err != nil {
-			h.respond(ctx, http.StatusInternalServerError, err)
+			if ptErr, ok := err.(*PTError); ok {
+				h.respond(ctx, http.StatusInternalServerError, ptErr)
+			} else {
+				h.respond(ctx, http.StatusInternalServerError, err)
+			}
 			return
 		}
 		h.respond(ctx, http.StatusOK, cfg)
