@@ -9,24 +9,18 @@ type Option func(p *Process)
 
 func WithSensors(sensors []Sensor) Option {
 	return func(p *Process) {
-		for _, sensor := range sensors {
-			p.sensors[sensor.ID()] = sensor
-		}
+		p.ConfigureSensors(sensors)
 	}
 }
 
 func WithHeaters(heaters []Heater) Option {
 	return func(p *Process) {
-		for _, heater := range heaters {
-			p.heaters[heater.ID()] = heater
-		}
+		p.ConfigureHeaters(heaters)
 	}
 }
 func WithOutputs(outputs []Output) Option {
 	return func(p *Process) {
-		for _, output := range outputs {
-			p.outputs[output.ID()] = output
-		}
+		p.ConfigureOutputs(outputs)
 	}
 }
 

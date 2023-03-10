@@ -36,7 +36,122 @@ type SensorMock struct {
 func TestProcessConfig(t *testing.T) {
 	suite.Run(t, new(ProcessConfigSuite))
 }
+func (ps *ProcessConfigSuite) TestConfigurePhase_GPIOErrors() {
+	t := ps.Require()
 
+	args := []struct {
+		name       string
+		gpio       []string
+		sensors    []string
+		gpioConfig []process.GPIOPhaseConfig
+		err        error
+	}{
+		{
+			name:    "wrong id of gpio",
+			gpio:    []string{"h2"},
+			sensors: []string{"s1"},
+			gpioConfig: []process.GPIOPhaseConfig{
+				{
+					ID:       "h2",
+					SensorID: "s2",
+				},
+			},
+			err: process.ErrWrongSensorID,
+		},
+		{
+			name:    "wrong gpio ID",
+			gpio:    []string{"g1"},
+			sensors: []string{"s1"},
+			gpioConfig: []process.GPIOPhaseConfig{
+				{
+					ID:       "g2",
+					SensorID: "s1",
+				},
+			},
+			err: process.ErrWrongGpioID,
+		},
+		{
+			name:       "lack of gpio config",
+			gpio:       []string{"g1"},
+			sensors:    []string{"s1"},
+			gpioConfig: nil,
+			err:        process.ErrDifferentGPIOSConfig,
+		},
+
+		{
+			name:    "all good",
+			gpio:    []string{"h1"},
+			sensors: []string{"s1"},
+			gpioConfig: []process.GPIOPhaseConfig{
+				{
+					ID:       "h1",
+					SensorID: "s1",
+				},
+			},
+			err: nil,
+		},
+	}
+	for _, arg := range args {
+		// Always good config - except heaters
+		phaseConfig := process.PhaseConfig{
+			Next: process.MoveToNextConfig{
+				Type:                   process.ByTime,
+				SensorID:               "",
+				SensorThreshold:        0,
+				TemperatureHoldSeconds: 0,
+				SecondsToMove:          3,
+			},
+			Heaters: []process.HeaterPhaseConfig{
+				{ID: "h1", Power: 13},
+			},
+			GPIO: nil,
+		}
+		heaterMock := new(HeaterMock)
+		heaterMock.On("ID").Return("h1")
+		heaters := append(make([]process.Heater, 0, 1), heaterMock)
+
+		opts := []process.Option{process.WithHeaters(heaters)}
+
+		var gpios []process.Output
+		for _, id := range arg.gpio {
+			m := new(OutputMock)
+			m.On("ID").Return(id)
+			gpios = append(gpios, m)
+		}
+
+		if len(gpios) > 0 {
+			opts = append(opts, process.WithOutputs(gpios))
+		}
+
+		var sensors []process.Sensor
+		for _, id := range arg.sensors {
+			m := new(SensorMock)
+			m.On("ID").Return(id)
+			sensors = append(sensors, m)
+		}
+
+		if len(sensors) > 0 {
+			opts = append(opts, process.WithSensors(sensors))
+		}
+
+		p, err := process.New(opts...)
+
+		t.Nil(err, arg.name)
+		t.NotNil(p, arg.name)
+		phaseConfig.GPIO = arg.gpioConfig
+		t.Nil(p.SetPhases(5), arg.name)
+		err = p.ConfigurePhase(3, phaseConfig)
+		if arg.err != nil {
+			t.NotNil(err, arg.name)
+			t.ErrorContains(err, arg.err.Error(), arg.name)
+			continue
+		}
+		t.Nil(err, arg.name)
+		cfg := p.GetConfig()
+		t.EqualValues(phaseConfig, cfg.Phases[3], arg.name)
+
+	}
+}
 func (ps *ProcessConfigSuite) TestConfigurePhase_SensorsError() {
 	t := ps.Require()
 
@@ -524,20 +639,24 @@ func (ps *ProcessConfigSuite) TestNew() {
 			process.WithSensors(sensors),
 			process.WithOutputs(outputs),
 		}
+
 		if arg.clock != nil {
 			options = append(options, process.WithClock(arg.clock))
 		}
 
 		p, err := process.New(options...)
+		t.NotNil(p, arg.name)
+		t.Nil(err, arg.name)
+
+		err = p.Verify()
 
 		if arg.err != nil {
-			t.Nil(p, arg.name)
 			t.NotNil(err, arg.name)
 			t.ErrorContains(err, arg.err.Error(), arg.name)
 			continue
 		}
-		t.NotNil(p, arg.name)
-		t.Nil(err, arg.name)
+		t.Nil(err)
+
 	}
 
 }

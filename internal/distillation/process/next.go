@@ -13,7 +13,8 @@ const (
 )
 
 type moveToNext interface {
-	next() bool
+	next(stamp int64) bool
+	timeleft(stamp int64) int64
 }
 
 var (
@@ -22,24 +23,30 @@ var (
 )
 
 type byTime struct {
-	clock    Clock
 	start    int64
 	duration int64
 }
 
-func newByTime(clock Clock, duration int64) *byTime {
+func newByTime(stamp int64, duration int64) *byTime {
 	return &byTime{
-		clock:    clock,
-		start:    clock.Unix(),
+		start:    stamp,
 		duration: duration,
 	}
 }
-func (b *byTime) next() bool {
-	return (b.start + b.duration) < b.clock.Unix()
+func (b *byTime) next(stamp int64) bool {
+	return b.timeleft(stamp) == 0
 }
 
-func (b *byTime) reset() {
-	b.start = b.clock.Unix()
+func (b *byTime) reset(stamp int64) {
+	b.start = stamp
+}
+
+func (b *byTime) timeleft(stamp int64) int64 {
+	t := (b.start + b.duration) - stamp
+	if t < 0 {
+		return 0
+	}
+	return t
 }
 
 type byTemperature struct {
@@ -50,17 +57,24 @@ type byTemperature struct {
 	duration  int64
 }
 
-func newByTemperature(clock Clock, sensor Sensor, threshold float64, duration int64) *byTemperature {
+func (b *byTemperature) timeleft(stamp int64) int64 {
+	if b.waiting {
+		return b.byTime.timeleft(stamp)
+	}
+	return b.duration
+}
+
+func newByTemperature(stamp int64, sensor Sensor, threshold float64, duration int64) *byTemperature {
 	return &byTemperature{
 		waiting:   false,
-		byTime:    newByTime(clock, duration),
+		byTime:    newByTime(stamp, duration),
 		threshold: threshold,
 		sensor:    sensor,
 		duration:  duration,
 	}
 
 }
-func (b *byTemperature) next() bool {
+func (b *byTemperature) next(stamp int64) bool {
 	overThreshold := b.sensor.Temperature() > b.threshold
 	// Did anything change since last call?
 	if overThreshold != b.waiting {
@@ -68,12 +82,12 @@ func (b *byTemperature) next() bool {
 			// Okay, we are now over threshold
 			// Start waiting for time
 			b.waiting = true
-			b.byTime.reset()
+			b.byTime.reset(stamp)
 		} else {
 			// Sadly, we are below threshold
 			b.waiting = false
 			return false
 		}
 	}
-	return overThreshold && b.byTime.next()
+	return overThreshold && b.byTime.next(stamp)
 }

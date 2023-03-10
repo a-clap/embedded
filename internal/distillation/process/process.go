@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"sync/atomic"
+	"time"
 )
 
 type Heater interface {
@@ -30,13 +31,19 @@ type Clock interface {
 	Unix() int64 // Unix returns seconds since 01.01.1970 UTC
 }
 
+type output struct {
+	Output  Output
+	inRange bool
+}
+
 type Process struct {
 	sensors            map[string]Sensor
 	heaters            map[string]Heater
-	outputs            map[string]Output
+	outputs            map[string]*output
 	clock              Clock
 	config             Config
 	currentPhaseConfig *PhaseConfig
+	currentStamp       int64
 	running            atomic.Bool
 	status             Status
 	moveToNext         moveToNext
@@ -51,7 +58,7 @@ func New(option ...Option) (*Process, error) {
 	p := &Process{
 		sensors: map[string]Sensor{},
 		heaters: map[string]Heater{},
-		outputs: map[string]Output{},
+		outputs: map[string]*output{},
 		running: atomic.Bool{},
 	}
 
@@ -59,18 +66,40 @@ func New(option ...Option) (*Process, error) {
 		opt(p)
 	}
 
-	if err := p.verify(); err != nil {
-		return nil, err
-	}
-
 	p.config.Phases = make([]PhaseConfig, initPhases, initPhasesCapacity)
 	p.setPhases(initPhases)
 	return p, nil
 }
 
+func (p *Process) ConfigureSensors(sensors []Sensor) {
+	p.sensors = make(map[string]Sensor)
+	for _, sensor := range sensors {
+		p.sensors[sensor.ID()] = sensor
+	}
+}
+func (p *Process) ConfigureHeaters(sensors []Heater) {
+	p.heaters = make(map[string]Heater)
+	for _, heater := range sensors {
+		p.heaters[heater.ID()] = heater
+	}
+}
+func (p *Process) ConfigureOutputs(outputs []Output) {
+	p.outputs = make(map[string]*output)
+	for _, o := range outputs {
+		p.outputs[o.ID()] = &output{
+			Output:  o,
+			inRange: false,
+		}
+	}
+}
+
 // Run enable processing
 func (p *Process) Run() (Status, error) {
-	if p.running.Load() {
+	if err := p.Verify(); err != nil {
+		return Status{}, err
+	}
+
+	if p.Running() {
 		return Status{}, ErrAlreadyRunning
 	}
 
@@ -84,33 +113,68 @@ func (p *Process) Run() (Status, error) {
 	return p.process()
 }
 
+func (p *Process) Running() bool {
+	return p.running.Load()
+}
+
 func (p *Process) run() {
 	p.running.Store(true)
 	p.status.Done = false
+	p.currentStamp = p.clock.Unix()
+	p.status.StartTime = time.Unix(p.currentStamp, 0)
+
 	p.moveToPhase(0)
 }
 
 func (p *Process) finishRun() {
-	p.running.Store(false)
 	p.status.Done = true
+	p.status.EndTime = time.Unix(p.currentStamp, 0)
+
+	for _, heater := range p.heaters {
+		_ = heater.SetPower(0)
+	}
+
+	for _, gpio := range p.outputs {
+		gpio.inRange = false
+		_ = gpio.Output.Set(false)
+	}
+
+	p.running.Store(false)
 }
 
 func (p *Process) Process() (Status, error) {
-	if !p.running.Load() {
+	if err := p.Verify(); err != nil {
+		return Status{}, err
+	}
+
+	if p.Running() == false {
 		return Status{}, ErrNotRunning
 	}
+	p.currentStamp = p.clock.Unix()
 	return p.process()
 }
 
 func (p *Process) process() (Status, error) {
-	// move to next
-	if p.moveToNext.next() {
+	// Handle each component and build status inside callbacks
+	// Order is important, as GPIO may use temperature from updated Status
+	p.status.Errors = nil
+	if p.moveToNext.next(p.currentStamp) {
 		p.moveToPhase(p.status.PhaseNumber + 1)
-	}
-	p.handleGpio()
-	// Build status
+	} else {
+		p.handleTemperatures()
+		p.handleHeaters()
+		p.handleGpio()
 
-	return Status{}, nil
+		timeleft := p.moveToNext.timeleft(p.currentStamp)
+		if p.currentPhaseConfig.Next.Type == ByTime {
+			p.status.Next.Time.TimeLeft = timeleft
+		} else {
+			p.status.Next.Temperature.TimeLeft = timeleft
+		}
+
+	}
+
+	return p.status, nil
 }
 func (p *Process) moveToPhase(next int) {
 	if next >= p.config.PhaseNumber {
@@ -123,18 +187,97 @@ func (p *Process) moveToPhase(next int) {
 	p.currentPhaseConfig = &p.config.Phases[next]
 
 	if p.currentPhaseConfig.Next.Type == ByTime {
-		p.moveToNext = newByTime(p.clock, int64(p.currentPhaseConfig.Next.SecondsToMove))
+		p.status.Next.Temperature = MoveToNextStatusTemperature{}
+		p.status.Next.Type = ByTime
+		p.status.Next.Time.TimeLeft = p.currentPhaseConfig.Next.SecondsToMove
+
+		p.moveToNext = newByTime(p.currentStamp, p.currentPhaseConfig.Next.SecondsToMove)
 	} else {
-		// TODO: handle error
+		p.status.Next.Time = MoveToNextStatusTime{}
+		p.status.Next.Type = ByTemperature
+		p.status.Next.Temperature.SensorID = p.currentPhaseConfig.Next.SensorID
+		p.status.Next.Temperature.TimeLeft = p.currentPhaseConfig.Next.TemperatureHoldSeconds
+		p.status.Next.Temperature.SensorThreshold = p.currentPhaseConfig.Next.SensorThreshold
+		// It is not possible - as ID are verified during Configure
 		s, _ := p.sensors[p.currentPhaseConfig.Next.SensorID]
-		p.moveToNext = newByTemperature(p.clock, s, p.currentPhaseConfig.Next.SensorThreshold,
-			int64(p.currentPhaseConfig.Next.TemperatureHoldSeconds))
+		p.moveToNext = newByTemperature(p.currentStamp, s, p.currentPhaseConfig.Next.SensorThreshold,
+			p.currentPhaseConfig.Next.TemperatureHoldSeconds)
+	}
+	// If we moved, we need to update
+	// Order is important, as GPIO may use temperature from updated Status
+	p.handleTemperatures()
+	p.handleHeaters()
+	p.handleGpio()
+}
+
+func (p *Process) handleTemperatures() {
+	p.status.Temperature = make([]TemperaturePhaseStatus, 0, len(p.sensors))
+	for id, sensor := range p.sensors {
+		p.status.Temperature = append(p.status.Temperature, TemperaturePhaseStatus{
+			ID:          id,
+			Temperature: sensor.Temperature(),
+		})
+	}
+}
+
+func (p *Process) handleHeaters() {
+	p.status.Heaters = make([]HeaterPhaseStatus, 0, len(p.currentPhaseConfig.Heaters))
+	for _, config := range p.currentPhaseConfig.Heaters {
+		heater := p.heaters[config.ID]
+		if err := heater.SetPower(config.Power); err != nil {
+			err = fmt.Errorf("%w: on ID: %v, SetPower: %v", err, config.ID, config.Power)
+			p.status.Errors = append(p.status.Errors, err.Error())
+			continue
+		}
+		p.status.Heaters = append(p.status.Heaters, HeaterPhaseStatus{HeaterPhaseConfig{
+			ID:    config.ID,
+			Power: config.Power,
+		}})
 	}
 }
 
 func (p *Process) handleGpio() {
-	// Verify, if we still need to handle gpios
+	p.status.GPIO = make([]GPIOPhaseStatus, 0, len(p.currentPhaseConfig.GPIO))
+	for _, config := range p.currentPhaseConfig.GPIO {
+		gpio, ok := p.outputs[config.ID]
+		if !ok {
+			err := fmt.Errorf("output with ID: %v not found", config.ID)
+			p.status.Errors = append(p.status.Errors, err.Error())
+			continue
+		}
 
+		s, ok := p.sensors[config.SensorID]
+		if !ok {
+			err := fmt.Errorf("sensor with ID: %v not found", config.SensorID)
+			p.status.Errors = append(p.status.Errors, err.Error())
+			continue
+		}
+
+		t := s.Temperature()
+		if gpio.inRange {
+			// Last time was in range
+			gpio.inRange = t >= (config.TLow-config.Hysteresis) && t <= (config.THigh+config.Hysteresis)
+		} else {
+			// Out of range, need to hit tlow or thigh
+			gpio.inRange = t >= config.TLow && t <= config.THigh
+		}
+		gpioValue := gpio.inRange
+
+		if config.Inverted {
+			gpioValue = !gpioValue
+		}
+
+		if err := gpio.Output.Set(gpioValue); err != nil {
+			err := fmt.Errorf("%w: on gpio ID: %v, on Set with value: %v", err, config.ID, gpioValue)
+			p.status.Errors = append(p.status.Errors, err.Error())
+			continue
+		}
+
+		p.status.GPIO = append(p.status.GPIO, GPIOPhaseStatus{
+			ID:    config.ID,
+			State: gpioValue,
+		})
+	}
 }
 
 func (p *Process) GetConfig() Config {
@@ -150,6 +293,16 @@ func (p *Process) GetConfig() Config {
 func (p *Process) Configure(cfg Config) error {
 	if len(cfg.Phases) != cfg.PhaseNumber {
 		return errors.New("PhaseNumber differs from length of Phases")
+	}
+
+	for _, cfg := range cfg.Phases {
+		// Verify, if len of each []Config match number of objects
+		if len(cfg.Heaters) != len(p.heaters) {
+			return errors.New("len of ConfigHeaters differs from len of Heaters")
+		}
+		if len(cfg.GPIO) != len(p.outputs) {
+			return errors.New("len of ConfigGPIO differs from len of GPIO")
+		}
 	}
 
 	if err := validatePhaseNumber(cfg.PhaseNumber); err != nil {
@@ -180,7 +333,24 @@ func (p *Process) ConfigurePhase(phase int, config PhaseConfig) error {
 }
 
 func (p *Process) configurePhase(phase int, config PhaseConfig) {
-	// TODO: what if configuring phase during Run?
+	if p.running.Load() {
+		// If we are during process and configuring current phase
+		if p.status.PhaseNumber == phase {
+			// Heaters, GPIO and Thresholds will be taken care just by next Process(), as they write values each time
+			// We need to reconfigure ByTime or ByTemperature with proper time
+			if p.status.Next.Type == ByTime {
+				if b, ok := p.moveToNext.(*byTime); ok {
+					b.duration = config.Next.SecondsToMove
+				}
+			} else {
+				if b, ok := p.moveToNext.(*byTemperature); ok {
+					b.duration = config.Next.TemperatureHoldSeconds
+					b.byTime.duration = config.Next.TemperatureHoldSeconds
+				}
+			}
+		}
+	}
+
 	p.config.Phases[phase] = config
 }
 
@@ -211,7 +381,7 @@ func (p *Process) setPhases(number int) {
 	} else {
 		// Remove unused elements over initPhasesCapacity
 		if number < initPhasesCapacity {
-			p.config.Phases = p.config.Phases[:initPhasesCapacity]
+			p.config.Phases = p.config.Phases[:number]
 		}
 	}
 }
@@ -222,6 +392,10 @@ func (p *Process) validateConfig(phase int, config PhaseConfig) error {
 	}
 
 	if err := p.validateConfigHeaters(config.Heaters); err != nil {
+		return err
+	}
+
+	if err := p.validateConfigGPIO(config.GPIO); err != nil {
 		return err
 	}
 
@@ -250,20 +424,71 @@ func (p *Process) validateNext(next MoveToNextConfig) error {
 	return nil
 }
 
+func (p *Process) validateConfigGPIO(gpio []GPIOPhaseConfig) error {
+	if len(gpio) != len(p.outputs) {
+		return ErrDifferentGPIOSConfig
+	}
+	configuredIos := make(map[string]int)
+	for _, gpioConfig := range gpio {
+		// Requested gpio exist?
+		if _, ok := p.outputs[gpioConfig.ID]; !ok {
+			return fmt.Errorf("%w. ID: %v", ErrWrongGpioID, gpioConfig.ID)
+		}
+
+		if _, ok := p.sensors[gpioConfig.SensorID]; !ok {
+			return fmt.Errorf("%w. ID: %v", ErrWrongSensorID, gpioConfig.SensorID)
+		}
+
+		configuredIos[gpioConfig.ID]++
+	}
+
+	if len(configuredIos) != len(p.outputs) {
+		return fmt.Errorf("not all gpios configured in phase")
+	}
+
+	// Is it needed? If we verified that len of configuredIos is equal...
+	for id, times := range configuredIos {
+		if times > 1 {
+			return fmt.Errorf("gpio with id %v configured %v times", id, times)
+		}
+	}
+	return nil
+}
+
 // validateConfigHeaters check values in passed HeaterPhaseConfig
 func (p *Process) validateConfigHeaters(heaters []HeaterPhaseConfig) error {
 	if len(heaters) == 0 {
 		return ErrNoHeatersInConfig
 	}
+	if len(heaters) != len(p.heaters) {
+		return fmt.Errorf("different number of configs and heaters")
+	}
 
+	configuredHeaters := make(map[string]int)
 	for _, heaterConfig := range heaters {
+		// Requested heater exist?
 		if _, ok := p.heaters[heaterConfig.ID]; !ok {
 			return fmt.Errorf("%w. ID: %v", ErrWrongHeaterID, heaterConfig.ID)
 		}
+		// Is power in range 0-100?
 		if heaterConfig.Power > 100 || heaterConfig.Power < 0 {
 			return fmt.Errorf("%w: ID: %v, Value: %v", ErrWrongHeaterPower, heaterConfig.ID, heaterConfig.Power)
 		}
+
+		configuredHeaters[heaterConfig.ID]++
 	}
+
+	if len(configuredHeaters) != len(p.heaters) {
+		return fmt.Errorf("not all heaters configured in phase")
+	}
+
+	// Is it needed? If we verified that len of configuredHeaters is equal
+	for id, times := range configuredHeaters {
+		if times > 1 {
+			return fmt.Errorf("heater with id %v configured %v times", id, times)
+		}
+	}
+
 	return nil
 }
 
@@ -274,7 +499,7 @@ func validatePhaseNumber(number int) error {
 	return nil
 }
 
-func (p *Process) verify() error {
+func (p *Process) Verify() error {
 	if p.clock == nil {
 		// that's ok - just use std
 		p.clock = new(clock)

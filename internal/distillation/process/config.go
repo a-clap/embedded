@@ -24,8 +24,8 @@ type MoveToNextConfig struct {
 	Type                   MoveToNextType `json:"type"`
 	SensorID               string         `json:"sensor_id"`
 	SensorThreshold        float64        `json:"sensor_threshold"`
-	TemperatureHoldSeconds int            `json:"temperature_hold_seconds"`
-	SecondsToMove          int            `json:"seconds_to_move"`
+	TemperatureHoldSeconds int64          `json:"temperature_hold_seconds"`
+	SecondsToMove          int64          `json:"seconds_to_move"`
 }
 
 type HeaterPhaseConfig struct {
@@ -46,19 +46,24 @@ type HeaterPhaseStatus struct {
 	HeaterPhaseConfig
 }
 
+type TemperaturePhaseStatus struct {
+	ID          string  `json:"ID"`
+	Temperature float64 `json:"temperature"`
+}
+
 type GPIOPhaseStatus struct {
 	ID    string `json:"id"`
 	State bool   `json:"state"`
 }
 
 type MoveToNextStatusTime struct {
-	TimeLeft int `json:"time_left"`
+	TimeLeft int64 `json:"time_left"`
 }
 
 type MoveToNextStatusTemperature struct {
-	SensorID            string  `json:"sensor_id"`
-	SensorThreshold     float64 `json:"sensor_threshold"`
-	TemperatureHoldLeft int     `json:"temperature_hold_left"`
+	SensorID        string  `json:"sensor_id"`
+	SensorThreshold float64 `json:"sensor_threshold"`
+	TimeLeft        int64   `json:"time_left"`
 }
 
 type MoveToNextStatus struct {
@@ -68,11 +73,13 @@ type MoveToNextStatus struct {
 }
 
 type Status struct {
-	Done        bool                `json:"done"`
-	PhaseNumber int                 `json:"phase_number"`
-	StartTime   time.Time           `json:"start_time"`
-	EndTime     time.Time           `json:"end_time"`
-	Next        MoveToNextStatus    `json:"next"`
-	Heaters     []HeaterPhaseStatus `json:"heaters"`
-	GPIO        []GPIOPhaseStatus   `json:"gpio"`
+	Done        bool                     `json:"done"`
+	PhaseNumber int                      `json:"phase_number"`
+	StartTime   time.Time                `json:"start_time"`
+	EndTime     time.Time                `json:"end_time"`
+	Next        MoveToNextStatus         `json:"next"`
+	Heaters     []HeaterPhaseStatus      `json:"heaters"`
+	Temperature []TemperaturePhaseStatus `json:"temperature"`
+	GPIO        []GPIOPhaseStatus        `json:"gpio"`
+	Errors      []string                 `json:"errors"`
 }
