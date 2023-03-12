@@ -106,6 +106,7 @@ func (h *Handler) configureGPIO() gin.HandlerFunc {
 			return
 		}
 		h.respond(ctx, http.StatusOK, newCfg)
+		h.safeUpdateOutputs()
 	}
 }
 

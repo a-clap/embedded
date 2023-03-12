@@ -9,6 +9,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/a-clap/iot/internal/distillation/process"
 	"github.com/gin-gonic/gin"
 )
 
@@ -19,16 +20,26 @@ type Handler struct {
 	PTHandler      *PTHandler
 	GPIOHandler    *GPIOHandler
 	running        atomic.Bool
+	Process        *process.Process
 }
 
 func New(opts ...Option) (*Handler, error) {
-	h := &Handler{Engine: gin.Default()}
+	h := &Handler{
+		Engine:  gin.Default(),
+		running: atomic.Bool{},
+	}
+
 	// Options
 	for _, opt := range opts {
 		if err := opt(h); err != nil {
 			return nil, err
 		}
 	}
+	var err error
+	if h.Process, err = process.New(); err != nil {
+		panic(err)
+	}
+
 	h.routes()
 
 	return h, nil

@@ -141,6 +141,7 @@ func (h *Handler) configureDS() gin.HandlerFunc {
 			return
 		}
 		h.respond(ctx, http.StatusOK, newcfg)
+		h.safeUpdateSensors()
 	}
 }
 

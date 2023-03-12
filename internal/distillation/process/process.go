@@ -95,18 +95,12 @@ func (p *Process) ConfigureOutputs(outputs []Output) {
 
 // Run enable processing
 func (p *Process) Run() (Status, error) {
-	if err := p.Verify(); err != nil {
+	if err := p.Validate(); err != nil {
 		return Status{}, err
 	}
 
 	if p.Running() {
 		return Status{}, ErrAlreadyRunning
-	}
-
-	// Check if our current config is correct, i.e. just after ctor
-	// If there is no error, it will do unnecessary copy, like p.config = config
-	if err := p.Configure(p.config); err != nil {
-		return Status{}, err
 	}
 
 	p.run()
@@ -143,7 +137,7 @@ func (p *Process) finishRun() {
 }
 
 func (p *Process) Process() (Status, error) {
-	if err := p.Verify(); err != nil {
+	if err := p.Validate(); err != nil {
 		return Status{}, err
 	}
 
@@ -152,6 +146,96 @@ func (p *Process) Process() (Status, error) {
 	}
 	p.currentStamp = p.clock.Unix()
 	return p.process()
+}
+
+func (p *Process) Configure(cfg Config) error {
+	if cfg.PhaseNumber != len(cfg.Phases) {
+		// Major verification, rest is validated in Validate
+		return errors.New("PhaseNumber differs from length of Phases")
+	}
+
+	p.setPhases(cfg.PhaseNumber)
+
+	for i, phaseConfig := range cfg.Phases {
+		p.configurePhase(i, phaseConfig)
+	}
+
+	return nil
+}
+
+func (p *Process) ConfigurePhase(phase int, config PhaseConfig) error {
+	if phase >= p.config.PhaseNumber {
+		return ErrNoSuchPhase
+	}
+
+	if p.running.Load() && p.status.PhaseNumber == phase {
+		// If we are during process and configuring current phase we need to check config
+		if err := p.validatePhaseConfig(phase, config); err != nil {
+			return err
+		}
+	}
+
+	p.configurePhase(phase, config)
+	return nil
+}
+
+func (p *Process) GetConfig() Config {
+	// Config holds probably more phaseConfigs than needed
+	// Return only relevant
+	cfg := Config{
+		PhaseNumber: p.config.PhaseNumber,
+		Phases:      p.config.Phases[:p.config.PhaseNumber],
+	}
+	return cfg
+}
+func (p *Process) SetPhases(number int) error {
+	if err := validatePhaseNumber(number); err != nil {
+		return err
+	}
+	p.setPhases(number)
+	return nil
+}
+
+// Validate checks if needed interfaces are fulfilled and config is correct
+func (p *Process) Validate() error {
+	if p.clock == nil {
+		// that's ok - just use std
+		p.clock = new(clock)
+	}
+
+	if len(p.sensors) == 0 {
+		return ErrNoTSensors
+	}
+
+	if len(p.heaters) == 0 {
+		return ErrNoHeaters
+	}
+
+	if len(p.config.Phases) != p.config.PhaseNumber {
+		return errors.New("PhaseNumber differs from length of Phases")
+	}
+
+	for _, cfg := range p.config.Phases {
+		// Validate, if len of each []Config match number of objects
+		if len(cfg.Heaters) != len(p.heaters) {
+			return ErrHeaterConfigDiffersFromHeatersLen
+		}
+		if len(cfg.GPIO) != len(p.outputs) {
+			return ErrDifferentGPIOSConfig
+		}
+	}
+
+	if err := validatePhaseNumber(p.config.PhaseNumber); err != nil {
+		return err
+	}
+
+	for i, phaseConfig := range p.config.Phases {
+		if err := p.validatePhaseConfig(i, phaseConfig); err != nil {
+			return fmt.Errorf("validatePhaseConfig failed on %d: %w", i, err)
+		}
+	}
+
+	return nil
 }
 
 func (p *Process) process() (Status, error) {
@@ -280,58 +364,6 @@ func (p *Process) handleGpio() {
 	}
 }
 
-func (p *Process) GetConfig() Config {
-	// Config holds probably more phaseConfigs than needed
-	// Return only relevant
-	cfg := Config{
-		PhaseNumber: p.config.PhaseNumber,
-		Phases:      p.config.Phases[:p.config.PhaseNumber],
-	}
-	return cfg
-}
-
-func (p *Process) Configure(cfg Config) error {
-	if len(cfg.Phases) != cfg.PhaseNumber {
-		return errors.New("PhaseNumber differs from length of Phases")
-	}
-
-	for _, cfg := range cfg.Phases {
-		// Verify, if len of each []Config match number of objects
-		if len(cfg.Heaters) != len(p.heaters) {
-			return errors.New("len of ConfigHeaters differs from len of Heaters")
-		}
-		if len(cfg.GPIO) != len(p.outputs) {
-			return errors.New("len of ConfigGPIO differs from len of GPIO")
-		}
-	}
-
-	if err := validatePhaseNumber(cfg.PhaseNumber); err != nil {
-		return err
-	}
-
-	for i, phaseConfig := range cfg.Phases {
-		if err := p.validateConfig(i, phaseConfig); err != nil {
-			return fmt.Errorf("validateConfig failed on %d: %w", i, err)
-		}
-	}
-	// All should be good now
-	p.setPhases(cfg.PhaseNumber)
-	for i, phaseConfig := range cfg.Phases {
-		p.configurePhase(i, phaseConfig)
-	}
-
-	return nil
-}
-
-func (p *Process) ConfigurePhase(phase int, config PhaseConfig) error {
-	if err := p.validateConfig(phase, config); err != nil {
-		return err
-	}
-
-	p.configurePhase(phase, config)
-	return nil
-}
-
 func (p *Process) configurePhase(phase int, config PhaseConfig) {
 	if p.running.Load() {
 		// If we are during process and configuring current phase
@@ -352,14 +384,6 @@ func (p *Process) configurePhase(phase int, config PhaseConfig) {
 	}
 
 	p.config.Phases[phase] = config
-}
-
-func (p *Process) SetPhases(number int) error {
-	if err := validatePhaseNumber(number); err != nil {
-		return err
-	}
-	p.setPhases(number)
-	return nil
 }
 
 func (p *Process) setPhases(number int) {
@@ -386,7 +410,7 @@ func (p *Process) setPhases(number int) {
 	}
 }
 
-func (p *Process) validateConfig(phase int, config PhaseConfig) error {
+func (p *Process) validatePhaseConfig(phase int, config PhaseConfig) error {
 	if phase >= p.config.PhaseNumber {
 		return ErrNoSuchPhase
 	}
@@ -458,7 +482,7 @@ func (p *Process) validateConfigGPIO(gpio []GPIOPhaseConfig) error {
 // validateConfigHeaters check values in passed HeaterPhaseConfig
 func (p *Process) validateConfigHeaters(heaters []HeaterPhaseConfig) error {
 	if len(heaters) == 0 {
-		return ErrNoHeatersInConfig
+		return ErrHeaterConfigDiffersFromHeatersLen
 	}
 	if len(heaters) != len(p.heaters) {
 		return fmt.Errorf("different number of configs and heaters")
@@ -496,22 +520,5 @@ func validatePhaseNumber(number int) error {
 	if number <= 0 {
 		return ErrPhasesBelowZero
 	}
-	return nil
-}
-
-func (p *Process) Verify() error {
-	if p.clock == nil {
-		// that's ok - just use std
-		p.clock = new(clock)
-	}
-
-	if len(p.sensors) == 0 {
-		return ErrNoTSensors
-	}
-
-	if len(p.heaters) == 0 {
-		return ErrNoHeaters
-	}
-
 	return nil
 }

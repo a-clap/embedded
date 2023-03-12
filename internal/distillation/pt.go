@@ -140,6 +140,7 @@ func (h *Handler) configurePT() gin.HandlerFunc {
 			return
 		}
 		h.respond(ctx, http.StatusOK, c)
+		h.safeUpdateSensors()
 	}
 }
 

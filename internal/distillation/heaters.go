@@ -125,6 +125,7 @@ func (h *Handler) enableHeater() gin.HandlerFunc {
 			return
 		}
 		h.respond(ctx, http.StatusOK, newCfg)
+		h.safeUpdateHeaters()
 	}
 }
 

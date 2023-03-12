@@ -139,8 +139,9 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_GPIOErrors() {
 		t.Nil(err, arg.name)
 		t.NotNil(p, arg.name)
 		phaseConfig.GPIO = arg.gpioConfig
-		t.Nil(p.SetPhases(5), arg.name)
-		err = p.ConfigurePhase(3, phaseConfig)
+		t.Nil(p.SetPhases(1), arg.name)
+		t.Nil(p.ConfigurePhase(0, phaseConfig))
+		err = p.Validate()
 		if arg.err != nil {
 			t.NotNil(err, arg.name)
 			t.ErrorContains(err, arg.err.Error(), arg.name)
@@ -148,7 +149,7 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_GPIOErrors() {
 		}
 		t.Nil(err, arg.name)
 		cfg := p.GetConfig()
-		t.EqualValues(phaseConfig, cfg.Phases[3], arg.name)
+		t.EqualValues(phaseConfig, cfg.Phases[0], arg.name)
 
 	}
 }
@@ -269,8 +270,10 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_SensorsError() {
 		t.Nil(err)
 		t.NotNil(p)
 
-		t.Nil(p.SetPhases(5), arg.name)
-		err = p.ConfigurePhase(3, phaseConfig)
+		t.Nil(p.SetPhases(1), arg.name)
+		t.Nil(p.ConfigurePhase(0, phaseConfig))
+
+		err = p.Validate()
 		if arg.err != nil {
 			t.NotNil(err, arg.name)
 			t.ErrorContains(err, arg.err.Error(), arg.name)
@@ -278,7 +281,7 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_SensorsError() {
 		}
 		t.Nil(err, arg.name)
 		cfg := p.GetConfig()
-		t.EqualValues(phaseConfig, cfg.Phases[3], arg.name)
+		t.EqualValues(phaseConfig, cfg.Phases[0], arg.name)
 	}
 }
 
@@ -336,7 +339,7 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_PhaseCount() {
 		t.Nil(p.SetPhases(arg.phaseCount), arg.name)
 		err = p.ConfigurePhase(arg.phaseNumberToConfig, phaseConfig)
 		t.NotNil(err, arg.name)
-		t.ErrorContains(err, arg.err.Error())
+		t.ErrorContains(err, arg.err.Error(), arg.name)
 	}
 }
 func (ps *ProcessConfigSuite) TestConfigurePhase_HeatersError() {
@@ -388,7 +391,7 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_HeatersError() {
 				},
 			},
 			heatersConfig: nil,
-			err:           process.ErrNoHeatersInConfig,
+			err:           process.ErrHeaterConfigDiffersFromHeatersLen,
 		},
 
 		{
@@ -440,8 +443,9 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_HeatersError() {
 		t.Nil(err)
 		t.NotNil(p)
 
-		t.Nil(p.SetPhases(5), arg.name)
-		err = p.ConfigurePhase(3, phaseConfig)
+		t.Nil(p.SetPhases(1), arg.name)
+		t.Nil(p.ConfigurePhase(0, phaseConfig))
+		err = p.Validate()
 		if arg.err != nil {
 			t.NotNil(err, arg.name)
 			t.ErrorContains(err, arg.err.Error(), arg.name)
@@ -449,7 +453,7 @@ func (ps *ProcessConfigSuite) TestConfigurePhase_HeatersError() {
 		}
 		t.Nil(err, arg.name)
 		cfg := p.GetConfig()
-		t.EqualValues(phaseConfig, cfg.Phases[3], arg.name)
+		t.EqualValues(phaseConfig, cfg.Phases[0], arg.name)
 	}
 }
 
@@ -585,8 +589,8 @@ func (ps *ProcessConfigSuite) TestNew() {
 			heatersID: []string{"h1"},
 			sensors:   nil,
 			sensorsID: nil,
-			outputs:   []*OutputMock{new(OutputMock)},
-			outputsID: []string{"o1"},
+			outputs:   nil,
+			outputsID: nil,
 			clock:     new(ClockMock),
 			err:       process.ErrNoTSensors,
 		},
@@ -618,10 +622,31 @@ func (ps *ProcessConfigSuite) TestNew() {
 		t.EqualValues(len(arg.sensors), len(arg.sensorsID), arg.name)
 		t.EqualValues(len(arg.outputs), len(arg.outputs), arg.name)
 
+		cfg := process.Config{
+			PhaseNumber: 1,
+			Phases: []process.PhaseConfig{
+				{
+					Next: process.MoveToNextConfig{
+						Type:                   process.ByTime,
+						SensorID:               "",
+						SensorThreshold:        0,
+						TemperatureHoldSeconds: 0,
+						SecondsToMove:          1,
+					},
+					Heaters: nil,
+					GPIO:    nil,
+				},
+			},
+		}
+
 		heaters := make([]process.Heater, len(arg.heaters))
 		for i := range arg.heaters {
 			arg.heaters[i].On("ID").Return(arg.heatersID[i])
 			heaters[i] = arg.heaters[i]
+			cfg.Phases[0].Heaters = append(cfg.Phases[0].Heaters, process.HeaterPhaseConfig{
+				ID:    arg.heatersID[i],
+				Power: 0,
+			})
 		}
 		sensors := make([]process.Sensor, len(arg.sensors))
 		for i := range arg.sensors {
@@ -632,6 +657,14 @@ func (ps *ProcessConfigSuite) TestNew() {
 		for i := range arg.outputs {
 			arg.outputs[i].On("ID").Return(arg.outputsID[i])
 			outputs[i] = arg.outputs[i]
+			cfg.Phases[0].GPIO = append(cfg.Phases[0].GPIO, process.GPIOPhaseConfig{
+				ID:         arg.outputsID[i],
+				SensorID:   arg.sensorsID[i],
+				TLow:       0,
+				THigh:      0,
+				Hysteresis: 0,
+				Inverted:   false,
+			})
 		}
 
 		options := []process.Option{
@@ -648,14 +681,15 @@ func (ps *ProcessConfigSuite) TestNew() {
 		t.NotNil(p, arg.name)
 		t.Nil(err, arg.name)
 
-		err = p.Verify()
+		t.Nil(p.Configure(cfg))
+		err = p.Validate()
 
 		if arg.err != nil {
 			t.NotNil(err, arg.name)
 			t.ErrorContains(err, arg.err.Error(), arg.name)
 			continue
 		}
-		t.Nil(err)
+		t.Nil(err, arg.name)
 
 	}
 
