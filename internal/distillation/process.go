@@ -16,9 +16,12 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ProcessPhaseCount is JSON wrapper for process.PhaseNumber
 type ProcessPhaseCount struct {
 	PhaseNumber int `json:"phase_number"`
 }
+
+// ProcessPhaseConfig is package wrapper for process.PhaseConfig
 type ProcessPhaseConfig struct {
 	process.PhaseConfig
 }
@@ -30,6 +33,7 @@ func (h *Handler) getPhaseCount() gin.HandlerFunc {
 		h.respond(ctx, http.StatusOK, s)
 	}
 }
+
 func (h *Handler) configurePhaseCount() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := ProcessPhaseCount{}
@@ -61,6 +65,7 @@ func (h *Handler) configurePhaseCount() gin.HandlerFunc {
 
 	}
 }
+
 func (h *Handler) getProcessConfig() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		param := ctx.Param("id")
@@ -89,6 +94,7 @@ func (h *Handler) getProcessConfig() gin.HandlerFunc {
 		h.respond(ctx, http.StatusOK, cfg.Phases[id])
 	}
 }
+
 func (h *Handler) setProcessConfig() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		param := ctx.Param("id")
@@ -272,41 +278,50 @@ func (h *Handler) updateHeaters() {
 	h.Process.ConfigureHeaters(heaters)
 }
 
+// processHeater fulfills process.Heater interface
 type processHeater struct {
 	id     string
 	setPwr func(pwr int) error
 }
 
+// ID fulfills process.Heater interface
 func (p *processHeater) ID() string {
 	return p.id
 }
 
+// SetPower fulfills process.Heater interface
 func (p *processHeater) SetPower(pwr int) error {
 	return p.setPwr(pwr)
 }
 
+// processOutput fulfills process.Output interface
 type processOutput struct {
 	id       string
 	setValue func(value bool) error
 }
 
+// ID fulfills process.Output interface
 func (p *processOutput) ID() string {
 	return p.id
 }
 
+// Set fulfills process.Output interface
 func (p *processOutput) Set(value bool) error {
 	return p.setValue(value)
 }
 
+// processSensor fulfills process.Sensor interface
 type processSensor struct {
 	id      string
 	getTemp func() float64
 }
 
+// ID fulfills process.Sensor interface
 func (p *processSensor) ID() string {
 	return p.id
 }
 
+// Temperature fulfills process.Sensor interface
 func (p *processSensor) Temperature() float64 {
 	return p.getTemp()
 }

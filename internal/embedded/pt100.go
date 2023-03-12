@@ -144,8 +144,10 @@ func (h *Handler) getPTSensors() gin.HandlerFunc {
 func (p *PTHandler) GetTemperatures() []PTTemperature {
 	temps := make([]PTTemperature, 0, len(p.sensors))
 	for _, pt := range p.sensors {
-		tmp := PTTemperature{Readings: pt.GetReadings()}
-		temps = append(temps, tmp)
+		if pt.Enabled {
+			tmp := PTTemperature{Readings: pt.GetReadings()}
+			temps = append(temps, tmp)
+		}
 	}
 	return temps
 }

@@ -257,6 +257,7 @@ func (p *PTHandler) GetSensors() []PTConfig {
 }
 
 func (p *PTHandler) init() error {
+
 	if p.PT == nil {
 		return &PTError{Op: "init", Err: ErrNoPTInterface.Error()}
 	}
@@ -272,6 +273,7 @@ func (p *PTHandler) init() error {
 			temps:          embedded.PTTemperature{},
 		}
 		p.sensors[id] = cfg
+		log.Debug("found pt100 with id ", id)
 		// TODO: Should we configure them on startup?
 	}
 	return nil

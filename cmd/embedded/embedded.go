@@ -18,7 +18,7 @@ import (
 func main() {
 
 	var handler *embedded.Handler
-	if _, ok := os.LookupEnv("TESTING"); !ok {
+	if _, ok := os.LookupEnv("TESTING"); ok {
 		handler = getMockedEmbedded()
 	} else {
 		handler = getEmbeddedFromConfig()
