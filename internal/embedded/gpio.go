@@ -60,7 +60,7 @@ func (h *Handler) configGPIO() gin.HandlerFunc {
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusBadRequest, e)
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 
@@ -111,7 +111,7 @@ func (h *Handler) getGPIOS() gin.HandlerFunc {
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusBadRequest, e)
+			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
 

@@ -9,27 +9,36 @@ type Option func(*Handler) error
 
 func WithHeaters(heaters Heaters) Option {
 	return func(h *Handler) (err error) {
-		h.HeatersHandler, err = NewHandlerHeaters(heaters)
+		if h.HeatersHandler, err = NewHandlerHeaters(heaters); err != nil {
+			h.HeatersHandler = nil
+		}
+
 		return err
 	}
 }
 func WithGPIO(gpio GPIO) Option {
 	return func(h *Handler) (err error) {
-		h.GPIOHandler, err = NewGPIOHandler(gpio)
+		if h.GPIOHandler, err = NewGPIOHandler(gpio); err != nil {
+			h.GPIOHandler = nil
+		}
 		return err
 	}
 }
 
 func WithDS(ds DS) Option {
 	return func(h *Handler) (err error) {
-		h.DSHandler, err = NewDSHandler(ds)
+		if h.DSHandler, err = NewDSHandler(ds); err != nil {
+			h.DSHandler = nil
+		}
 		return err
 	}
 }
 
 func WithPT(pt PT) Option {
 	return func(h *Handler) (err error) {
-		h.PTHandler, err = NewPTHandler(pt)
+		if h.PTHandler, err = NewPTHandler(pt); err != nil {
+			h.PTHandler = nil
+		}
 		return err
 	}
 }

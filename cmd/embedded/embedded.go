@@ -7,7 +7,6 @@ package main
 
 import (
 	"log"
-	"os"
 
 	"github.com/a-clap/iot/cmd/embedded/embeddedmock"
 	"github.com/a-clap/iot/internal/embedded"
@@ -18,12 +17,16 @@ import (
 func main() {
 
 	var handler *embedded.Handler
-	if _, ok := os.LookupEnv("TESTING"); ok {
-		handler = getMockedEmbedded()
-	} else {
-		handler = getEmbeddedFromConfig()
+	// if _, ok := os.LookupEnv("TESTING"); !ok {
+	// 	handler = getMockedEmbedded()
+	// } else {
+	// 	handler = getEmbeddedFromConfig()
+	// }
+	handler, err := embedded.New()
+	if err != nil {
+		log.Fatalln(err)
 	}
-	err := handler.Run()
+	err = handler.Run()
 	log.Println(err)
 }
 

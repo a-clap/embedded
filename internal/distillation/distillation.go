@@ -32,7 +32,7 @@ func New(opts ...Option) (*Handler, error) {
 	// Options
 	for _, opt := range opts {
 		if err := opt(h); err != nil {
-			return nil, err
+			log.Error(err)
 		}
 	}
 	var err error
