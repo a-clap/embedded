@@ -71,7 +71,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 	log.Debugf("parsing ConfigDS1B20: %#v", config)
 
-	sensors := make([]DSSensor, len(config))
+	sensors := make([]DSSensor, 0, len(config))
 	var errs []error
 	for _, busConfig := range config {
 		bus, err := ds18b20.NewBus(ds18b20.WithOnewireOnPath(busConfig.Path))
@@ -90,7 +90,6 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 		for _, s := range sensors {
 			sensors = append(sensors, s)
 		}
-
 	}
 	return WithDS18B20(sensors), errs
 }
@@ -98,7 +97,7 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 func parsePT100(config []ConfigPT100) (Option, []error) {
 	log.Debugf("parsing ConfigPT100: %#v", config)
 
-	pts := make([]PTSensor, len(config))
+	pts := make([]PTSensor, 0, len(config))
 	var errs []error
 	for _, cfg := range config {
 		s, err := max31865.NewSensor(
@@ -125,7 +124,7 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 func parseGPIO(config []ConfigGPIO) (Option, []error) {
 	log.Debugf("parsing ConfigGPIO: %#v", config)
 
-	ios := make([]GPIO, len(config))
+	ios := make([]GPIO, 0, len(config))
 	var errs []error
 	for _, cfg := range config {
 		var maybeGpio *gpioHandler
