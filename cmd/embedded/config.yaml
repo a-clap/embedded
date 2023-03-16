@@ -1,0 +1,71 @@
+heaters:
+  - hardware_id: "SSR1"
+    gpio_pin:
+      chip: "gpiochip0"
+      line: 20
+  - hardware_id: "SSR2"
+    gpio_pin:
+      chip: "gpiochip0"
+      line: 21
+  - hardware_id: "SSR3"
+    gpio_pin:
+      chip: "gpiochip0"
+      line: 2
+ds18b20:
+  - path: "/sys/bus/w1/devices/w1_bus_master1/"
+    bus_name: "master1"
+    poll_time_millis: 350
+    resolution: 11
+    samples: 3
+  - path: "/sys/bus/w1/devices/w1_bus_master2/"
+    bus_name: "master1"
+    poll_time_millis: 350
+    resolution: 11
+    samples: 3
+  - path: "/sys/bus/w1/devices/w1_bus_master3/"
+    bus_name: "master1"
+    poll_time_millis: 350
+    resolution: 11
+    samples: 3
+pt_100:
+  - path: "/dev/spidev0.0"
+    id: "pt100_1"
+    r_nominal: 100.0
+    r_ref: 430.0
+    wiring: "threeWire"
+    ready_pin:
+      chip: "gpiochip1"
+      line: 4
+  - path: "/dev/spidev0.1"
+    id: "pt100_2"
+    r_nominal: 100.0
+    r_ref: 430.0
+    wiring: "threeWire"
+    ready_pin:
+      chip: "gpiochip1"
+      line: 2
+gpio:
+  - pin:
+      chip: "gpiochip0"
+      line: 6
+    active_level: 1
+    direction: 1
+    value: 0
+  - pin:
+     chip: "gpiochip0"
+     line: 16
+    active_level: 1
+    direction: 1
+    value: 0
+  - pin:
+     chip: "gpiochip0"
+     line: 14
+    active_level: 1
+    direction: 1
+    value: 0
+  - pin:
+      chip: "gpiochip0"
+      line: 13
+    active_level: 1
+    direction: 1
+    value: 0

@@ -13,39 +13,39 @@ import (
 )
 
 type Config struct {
-	Heaters []ConfigHeater  `json:"heaters"`
-	DS18B20 []ConfigDS18B20 `json:"ds18b20"`
-	PT100   []ConfigPT100   `json:"pt_100"`
-	GPIO    []ConfigGPIO    `json:"gpio"`
+	Heaters []ConfigHeater  `mapstructure:"heaters"`
+	DS18B20 []ConfigDS18B20 `mapstructure:"ds18b20"`
+	PT100   []ConfigPT100   `mapstructure:"pt_100"`
+	GPIO    []ConfigGPIO    `mapstructure:"gpio"`
 }
 
 type ConfigHeater struct {
-	string   `json:"hardware_id"`
-	gpio.Pin `json:"gpio_pin"`
+	ID  string   `mapstructure:"hardware_id"`
+	Pin gpio.Pin `mapstructure:"gpio_pin"`
 }
 
 type ConfigDS18B20 struct {
-	Path           string             `json:"path"`
-	BusName        string             `json:"bus_name"`
-	PollTimeMillis uint               `json:"poll_time_millis"`
-	Resolution     ds18b20.Resolution `json:"resolution"`
-	Samples        uint               `json:"samples"`
+	Path           string             `mapstructure:"path"`
+	BusName        string             `mapstructure:"bus_name"`
+	PollTimeMillis uint               `mapstructure:"poll_time_millis"`
+	Resolution     ds18b20.Resolution `mapstructure:"resolution"`
+	Samples        uint               `mapstructure:"samples"`
 }
 
 type ConfigPT100 struct {
-	Path     string          `json:"path"`
-	ID       string          `json:"id"`
-	RNominal float64         `json:"r_nominal"`
-	RRef     float64         `json:"r_ref"`
-	Wiring   max31865.Wiring `json:"wiring"`
-	ReadyPin gpio.Pin        `json:"ready_pin"`
+	Path     string          `mapstructure:"path"`
+	ID       string          `mapstructure:"id"`
+	RNominal float64         `mapstructure:"r_nominal"`
+	RRef     float64         `mapstructure:"r_ref"`
+	Wiring   max31865.Wiring `mapstructure:"wiring"`
+	ReadyPin gpio.Pin        `mapstructure:"ready_pin"`
 }
 
 type ConfigGPIO struct {
-	Pin         gpio.Pin         `json:"pin"`
-	ActiveLevel gpio.ActiveLevel `json:"active_level"`
-	Direction   gpio.Direction   `json:"direction"`
-	Value       bool             `json:"value"`
+	Pin         gpio.Pin         `mapstructure:"pin"`
+	ActiveLevel gpio.ActiveLevel `mapstructure:"active_level"`
+	Direction   gpio.Direction   `mapstructure:"direction"`
+	Value       bool             `mapstructure:"value"`
 }
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
@@ -63,7 +63,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 			errs = append(errs, err)
 			continue
 		}
-		heaters[maybeHeater.string] = h
+		heaters[maybeHeater.ID] = h
 	}
 	return WithHeaters(heaters), errs
 }

@@ -6,17 +6,17 @@
 package main
 
 import (
-	"encoding/json"
 	"log"
 	"os"
-	"path/filepath"
 
 	"github.com/a-clap/iot/cmd/embedded/embeddedmock"
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/a-clap/iot/internal/embedded/gpio"
+	"github.com/spf13/viper"
 )
 
 func main() {
+
 	var handler *embedded.Handler
 	if _, ok := os.LookupEnv("TESTING"); !ok {
 		handler = getMockedEmbedded()
@@ -90,23 +90,21 @@ func getMockedEmbedded() *embedded.Handler {
 }
 
 func getEmbeddedFromConfig() *embedded.Handler {
-	path, err := os.Getwd()
-	if err != nil {
-		log.Fatalln(err)
+	viper.SetConfigName("config")
+	viper.SetConfigType("yaml")
+	viper.AddConfigPath(".")
+	if err := viper.ReadInConfig(); err != nil {
+		panic(err)
 	}
 
-	file, err := os.ReadFile(filepath.Join(path, "config.json"))
-	if err != nil {
-		log.Fatalln(err)
-	}
 	cfg := embedded.Config{}
-	if err := json.Unmarshal(file, &cfg); err != nil {
-		log.Fatalln(err)
+	if err := viper.Unmarshal(&cfg); err != nil {
+		panic(err)
 	}
 
-	handler, err := embedded.NewFromConfig(cfg)
+	e, err := embedded.NewFromConfig(cfg)
 	if err != nil {
-		log.Fatalln(err)
+		panic(err)
 	}
-	return handler
+	return e
 }
