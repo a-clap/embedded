@@ -77,6 +77,7 @@ func NewSensor(options ...Option) (*Sensor, error) {
 			Samples:      10,
 		},
 	}
+
 	for _, opt := range options {
 		if err := opt(s); err != nil {
 			return nil, &Error{Op: "Max.NewSensor", Err: err.Error()}
@@ -252,7 +253,7 @@ func (s *Sensor) Temperature() (actual float64, average float64, err error) {
 		return
 	}
 	tmp := s.r.toTemperature(s.configReg.refRes, s.configReg.rNominal)
-	s.average.Add(tmp)
+	s.average.Add(tmp + s.cfg.Correction)
 	return tmp, s.average.Average(), nil
 }
 
@@ -269,11 +270,11 @@ func (s *Sensor) Close() error {
 	for range s.fin {
 	}
 
-	return s.ReadWriteCloser.Close()
+	return nil
 }
 
 func (s *Sensor) ID() string {
-	return s.configReg.id
+	return s.cfg.ID
 }
 
 func (s *Sensor) clearFaults() error {

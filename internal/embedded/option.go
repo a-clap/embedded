@@ -21,6 +21,7 @@ func WithDS18B20(ds []DSSensor) Option {
 		h.DS.sensors = make(map[string]*dsSensor)
 		for _, ds := range ds {
 			bus, id := ds.Name()
+			log.Debug("Adding ds: ", bus, id)
 			cfg := ds.GetConfig()
 			h.DS.sensors[id] = &dsSensor{
 				DSSensor: ds,
@@ -41,6 +42,7 @@ func WithPT(pt []PTSensor) Option {
 		log.Debug("with pt100s")
 		h.PT.sensors = make(map[string]*ptSensor)
 		for _, p := range pt {
+			log.Debug("Adding pt100 ", p.ID())
 			id := p.ID()
 			cfg := p.GetConfig()
 			h.PT.sensors[id] = &ptSensor{
@@ -60,6 +62,7 @@ func WithGPIOs(gpios []GPIO) Option {
 	return func(h *Handler) error {
 		h.GPIO.io = make(map[string]*gpioHandler)
 		for _, gpio := range gpios {
+			log.Debug("adding GPIO: ", gpio.ID())
 			h.GPIO.io[gpio.ID()] = &gpioHandler{
 				GPIO: gpio}
 		}

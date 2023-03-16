@@ -154,6 +154,7 @@ func (g *GPIOHandler) init() error {
 	}
 
 	for _, io := range ios {
+		log.Debug("Adding gpio: ", io.ID)
 		g.io[io.ID] = &GPIOConfig{GPIOConfig: io}
 	}
 	return nil

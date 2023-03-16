@@ -25,7 +25,6 @@ const (
 )
 
 type configReg struct {
-	id       string
 	wiring   Wiring
 	refRes   float64
 	rNominal float64
@@ -33,7 +32,6 @@ type configReg struct {
 
 func newConfig() *configReg {
 	return &configReg{
-		id:       "",
 		wiring:   ThreeWire,
 		refRes:   430.0,
 		rNominal: 100.0,

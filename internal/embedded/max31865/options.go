@@ -20,7 +20,7 @@ func WithReadWriteCloser(readWriteCloser ReadWriteCloser) Option {
 
 func WithID(id string) Option {
 	return func(s *Sensor) error {
-		s.configReg.id = id
+		s.cfg.ID = id
 		return nil
 	}
 }

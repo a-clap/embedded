@@ -132,7 +132,17 @@ func Input(pin Pin, options ...gpiod.LineReqOption) (*In, error) {
 	if err != nil {
 		return nil, &Error{Pin: pin, Op: "input.getActiveLevel", Err: err.Error()}
 	}
-	return &In{pin: pin, level: lvl, Line: line}, nil
+	in := &In{pin: pin, level: lvl, Line: line}
+
+	val, _ := in.Get()
+	in.Config = Config{
+		ID:          in.ID(),
+		Direction:   DirInput,
+		ActiveLevel: lvl,
+		Value:       val,
+	}
+
+	return in, nil
 }
 
 func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, error) {
@@ -151,11 +161,20 @@ func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, erro
 	if err != nil {
 		return nil, &Error{Pin: pin, Op: "output.getActiveLevel", Err: err.Error()}
 	}
-	return &Out{pin: pin, level: lvl, Line: line}, nil
+	o := &Out{pin: pin, level: lvl, Line: line}
+	val, _ := o.Get()
+	o.Config = Config{
+		ID:          o.ID(),
+		Direction:   DirOutput,
+		ActiveLevel: lvl,
+		Value:       val,
+	}
+
+	return o, nil
 }
 
 func (in *In) ID() string {
-	return in.Chip() + ":" + strconv.FormatInt(int64(in.Offset()), 32)
+	return in.Chip() + ":" + strconv.FormatInt(int64(in.Offset()), 10)
 }
 
 func (in *In) Get() (bool, error) {
@@ -178,14 +197,16 @@ func (in *In) Configure(new Config) error {
 			return &Error{Pin: in.pin, Op: "Configure.setActiveLevel", Err: err.Error()}
 		}
 	}
-	last.ActiveLevel = new.ActiveLevel
+	in.Config.ActiveLevel = new.ActiveLevel
 	return nil
 }
 
 func (in *In) GetConfig() (Config, error) {
 	var err error
-	in.Config.Value, err = in.Get()
-	return in.Config, &Error{Pin: in.pin, Op: "GetConfig.Get", Err: err.Error()}
+	if in.Config.Value, err = in.Get(); err != nil {
+		return in.Config, &Error{Pin: in.pin, Op: "GetConfig.Get", Err: err.Error()}
+	}
+	return in.Config, nil
 }
 
 func (o *Out) Set(value bool) error {
@@ -193,8 +214,10 @@ func (o *Out) Set(value bool) error {
 	if value {
 		setValue = 1
 	}
-	err := o.SetValue(setValue)
-	return &Error{Pin: o.pin, Op: "Set.SetValue", Err: err.Error()}
+	if err := o.SetValue(setValue); err != nil {
+		return &Error{Pin: o.pin, Op: "Set.SetValue", Err: err.Error()}
+	}
+	return nil
 
 }
 
@@ -213,7 +236,7 @@ func (o *Out) Get() (bool, error) {
 }
 
 func (o *Out) ID() string {
-	return o.Chip() + ":" + strconv.FormatInt(int64(o.Offset()), 32)
+	return o.Chip() + ":" + strconv.FormatInt(int64(o.Offset()), 10)
 }
 
 func (o *Out) Configure(new Config) error {
@@ -223,7 +246,7 @@ func (o *Out) Configure(new Config) error {
 			return &Error{Pin: o.pin, Op: "Configure.setActiveLevel", Err: err.Error()}
 		}
 	}
-	last.ActiveLevel = new.ActiveLevel
+	o.Config.ActiveLevel = new.ActiveLevel
 
 	if last.Value != new.Value {
 		if err := o.Set(new.Value); err != nil {
