@@ -30,13 +30,13 @@ func NewPT(id string) *PT {
 			Correction:   0,
 			ASyncPoll:    false,
 			PollInterval: 0,
-			Samples:      0,
+			Samples:      10,
 		},
 		polling: false,
 		r:       max31865.Readings{},
 		average: nil,
 	}
-	pt.average, _ = avg.New(10)
+	pt.average, _ = avg.New(pt.cfg.Samples)
 	return pt
 }
 
