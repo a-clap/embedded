@@ -42,6 +42,7 @@ type ConfigPT100 struct {
 }
 
 type ConfigGPIO struct {
+	ID          string           `mapstructure:"id"`
 	Pin         gpio.Pin         `mapstructure:"pin"`
 	ActiveLevel gpio.ActiveLevel `mapstructure:"active_level"`
 	Direction   gpio.Direction   `mapstructure:"direction"`
@@ -55,7 +56,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 	var errs []error
 	for _, maybeHeater := range config {
 		h, err := heater.New(
-			heater.WithGpioHeating(maybeHeater.Pin),
+			heater.WithGpioHeating(maybeHeater.Pin, maybeHeater.ID),
 			heater.WitTimeTicker(),
 		)
 		if err != nil {
@@ -106,7 +107,7 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 			max31865.WithRNominal(cfg.RNominal),
 			max31865.WithRefRes(cfg.RRef),
 			max31865.WithWiring(cfg.Wiring),
-			max31865.WithReadyPin(cfg.ReadyPin, nil), // TODO: inject error callback here
+			max31865.WithReadyPin(cfg.ReadyPin, cfg.ID, nil), // TODO: inject error callback here
 		)
 
 		if err != nil {
@@ -129,7 +130,7 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 	for _, cfg := range config {
 		var maybeGpio *gpioHandler
 		if cfg.Direction == gpio.DirInput {
-			gp, err := gpio.Input(cfg.Pin)
+			gp, err := gpio.Input(cfg.Pin, cfg.ID)
 			if err != nil {
 				log.Errorf("error on create input with config %#v: %v", cfg, err)
 				errs = append(errs, err)
@@ -138,7 +139,7 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 			maybeGpio = &gpioHandler{GPIO: gp}
 		} else {
 			initValue := cfg.ActiveLevel == gpio.Low
-			gp, err := gpio.Output(cfg.Pin, initValue)
+			gp, err := gpio.Output(cfg.Pin, cfg.ID, initValue)
 			if err != nil {
 				log.Errorf("error on create output with config %#v: %v", cfg, err)
 				errs = append(errs, err)

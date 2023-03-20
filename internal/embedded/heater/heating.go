@@ -7,6 +7,7 @@ package heater
 
 import (
 	"errors"
+
 	"github.com/a-clap/iot/internal/embedded/gpio"
 )
 
@@ -14,8 +15,8 @@ type gpioHeating struct {
 	*gpio.Out
 }
 
-func newGpioHeating(pin gpio.Pin) (*gpioHeating, error) {
-	out, err := gpio.Output(pin, false)
+func newGpioHeating(pin gpio.Pin, id string) (*gpioHeating, error) {
+	out, err := gpio.Output(pin, id, false)
 	if err != nil {
 		return nil, err
 	}

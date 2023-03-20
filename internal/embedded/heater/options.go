@@ -25,9 +25,9 @@ func WithTicker(t Ticker) Option {
 	}
 }
 
-func WithGpioHeating(pin gpio.Pin) Option {
+func WithGpioHeating(pin gpio.Pin, id string) Option {
 	return func(heater *Heater) error {
-		heating, err := newGpioHeating(pin)
+		heating, err := newGpioHeating(pin, id)
 		if err != nil {
 			return err
 		}

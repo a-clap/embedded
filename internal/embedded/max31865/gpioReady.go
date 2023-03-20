@@ -20,10 +20,10 @@ type gpioReady struct {
 	errCallback func(error)
 }
 
-func newGpioReady(in gpio.Pin, errCallback func(err error)) (*gpioReady, error) {
+func newGpioReady(in gpio.Pin, id string, errCallback func(err error)) (*gpioReady, error) {
 	var err error
 	m := &gpioReady{pin: in}
-	m.in, err = gpio.Input(m.pin, gpiod.WithPullUp, gpiod.WithFallingEdge, gpiod.WithEventHandler(m.eventHandler))
+	m.in, err = gpio.Input(m.pin, id, gpiod.WithPullUp, gpiod.WithFallingEdge, gpiod.WithEventHandler(m.eventHandler))
 	return m, err
 }
 

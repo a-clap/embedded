@@ -55,9 +55,9 @@ func WithSpidev(devfile string) Option {
 	}
 }
 
-func WithReadyPin(pin gpio.Pin, errCallback func(err error)) Option {
+func WithReadyPin(pin gpio.Pin, id string, errCallback func(err error)) Option {
 	return func(s *Sensor) error {
-		r, err := newGpioReady(pin, errCallback)
+		r, err := newGpioReady(pin, id, errCallback)
 		if err == nil {
 			return WithReady(r)(s)
 		}

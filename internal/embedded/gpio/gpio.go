@@ -122,7 +122,7 @@ func setActiveLevel(line *gpiod.Line, level ActiveLevel) error {
 	return line.Reconfigure(opt)
 }
 
-func Input(pin Pin, options ...gpiod.LineReqOption) (*In, error) {
+func Input(pin Pin, id string, options ...gpiod.LineReqOption) (*In, error) {
 	options = append(options, gpiod.AsInput)
 	line, err := getLine(pin, options...)
 	if err != nil {
@@ -136,7 +136,7 @@ func Input(pin Pin, options ...gpiod.LineReqOption) (*In, error) {
 
 	val, _ := in.Get()
 	in.Config = Config{
-		ID:          in.ID(),
+		ID:          id,
 		Direction:   DirInput,
 		ActiveLevel: lvl,
 		Value:       val,
@@ -145,7 +145,7 @@ func Input(pin Pin, options ...gpiod.LineReqOption) (*In, error) {
 	return in, nil
 }
 
-func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, error) {
+func Output(pin Pin, id string, initValue bool, options ...gpiod.LineReqOption) (*Out, error) {
 	startValue := 0
 	if initValue {
 		startValue = 1
@@ -164,7 +164,7 @@ func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, erro
 	o := &Out{pin: pin, level: lvl, Line: line}
 	val, _ := o.Get()
 	o.Config = Config{
-		ID:          o.ID(),
+		ID:          id,
 		Direction:   DirOutput,
 		ActiveLevel: lvl,
 		Value:       val,
@@ -174,7 +174,7 @@ func Output(pin Pin, initValue bool, options ...gpiod.LineReqOption) (*Out, erro
 }
 
 func (in *In) ID() string {
-	return in.Chip() + ":" + strconv.FormatInt(int64(in.Offset()), 10)
+	return in.Config.ID
 }
 
 func (in *In) Get() (bool, error) {
@@ -236,7 +236,7 @@ func (o *Out) Get() (bool, error) {
 }
 
 func (o *Out) ID() string {
-	return o.Chip() + ":" + strconv.FormatInt(int64(o.Offset()), 10)
+	return o.Config.ID
 }
 
 func (o *Out) Configure(new Config) error {
