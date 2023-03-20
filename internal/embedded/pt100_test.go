@@ -136,7 +136,7 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 	}{
 		{
 			cfg: embedded.PTSensorConfig{
-				Enabled: false,
+				Enabled: true,
 				SensorConfig: max31865.SensorConfig{
 					ID:           "1",
 					Correction:   10.0,
@@ -172,11 +172,23 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 		m.On("ID").Return(elem.cfg.ID)
 		m.On("GetConfig").Return(elem.cfg.SensorConfig)
 		m.On("GetReadings").Return(elem.stat.Readings)
+		m.On("Configure", mock.Anything).Return(nil)
+		m.On("Poll").Return(nil)
+
 		t.mock = append(t.mock, m)
 	}
 
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetPT100Temperatures, nil)
 	h, _ := embedded.New(embedded.WithPT(t.pts()))
+	// enable sensor, so we can get temperatures
+	for _, elem := range args {
+		cfg, err := h.PT.GetConfig(elem.cfg.ID)
+		t.Nil(err)
+		cfg.Enabled = true
+		_, err = h.PT.SetConfig(cfg)
+		t.Nil(err)
+	}
+
 	h.ServeHTTP(t.resp, t.req)
 
 	b, _ := io.ReadAll(t.resp.Body)

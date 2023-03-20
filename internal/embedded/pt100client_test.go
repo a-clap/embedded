@@ -88,12 +88,23 @@ func (p *PTClientSuite) Test_Temperatures() {
 		m.On("ID").Return(elem.cfg.ID)
 		m.On("GetConfig").Return(elem.cfg.SensorConfig)
 		m.On("GetReadings").Return(elem.readings)
+		m.On("Configure", mock.Anything).Return(nil)
+		m.On("Poll").Return(nil)
 
 		readings = append(readings, embedded.PTTemperature{Readings: elem.readings})
 		sensors = append(sensors, m)
 	}
 
 	h, _ := embedded.New(embedded.WithPT(sensors))
+	// enable sensor, so we can get temperatures
+	for _, elem := range args {
+		cfg, err := h.PT.GetConfig(elem.cfg.ID)
+		t.Nil(err)
+		cfg.Enabled = true
+		_, err = h.PT.SetConfig(cfg)
+		t.Nil(err)
+	}
+
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
