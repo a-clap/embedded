@@ -103,11 +103,7 @@ func (h *Handler) configPTSensor() gin.HandlerFunc {
 }
 func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var temperatures []PTTemperature
-		if h.PT.sensors != nil {
-			temperatures = h.PT.GetTemperatures()
-		}
-		if len(temperatures) == 0 {
+		if h.PT.sensors == nil {
 			e := &Error{
 				Title:     "Failed to GetTemperatures",
 				Detail:    ErrNotImplemented.Error(),
@@ -117,6 +113,7 @@ func (h *Handler) getPTTemperatures() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
+		temperatures := h.PT.GetTemperatures()
 		h.respond(ctx, http.StatusOK, temperatures)
 	}
 }

@@ -104,11 +104,7 @@ func (h *Handler) configOnewireSensor() gin.HandlerFunc {
 }
 func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var temperatures []DSTemperature
-		if h.DS.sensors != nil {
-			temperatures = h.DS.GetTemperatures()
-		}
-		if len(temperatures) == 0 {
+		if h.DS.sensors == nil {
 			e := &Error{
 				Title:     "Failed to GetTemperatures",
 				Detail:    ErrNotImplemented.Error(),
@@ -118,6 +114,7 @@ func (h *Handler) getOnewireTemperatures() gin.HandlerFunc {
 			h.respond(ctx, http.StatusInternalServerError, e)
 			return
 		}
+		temperatures := h.DS.GetTemperatures()
 		h.respond(ctx, http.StatusOK, temperatures)
 	}
 }
