@@ -70,9 +70,9 @@ func (d *DS) GetReadings() []ds18b20.Readings {
 			Stamp:       time.Now(),
 			Error:       "",
 		}
+		return []ds18b20.Readings{d.r}
 	}
-
-	return []ds18b20.Readings{d.r}
+	return nil
 }
 
 func (d *DS) Average() float64 {

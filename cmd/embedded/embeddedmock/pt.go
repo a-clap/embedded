@@ -87,9 +87,9 @@ func (p *PT) GetReadings() []max31865.Readings {
 			Stamp:       time.Now(),
 			Error:       "",
 		}
+		return []max31865.Readings{p.r}
 	}
-
-	return []max31865.Readings{p.r}
+	return nil
 }
 
 func (p *PT) Close() error {
