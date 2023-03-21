@@ -73,6 +73,7 @@ type MoveToNextStatus struct {
 }
 
 type Status struct {
+	Running     bool                     `json:"running"`
 	Done        bool                     `json:"done"`
 	PhaseNumber int                      `json:"phase_number"`
 	StartTime   time.Time                `json:"start_time"`

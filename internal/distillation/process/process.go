@@ -113,6 +113,7 @@ func (p *Process) Running() bool {
 
 func (p *Process) run() {
 	p.running.Store(true)
+	p.status.Running = true
 	p.status.Done = false
 	p.currentStamp = p.clock.Unix()
 	p.status.StartTime = time.Unix(p.currentStamp, 0)
@@ -122,27 +123,25 @@ func (p *Process) run() {
 
 func (p *Process) finishRun() {
 	p.status.Done = true
+	p.status.Running = false
 	p.status.EndTime = time.Unix(p.currentStamp, 0)
-
-	for _, heater := range p.heaters {
-		_ = heater.SetPower(0)
-	}
-
-	for _, gpio := range p.outputs {
-		gpio.inRange = false
-		_ = gpio.Output.Set(false)
-	}
-
 	p.running.Store(false)
+
+	// build standard status, but because of finished Process it will disable all outputs and heaters
+	p.handleTemperatures()
+	p.handleGpio()
+	p.handleHeaters()
+	if p.currentPhaseConfig.Next.Type == ByTime {
+		p.status.Next.Time.TimeLeft = 0
+	} else {
+		p.status.Next.Temperature.TimeLeft = 0
+	}
+
 }
 
 func (p *Process) Process() (Status, error) {
-	if err := p.Validate(); err != nil {
-		return Status{}, err
-	}
-
 	if p.Running() == false {
-		return Status{}, ErrNotRunning
+		return Status{Running: false}, ErrNotRunning
 	}
 	p.currentStamp = p.clock.Unix()
 	return p.process()
@@ -308,14 +307,20 @@ func (p *Process) handleHeaters() {
 	p.status.Heaters = make([]HeaterPhaseStatus, 0, len(p.currentPhaseConfig.Heaters))
 	for _, config := range p.currentPhaseConfig.Heaters {
 		heater := p.heaters[config.ID]
-		if err := heater.SetPower(config.Power); err != nil {
+		pwr := 0
+
+		if p.status.Running {
+			pwr = config.Power
+		}
+
+		if err := heater.SetPower(pwr); err != nil {
 			err = fmt.Errorf("%w: on ID: %v, SetPower: %v", err, config.ID, config.Power)
 			p.status.Errors = append(p.status.Errors, err.Error())
 			continue
 		}
 		p.status.Heaters = append(p.status.Heaters, HeaterPhaseStatus{HeaterPhaseConfig{
 			ID:    config.ID,
-			Power: config.Power,
+			Power: pwr,
 		}})
 	}
 }
@@ -329,26 +334,28 @@ func (p *Process) handleGpio() {
 			p.status.Errors = append(p.status.Errors, err.Error())
 			continue
 		}
+		gpioValue := false
+		if p.status.Running {
+			s, ok := p.sensors[config.SensorID]
+			if !ok {
+				err := fmt.Errorf("sensor with ID: %v not found", config.SensorID)
+				p.status.Errors = append(p.status.Errors, err.Error())
+				continue
+			}
 
-		s, ok := p.sensors[config.SensorID]
-		if !ok {
-			err := fmt.Errorf("sensor with ID: %v not found", config.SensorID)
-			p.status.Errors = append(p.status.Errors, err.Error())
-			continue
-		}
+			t := s.Temperature()
+			if gpio.inRange {
+				// Last time was in range
+				gpio.inRange = t >= (config.TLow-config.Hysteresis) && t <= (config.THigh+config.Hysteresis)
+			} else {
+				// Out of range, need to hit tlow or thigh
+				gpio.inRange = t >= config.TLow && t <= config.THigh
+			}
+			gpioValue = gpio.inRange
 
-		t := s.Temperature()
-		if gpio.inRange {
-			// Last time was in range
-			gpio.inRange = t >= (config.TLow-config.Hysteresis) && t <= (config.THigh+config.Hysteresis)
-		} else {
-			// Out of range, need to hit tlow or thigh
-			gpio.inRange = t >= config.TLow && t <= config.THigh
-		}
-		gpioValue := gpio.inRange
-
-		if config.Inverted {
-			gpioValue = !gpioValue
+			if config.Inverted {
+				gpioValue = !gpioValue
+			}
 		}
 
 		if err := gpio.Output.Set(gpioValue); err != nil {

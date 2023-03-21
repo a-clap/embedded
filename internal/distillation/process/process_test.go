@@ -116,6 +116,7 @@ func (pts *ProcessTestSuite) TestHappyPath_ConfigureOnFly() {
 	s, err := p.Run()
 	t.Nil(err)
 	expectedStatus := process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(retTime, 0),
@@ -160,6 +161,7 @@ func (pts *ProcessTestSuite) TestHappyPath_ConfigureOnFly() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -212,6 +214,7 @@ func (pts *ProcessTestSuite) TestHappyPath_ConfigureOnFly() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -256,6 +259,7 @@ func (pts *ProcessTestSuite) TestHappyPath_ConfigureOnFly() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 1,
 		StartTime:   time.Unix(0, 0),
@@ -305,6 +309,7 @@ func (pts *ProcessTestSuite) TestHappyPath_ConfigureOnFly() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 1,
 		StartTime:   time.Unix(0, 0),
@@ -354,6 +359,7 @@ func (pts *ProcessTestSuite) TestHappyPath_ConfigureOnFly() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 1,
 		StartTime:   time.Unix(0, 0),
@@ -463,6 +469,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err := p.Run()
 	t.Nil(err)
 	expectedStatus := process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(retTime, 0),
@@ -507,6 +514,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -551,6 +559,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -595,6 +604,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -639,6 +649,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -683,6 +694,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -727,6 +739,7 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -762,38 +775,51 @@ func (pts *ProcessTestSuite) TestHappyPath_VerifyGPIOHandlingSinglePhase() {
 	}
 	t.EqualValues(expectedStatus, s)
 
-	//
 	// FourthCall - finished
-	// retTime = 101
-	// clockMock.On("Unix").Return(retTime).Once()
-	// sensorMock.On("Temperature").Return(100.1).Once()
-	// // Disable heater
-	// heaterMock.On("SetPower", 0).Return(nil).Once()
-	// s, err = p.Process()
-	// t.Nil(err)
-	// expectedStatus = process.Status{
-	// 	Done:        true,
-	// 	PhaseNumber: 0,
-	// 	StartTime:   time.Unix(0, 0),
-	// 	EndTime:     time.Unix(retTime, 0),
-	// 	Next: process.MoveToNextStatus{
-	// 		Type: process.ByTime,
-	// 		Time: process.MoveToNextStatusTime{
-	// 			TimeLeft: 1,
-	// 		},
-	// 		Temperature: process.MoveToNextStatusTemperature{},
-	// 	},
-	// 	Heaters: []process.HeaterPhaseStatus{},
-	// 	Temperature: []process.TemperaturePhaseStatus{
-	// 		{
-	// 			ID:          "s1",
-	// 			Temperature: 150.1,
-	// 		},
-	// 	},
-	// 	GPIO:   []process.GPIOPhaseStatus{},
-	// 	Errors: nil,
-	// }
-	// t.EqualValues(expectedStatus, s)
+	retTime = 101
+	clockMock.On("Unix").Return(retTime).Once()
+	sensorMock.On("Temperature").Return(100.1).Once()
+	// Disable heater
+	heaterMock.On("SetPower", 0).Return(nil).Once()
+	outputMock.On("Set", false).Return(nil).Once()
+	s, err = p.Process()
+	t.Nil(err)
+	expectedStatus = process.Status{
+		Running:     false,
+		Done:        true,
+		PhaseNumber: 0,
+		StartTime:   time.Unix(0, 0),
+		EndTime:     time.Unix(retTime, 0),
+		Next: process.MoveToNextStatus{
+			Type: process.ByTime,
+			Time: process.MoveToNextStatusTime{
+				TimeLeft: 0,
+			},
+			Temperature: process.MoveToNextStatusTemperature{},
+		},
+		Heaters: []process.HeaterPhaseStatus{
+			{
+				process.HeaterPhaseConfig{
+					ID:    "h1",
+					Power: 0,
+				},
+			},
+		},
+		Temperature: []process.TemperaturePhaseStatus{
+			{
+				ID:          "s1",
+				Temperature: 100.1,
+			},
+		},
+		GPIO: []process.GPIOPhaseStatus{
+			{
+				ID:    "o1",
+				State: false,
+			},
+		},
+		Errors: nil,
+	}
+	t.EqualValues(expectedStatus, s)
 }
 func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	t := pts.Require()
@@ -850,6 +876,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err := p.Run()
 	t.Nil(err)
 	expectedStatus := process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(retTime, 0),
@@ -890,6 +917,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -930,6 +958,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -970,6 +999,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1010,6 +1040,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1050,6 +1081,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1091,6 +1123,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     false,
 		Done:        true,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1101,14 +1134,14 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTemperature() {
 			Temperature: process.MoveToNextStatusTemperature{
 				SensorID:        "s1",
 				SensorThreshold: 75.0,
-				TimeLeft:        10,
+				TimeLeft:        0,
 			},
 		},
 		Heaters: []process.HeaterPhaseStatus{
 			{
 				process.HeaterPhaseConfig{
 					ID:    "h1",
-					Power: 13,
+					Power: 0,
 				},
 			},
 		},
@@ -1178,6 +1211,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTime() {
 	s, err := p.Run()
 	t.Nil(err)
 	expectedStatus := process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(retTime, 0),
@@ -1216,6 +1250,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTime() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1255,6 +1290,7 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTime() {
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     true,
 		Done:        false,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1289,12 +1325,13 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTime() {
 	// FourthCall - finished
 	retTime = 101
 	clockMock.On("Unix").Return(retTime).Once()
-	// sensorMock.On("Temperature").Return(100.1).Once()
+	sensorMock.On("Temperature").Return(100.1).Once()
 	// Disable heater
 	heaterMock.On("SetPower", 0).Return(nil).Once()
 	s, err = p.Process()
 	t.Nil(err)
 	expectedStatus = process.Status{
+		Running:     false,
 		Done:        true,
 		PhaseNumber: 0,
 		StartTime:   time.Unix(0, 0),
@@ -1302,15 +1339,22 @@ func (pts *ProcessTestSuite) TestHappyPath_SinglePhaseByTime() {
 		Next: process.MoveToNextStatus{
 			Type: process.ByTime,
 			Time: process.MoveToNextStatusTime{
-				TimeLeft: 1,
+				TimeLeft: 0,
 			},
 			Temperature: process.MoveToNextStatusTemperature{},
 		},
-		Heaters: []process.HeaterPhaseStatus{},
+		Heaters: []process.HeaterPhaseStatus{
+			{
+				process.HeaterPhaseConfig{
+					ID:    "h1",
+					Power: 0,
+				},
+			},
+		},
 		Temperature: []process.TemperaturePhaseStatus{
 			{
 				ID:          "s1",
-				Temperature: 150.1,
+				Temperature: 100.1,
 			},
 		},
 		GPIO:   []process.GPIOPhaseStatus{},
