@@ -26,6 +26,136 @@ type ProcessPhaseConfig struct {
 	process.PhaseConfig
 }
 
+// ProcessConfig serves as a way to enable or disable processing
+type ProcessConfig struct {
+	Enable     bool `json:"enable"`
+	MoveToNext bool `json:"move_to_next"`
+	Disable    bool `json:"disable"`
+}
+
+// ProcessConfigValidation returns whether Process configuration is valid
+type ProcessConfigValidation struct {
+	Valid bool   `json:"valid"`
+	Error string `json:"error,omitempty"`
+}
+
+// ProcessStatus is just wrapper for process.Status
+type ProcessStatus struct {
+	process.Status
+}
+
+func (h *Handler) configureProcess() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		cfg := ProcessConfig{}
+		if err := ctx.ShouldBind(&cfg); err != nil {
+			e := &Error{
+				Title:     "Failed to bind ProcessConfig",
+				Detail:    err.Error(),
+				Instance:  RoutesProcess,
+				Timestamp: time.Now(),
+			}
+			h.respond(ctx, http.StatusBadRequest, e)
+			return
+		}
+
+		if !h.Process.Running() {
+			// Not possible if process is not running
+			if cfg.MoveToNext || cfg.Disable {
+				e := &Error{
+					Title:     "Process is not running",
+					Detail:    "Can't disable or move to next if process is not running",
+					Instance:  RoutesProcess,
+					Timestamp: time.Now(),
+				}
+				h.respond(ctx, http.StatusBadRequest, e)
+				return
+			}
+			// If user wants to enable process
+			if cfg.Enable {
+				s, err := h.Process.Run()
+				if err != nil {
+					e := &Error{
+						Title:     "Error on enabling Process",
+						Detail:    err.Error(),
+						Instance:  RoutesProcess,
+						Timestamp: time.Now(),
+					}
+					h.respond(ctx, http.StatusInternalServerError, e)
+					return
+				}
+				h.updateStatus(s)
+				h.handleProcess()
+				h.respond(ctx, http.StatusOK, cfg)
+				return
+			}
+		}
+
+		if cfg.MoveToNext {
+			s, err := h.Process.MoveToNext()
+			if err != nil {
+				e := &Error{
+					Title:     "Error on MoveToNext",
+					Detail:    err.Error(),
+					Instance:  RoutesProcess,
+					Timestamp: time.Now(),
+				}
+				h.respond(ctx, http.StatusInternalServerError, e)
+				return
+			}
+			h.updateStatus(s)
+			h.respond(ctx, http.StatusOK, cfg)
+			return
+		} else if cfg.Disable {
+			s, err := h.Process.Finish()
+			if err != nil {
+				e := &Error{
+					Title:     "Error on Finish",
+					Detail:    err.Error(),
+					Instance:  RoutesProcess,
+					Timestamp: time.Now(),
+				}
+				h.respond(ctx, http.StatusInternalServerError, e)
+				return
+			}
+			h.updateStatus(s)
+			h.respond(ctx, http.StatusOK, cfg)
+			return
+		}
+		e := &Error{
+			Title:     "Nothing to do",
+			Detail:    "Not single command to execute",
+			Instance:  RoutesProcess,
+			Timestamp: time.Now(),
+		}
+		h.respond(ctx, http.StatusBadRequest, e)
+	}
+}
+
+func (h *Handler) getProcessStatus() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		if h.Process.Running() {
+			h.respond(ctx, http.StatusOK, h.lastStatus)
+			return
+		}
+
+		s := ProcessStatus{Status: process.Status{
+			Running: false,
+		}}
+		h.respond(ctx, http.StatusOK, s)
+	}
+}
+func (h *Handler) getConfigValidation() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		v := ProcessConfigValidation{Valid: true}
+		err := h.Process.Validate()
+		if err != nil {
+			v.Valid = false
+			v.Error = err.Error()
+		}
+		h.respond(ctx, http.StatusOK, v)
+	}
+}
+
 func (h *Handler) getPhaseCount() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		cfg := h.Process.GetConfig()

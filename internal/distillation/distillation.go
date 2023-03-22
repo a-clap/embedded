@@ -21,19 +21,22 @@ type Handler struct {
 	PTHandler      *PTHandler
 	GPIOHandler    *GPIOHandler
 	running        atomic.Bool
-	updateInterval time.Duration
+	runInterval    time.Duration
 	finish         chan struct{}
 	finished       chan struct{}
 	Process        *process.Process
+	lastStatus     ProcessStatus
+	lastStatusMtx  sync.Mutex
 }
 
 func New(opts ...Option) (*Handler, error) {
 	h := &Handler{
-		Engine:         gin.Default(),
-		running:        atomic.Bool{},
-		finish:         make(chan struct{}),
-		finished:       make(chan struct{}),
-		updateInterval: 1 * time.Second,
+		Engine:        gin.Default(),
+		running:       atomic.Bool{},
+		finish:        make(chan struct{}),
+		finished:      make(chan struct{}),
+		runInterval:   1 * time.Second,
+		lastStatusMtx: sync.Mutex{},
 	}
 
 	// Options
@@ -74,7 +77,7 @@ func (h *Handler) updateTemperatures() {
 				select {
 				case <-h.finish:
 					break
-				case <-time.After(h.updateInterval):
+				case <-time.After(h.runInterval):
 					errs := h.PTHandler.Update()
 					if errs != nil {
 						log.Debug(errs)
@@ -91,7 +94,7 @@ func (h *Handler) updateTemperatures() {
 				select {
 				case <-h.finish:
 					break
-				case <-time.After(h.updateInterval):
+				case <-time.After(h.runInterval):
 					errs := h.DSHandler.Update()
 					if errs != nil {
 						log.Debug(errs)
@@ -103,4 +106,31 @@ func (h *Handler) updateTemperatures() {
 	}
 	wg.Wait()
 	close(h.finish)
+}
+
+func (h *Handler) handleProcess() {
+	for h.Process.Running() {
+		select {
+		case <-h.finish:
+			s, err := h.Process.Finish()
+			if err != nil {
+				log.Error(err)
+			} else {
+				h.updateStatus(s)
+			}
+		case <-time.After(h.runInterval):
+			s, err := h.Process.Process()
+			if err != nil {
+				log.Error(err)
+			} else {
+				h.updateStatus(s)
+			}
+		}
+	}
+}
+
+func (h *Handler) updateStatus(s process.Status) {
+	h.lastStatusMtx.Lock()
+	h.lastStatus.Status = s
+	h.lastStatusMtx.Unlock()
 }

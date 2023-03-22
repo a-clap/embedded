@@ -523,6 +523,22 @@ func (p *Process) validateConfigHeaters(heaters []HeaterPhaseConfig) error {
 	return nil
 }
 
+func (p *Process) MoveToNext() (Status, error) {
+	if !p.Running() {
+		return Status{}, ErrNotRunning
+	}
+	p.moveToPhase(p.status.PhaseNumber + 1)
+	return p.status, nil
+}
+
+func (p *Process) Finish() (Status, error) {
+	if !p.Running() {
+		return Status{}, ErrNotRunning
+	}
+	p.finishRun()
+	return p.status, nil
+}
+
 func validatePhaseNumber(number int) error {
 	if number <= 0 {
 		return ErrPhasesBelowZero

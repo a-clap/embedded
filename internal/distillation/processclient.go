@@ -41,3 +41,15 @@ func (h *ProcessClient) ConfigurePhase(phaseNumber int, setConfig ProcessPhaseCo
 	addr := strings.Replace(RoutesProcessConfigPhase, ":id", p, 1)
 	return restclient.Put[ProcessPhaseConfig, *Error](h.addr+addr, h.timeout, setConfig)
 }
+
+func (h *ProcessClient) ValidateConfig() (ProcessConfigValidation, error) {
+	return restclient.Get[ProcessConfigValidation, *Error](RoutesProcessConfigValidate, h.timeout)
+}
+
+func (h *ProcessClient) ConfigureProcess(cfg ProcessConfig) (ProcessConfig, error) {
+	return restclient.Put[ProcessConfig, *Error](RoutesProcess, h.timeout, cfg)
+}
+
+func (h *ProcessClient) Status() (ProcessStatus, error) {
+	return restclient.Get[ProcessStatus, *Error](RoutesProcessStatus, h.timeout)
+}

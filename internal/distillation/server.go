@@ -12,20 +12,23 @@ import (
 )
 
 const (
-	RoutesEnableHeater       = "/api/heater"
-	RoutesGetAllHeaters      = "/api/heater"
-	RoutesGetEnabledHeaters  = "/api/heater/enabled"
-	RoutesConfigureHeater    = "/api/heater/enabled"
-	RoutesGetDS              = "/api/onewire"
-	RoutesConfigureDS        = "/api/onewire"
-	RoutesGetDSTemperatures  = "/api/onewire/temperatures"
-	RoutesGetPT              = "/api/pt100"
-	RoutesConfigurePT        = "/api/pt100"
-	RoutesGetPTTemperatures  = "/api/pt100/temperatures"
-	RoutesGetGPIO            = "/api/gpio"
-	RoutesConfigureGPIO      = "/api/gpio"
-	RoutesProcessPhases      = "/api/phases"
-	RoutesProcessConfigPhase = "/api/phases/:id"
+	RoutesEnableHeater          = "/api/heater"
+	RoutesGetAllHeaters         = "/api/heater"
+	RoutesGetEnabledHeaters     = "/api/heater/enabled"
+	RoutesConfigureHeater       = "/api/heater/enabled"
+	RoutesGetDS                 = "/api/onewire"
+	RoutesConfigureDS           = "/api/onewire"
+	RoutesGetDSTemperatures     = "/api/onewire/temperatures"
+	RoutesGetPT                 = "/api/pt100"
+	RoutesConfigurePT           = "/api/pt100"
+	RoutesGetPTTemperatures     = "/api/pt100/temperatures"
+	RoutesGetGPIO               = "/api/gpio"
+	RoutesConfigureGPIO         = "/api/gpio"
+	RoutesProcessPhases         = "/api/phases"
+	RoutesProcessConfigPhase    = "/api/phases/:id"
+	RoutesProcessConfigValidate = "/api/process/validate"
+	RoutesProcess               = "/api/process"
+	RoutesProcessStatus         = "/api/process/status"
 )
 
 var (
@@ -54,6 +57,10 @@ func (h *Handler) routes() {
 	h.PUT(RoutesProcessPhases, h.configurePhaseCount())
 	h.GET(RoutesProcessConfigPhase, h.getProcessConfig())
 	h.PUT(RoutesProcessConfigPhase, h.setProcessConfig())
+
+	h.GET(RoutesProcessConfigValidate, h.getConfigValidation())
+	h.GET(RoutesProcessStatus, h.getProcessStatus())
+	h.PUT(RoutesProcess, h.configureProcess())
 
 }
 
