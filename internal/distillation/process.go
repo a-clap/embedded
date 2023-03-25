@@ -135,15 +135,7 @@ func (h *Handler) configureProcess() gin.HandlerFunc {
 
 func (h *Handler) getProcessStatus() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if h.Process.Running() {
-			h.respond(ctx, http.StatusOK, h.lastStatus)
-			return
-		}
-
-		s := ProcessStatus{Status: process.Status{
-			Running: false,
-		}}
-		h.respond(ctx, http.StatusOK, s)
+		h.respond(ctx, http.StatusOK, h.lastStatus)
 	}
 }
 func (h *Handler) getConfigValidation() gin.HandlerFunc {
