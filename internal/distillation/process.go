@@ -117,10 +117,12 @@ func (h *Handler) configureProcess() gin.HandlerFunc {
 				h.respond(ctx, http.StatusInternalServerError, e)
 				return
 			}
+			close(h.finish)
 			h.updateStatus(s)
 			h.respond(ctx, http.StatusOK, cfg)
 			return
 		}
+
 		e := &Error{
 			Title:     "Nothing to do",
 			Detail:    "Not single command to execute",

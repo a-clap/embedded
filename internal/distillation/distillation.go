@@ -109,24 +109,21 @@ func (h *Handler) updateTemperatures() {
 }
 
 func (h *Handler) handleProcess() {
-	for h.Process.Running() {
-		select {
-		case <-h.finish:
-			s, err := h.Process.Finish()
-			if err != nil {
-				log.Error(err)
-			} else {
-				h.updateStatus(s)
-			}
-		case <-time.After(h.runInterval):
-			s, err := h.Process.Process()
-			if err != nil {
-				log.Error(err)
-			} else {
-				h.updateStatus(s)
+	go func() {
+		for h.Process.Running() {
+			select {
+			case <-time.After(h.runInterval):
+				s, err := h.Process.Process()
+				log.Debug(s)
+				if err != nil {
+					log.Error(err)
+				} else {
+					h.updateStatus(s)
+				}
 			}
 		}
-	}
+	}()
+
 }
 
 func (h *Handler) updateStatus(s process.Status) {
