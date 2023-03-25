@@ -13,5 +13,5 @@ type clock struct {
 }
 
 func (*clock) Unix() int64 {
-	return time.Time{}.Unix()
+	return time.Now().Unix()
 }
