@@ -7,13 +7,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/a-clap/iot/internal/embedded/max31865"
 	"log"
 	"time"
+
+	"github.com/a-clap/iot/internal/embedded/max31865"
 )
 
 func main() {
-	//dev, err := max31865.NewSensor("/dev/spidev0.0", max31865.ThreeWire, max31865.RefRes(430.0), max31865.RNominal(100.0))
 	dev, err := max31865.NewSensor(
 		max31865.WithSpidev("/dev/spidev0.0"),
 		max31865.WithWiring(max31865.ThreeWire),

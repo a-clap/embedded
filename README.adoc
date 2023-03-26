@@ -1,24 +1,259 @@
-= IoT
+= Distillation
 :toc: preamble
-:toclevels: 3
+:toclevels: 7
+:distro-link: https://github.com/a-clap/distillation-distro
+:imagesdir: docs/images/
 
-IoT package (developed for https://wiki.banana-pi.org/Banana_Pi_BPI-M2_ZERO[BananaPi Zero]) for personal use.
+This repo is part of distillation project based on https://wiki.banana-pi.org/Banana_Pi_BPI-M2_ZERO[BananaPi Zero] and {distro-link}[distillation distro].
 
-== Why?
+== What is this?
 
-Currently, I am developing project on BananaPi that require few packages. Here is a repository to keep my work tracked.
+This repo contains software components, which aim is to provide components to control distillation process.
 
-== Distro
+== Hardware
 
-Linux distro is developed with Yocto support. Distro repository You can find right here: https://github.com/a-clap/iot-distro:[IoT-distro]
+Hardware description can be found {distro-link}[here].
 
-=== Packages
+== Software
 
-== GPIO
+We can split whole code found here into three main components:
 
-== DS18B20
+* Embedded
+* Distillation
+* GUI
 
-== MAX31865
+Connection between them is quite simple, as shown on diagram below:
+
+image::structure.drawio.svg[role=text-center]
+
+== Embedded
+
+This part is responsible for actual hardware handling, we can call this part 'realtime'.
+
+It is responsible for handling pt100 sensors, onewire sensors, gpio, heaters etc.
+Right now it handles and allow to use:
+
+* pt100 sensors on MAX31865 (which are connected as /dev/spidev)
+* ds18b20 onewire sensors on many buses (which are visible on Linux in /sys/bus/w1/devices/*master*)
+* heaters: which are handled via digital output:
+** a thyristor is turned on (or off) in 'zero voltage' cross, in this way we can achieve 0 to 100% with 1% step regulation
+* digital outputs: just turn it off or on,
+* configuration via REST API,
+
+== Distillation
+
+Distillation was mainly developed to configure Embedded endpoint properly and handle distillation process.
+So what it does is:
+
+* communicates with embedded endpoint,
+* simplifies usage of embedded (omitting unnecessary values etc.),
+* handling distillation process in 'soft' realtime manner,
+* serves as endpoint for GUI, also via REST
+
+== GUI
+
+GUI is displayed on 7 inch touch display connected via HDMI and USB, what it does is:
+
+* user interface, obviously :D
+* save/load preferences,
+* (temporarily) connects to Wi-Fi AP,
+* display errors, statuses etc.
+* right now support language is Polish, but background was prepared to inject another one,
+
+Few samples can be found below:
+
+image::gui_dark_2.png[]
+image::gui_dark_1.png[]
+image::gui_light_1.png[]
+
+
+
+
+
+== Packages
+
+Packages which can be found in this repo.
+
+=== DS18B20
+
+This package can handle DS18B20 onewire sensors via Linux onewire bus.
+You can:
+
+* detect sensors on each created Bus,
+* create sensor from ID,
+* set Resolution (9, 10, 11 or 12 bit) for each Sensor,
+* set number of Samples, which will be used to calculate average Temperature,
+* get Temperature by hand or
+* set up Sensor to automatically update temperature in background and then get whole slice of collected temperatures,
+
+Take a look at example:
+
+[source,go]
+----
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/a-clap/iot/internal/embedded/ds18b20"
+)
+
+func main() {
+	// Get bus handler
+	ds, err := ds18b20.NewBus(ds18b20.WithOnewire())
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	// Find sensors on Bus
+	ids, err := ds.IDs()
+	if err != nil && len(ids) == 0 {
+		log.Fatalln(err)
+	}
+
+	// Create Sensor handler from received ID
+	sensor, _ := ds.NewSensor(ids[0])
+
+	// Poll force sensor to Read temperatures in background
+	errs := sensor.Poll()
+	if errs != nil {
+		log.Fatalln(err)
+	}
+
+	// Just to end this after time
+	<-time.After(10 * time.Second)
+	_ = sensor.Close()
+
+	// Now we can call sensor.GetReadings() to get whole slice of collected temperatures
+	// Note: this also clears all historical temperatures but last
+	reads := sensor.GetReadings()
+
+	for _, readings := range reads {
+		fmt.Printf("id: %s, Temperature: %v. Time: %s, err: %v \n",
+			readings.ID,
+			readings.Temperature,
+			readings.Stamp,
+			readings.Error)
+	}
+
+	fmt.Println("finished")
+}
+----
+
+=== MAX31865
+
+This package can handle PT100 sensors connected through spidev via Linux /dev/spidev.
+You can:
+
+* define sensor wiring (2-, 3- or 4-wire),
+* define reference resistor of max31865 chip (which is usually 430.0 Ω or 400.0 Ω for PT100)
+* define nominal resistance of sensor (which is resistance at which temperature is 0 °C)
+** for PT100 it will be just 100 Ω
+** for PT1000 it will be 1000 Ω
+* set number of Samples, which will be used to calculate average Temperature,
+* get Temperature by hand or
+* set up Sensor to automatically update temperature in background and then get whole slice of collected temperatures,
+** package can read state of DRDY pin via Ready interface or
+** just poll every configured milliseconds,
+* define sensor ID, which then will be returned via ID() method,
+
+
+Take a look at example:
+[source, go]
+----
+package main
+
+import (
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/a-clap/iot/internal/embedded/max31865"
+)
+
+func main() {
+	// Create new sensor
+	dev, err := max31865.NewSensor(
+		max31865.WithSpidev("/dev/spidev0.0"),
+		max31865.WithWiring(max31865.ThreeWire),
+		max31865.WithRefRes(430.0),
+		max31865.WithRNominal(100.0),
+	)
+
+	if err != nil {
+		log.Fatalln(err)
+	}
+	// Cleanup
+	defer dev.Close()
+
+	// Read temperature
+	for i := 0; i < 5; i++ {
+		t, _, err := dev.Temperature()
+		if err != nil {
+			panic(err)
+		}
+		fmt.Println(t)
+		<-time.After(1 * time.Second)
+	}
+}
+----
+
+=== Process
+
+Distillation process handling. It allows user to:
+
+* add heaters, temperature sensors and outputs,
+* configure each phase independently:
+** condition on which process will move to next phase:
+*** time elapsed
+*** temperature on chosen sensor over threshold for at least X seconds,
+** power of each heater,
+** handling output state:
+*** based on temperature from chosen sensor,
+*** gpio state will be changed in specified range (low, high, hysteresis)
+*** also state can be inverted,
+* reports Status on each Process() call:
+** temperatures, gpio states, heaters power, start time, end time etc.
+
+=== GPIO
+
+Wrapper for https://github.com/warthog618/gpiod[libgpiod] - with move verbose error handling and API wrapper for embedded package.
+
+=== Wifi
+
+Another wrapper for https://github.com/theojulienne/go-wireless[go-wireless] - go-wireless sometimes goes into a rabbit hole, so I just solved those problems locally to achieve stability.
+
+== External packages
+
+Project uses a number of awesome external packages, You can find the biggest of them below:
+
+* https://github.com/spf13/viper[viper]
+** loading embedded config.yaml and storing/loading user preferences in GUI,
+
+* https://github.com/fyne-io/fyne[fyne]
+** GUI is based on this toolkit,
+
+* https://github.com/gin-gonic/gin[gin]
+** HTTP web framework,
+
+* https://github.com/stretchr/testify[testify]
+** greatly improves testing,
+
+* https://github.com/warthog618/gpiod[libgpiod]
+* https://github.com/theojulienne/go-wireless[go-wireless]
+
+== TODO list
+
+* [ ] Reorganize location of packages (move some from /internal to /pkg etc.)
+* [ ] Use Viper to save/load preferences.
+* [ ] Add ADS111x package.
+* [ ] Increase test coverage.
+* [ ] Add more in-code comments.
+* [ ] Use RabbitMQ instead of REST.
+* [ ] Export process data to VPS and visualize it on ... maybe Grafana.
+
 
 
 
