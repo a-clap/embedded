@@ -5,30 +5,25 @@
 
 package avg
 
-import (
-	"errors"
-)
-
-var (
-	ErrSizeIsZero = errors.New("size must be greater than zero")
-)
-
 type Avg struct {
 	buffer []float64
 	size   uint
 }
 
-func New(size uint) (*Avg, error) {
+// New creates Avg struct
+// Minimum size is 1, 0 is silently changed to 1
+func New(size uint) *Avg {
 	if size == 0 {
-		return nil, ErrSizeIsZero
+		size = 1
 	}
 
 	return &Avg{
 		buffer: make([]float64, 0, size),
 		size:   size,
-	}, nil
+	}
 }
 
+// Add adds value to buffer
 func (a *Avg) Add(value float64) {
 	p := uint(0)
 	newBufSize := uint(len(a.buffer) + 1)
@@ -39,6 +34,7 @@ func (a *Avg) Add(value float64) {
 
 }
 
+// Average returns current average value based on internal buffer
 func (a *Avg) Average() (avg float64) {
 	if len(a.buffer) == 0 {
 		return
@@ -50,24 +46,22 @@ func (a *Avg) Average() (avg float64) {
 	return avg / float64(len(a.buffer))
 }
 
-func (a *Avg) Resize(newSize uint) error {
+// Resize changes internal buffer
+// Minimum size is 1, 0 is silently changed to 1
+func (a *Avg) Resize(newSize uint) {
 	if newSize == 0 {
-		return ErrSizeIsZero
+		newSize = 1
 	}
-	defer func() {
-		a.size = newSize
-	}()
 
 	if newSize > a.size {
-		return nil
+		a.size = newSize
+		return
 	}
 
+	a.size = newSize
 	bufSize := uint(len(a.buffer))
 	if bufSize >= newSize {
 		a.buffer = a.buffer[bufSize-newSize:]
-		return nil
 	}
-
-	return nil
 
 }

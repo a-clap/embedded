@@ -10,8 +10,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/avg"
 	"github.com/a-clap/iot/internal/embedded/max31865"
+	"github.com/a-clap/iot/pkg/avg"
 )
 
 type PT struct {
@@ -36,7 +36,7 @@ func NewPT(id string) *PT {
 		r:       max31865.Readings{},
 		average: nil,
 	}
-	pt.average, _ = avg.New(pt.cfg.Samples)
+	pt.average = avg.New(pt.cfg.Samples)
 	return pt
 }
 
@@ -54,7 +54,8 @@ func (p *PT) Poll() (err error) {
 
 func (p *PT) Configure(config max31865.SensorConfig) error {
 	p.cfg = config
-	return p.average.Resize(p.cfg.Samples)
+	p.average.Resize(p.cfg.Samples)
+	return nil
 }
 
 func (p *PT) GetConfig() max31865.SensorConfig {

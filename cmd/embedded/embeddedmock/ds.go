@@ -9,8 +9,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/avg"
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/pkg/avg"
 )
 
 type DS struct {
@@ -36,7 +36,7 @@ func NewDS(bus, id string) *DS {
 		r:       ds18b20.Readings{},
 		average: nil,
 	}
-	d.average, _ = avg.New(10)
+	d.average = avg.New(10)
 	return d
 }
 
@@ -81,7 +81,8 @@ func (d *DS) Average() float64 {
 
 func (d *DS) Configure(config ds18b20.SensorConfig) error {
 	d.cfg = config
-	return d.average.Resize(d.cfg.Samples)
+	d.average.Resize(d.cfg.Samples)
+	return nil
 }
 
 func (d *DS) GetConfig() ds18b20.SensorConfig {

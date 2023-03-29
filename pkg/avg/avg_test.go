@@ -8,7 +8,7 @@ package avg_test
 import (
 	"testing"
 
-	"github.com/a-clap/iot/internal/embedded/avg"
+	"github.com/a-clap/iot/pkg/avg"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -20,25 +20,7 @@ func TestAvgTestSuite(t *testing.T) {
 	suite.Run(t, new(AvgTestSuite))
 }
 
-func (t *AvgTestSuite) TestHandleErrors() {
-	a, err := avg.New(0)
-	t.Nil(a)
-	t.NotNil(err)
-	t.ErrorIs(avg.ErrSizeIsZero, err)
-
-	a, err = avg.New(2)
-	t.NotNil(a)
-	t.Nil(err)
-
-	err = a.Resize(0)
-	t.ErrorIs(avg.ErrSizeIsZero, err)
-
-	err = a.Resize(2)
-	t.Nil(err)
-
-}
-
-func (t *AvgTestSuite) TestResize() {
+func (t *AvgTestSuite) TestNewAndResize() {
 	args := []struct {
 		name                                            string
 		initSize, newSize                               uint
@@ -46,7 +28,17 @@ func (t *AvgTestSuite) TestResize() {
 		initExpected, afterResizeExpected, nextExpected int
 	}{
 		{
-			name:                "make buffer bigger (values alredy present)",
+			name:                "start with 0 as size",
+			initSize:            0,
+			newSize:             2,
+			initValues:          []float64{2},
+			nextValues:          []float64{8, 8},
+			initExpected:        2,
+			afterResizeExpected: 2,
+			nextExpected:        8,
+		},
+		{
+			name:                "make buffer bigger (values already present)",
 			initSize:            2,
 			newSize:             5,
 			initValues:          []float64{2, 2},
@@ -105,15 +97,25 @@ func (t *AvgTestSuite) TestResize() {
 			afterResizeExpected: 105,
 			nextExpected:        103,
 		},
+		{
+			name:                "resize to 0",
+			initSize:            5,
+			newSize:             0,
+			initValues:          []float64{205, 200, 200, 200, 200},
+			nextValues:          []float64{101},
+			initExpected:        201,
+			afterResizeExpected: 200,
+			nextExpected:        101,
+		},
 	}
 	for _, arg := range args {
-		a, _ := avg.New(arg.initSize)
+		a := avg.New(arg.initSize)
 		for _, initV := range arg.initValues {
 			a.Add(initV)
 		}
 		t.EqualValues(arg.initExpected, a.Average(), arg.name)
 
-		_ = a.Resize(arg.newSize)
+		a.Resize(arg.newSize)
 
 		t.EqualValues(arg.afterResizeExpected, a.Average(), arg.name)
 
@@ -121,7 +123,6 @@ func (t *AvgTestSuite) TestResize() {
 			a.Add(next)
 		}
 		t.EqualValues(arg.nextExpected, a.Average(), arg.name)
-
 	}
 
 }
@@ -160,62 +161,11 @@ func (t *AvgTestSuite) TestAverage_Float() {
 		},
 	}
 	for _, arg := range args {
-		a, _ := avg.New(arg.size)
+		a := avg.New(arg.size)
 		for _, elem := range arg.values {
 			a.Add(elem)
 		}
 		t.InDelta(arg.expected, a.Average(), 0.01, arg.name)
 
 	}
-
-}
-
-func (t *AvgTestSuite) TestAverage_Int() {
-
-	args := []struct {
-		name     string
-		size     uint
-		values   []float64
-		expected int
-	}{
-		{
-			name:     "basic",
-			size:     3,
-			values:   []float64{1, 2, 3},
-			expected: 2,
-		},
-		{
-			name:     "less elements than size",
-			size:     3,
-			values:   []float64{1, 9},
-			expected: 5,
-		},
-		{
-			name:     "more elements than size",
-			size:     3,
-			values:   []float64{3, 3, 3, 6},
-			expected: 4,
-		},
-		{
-			name:     "much more elements than size",
-			size:     2,
-			values:   []float64{0, 0, 0, 6, 12, 17, 34, 56, 100, 100},
-			expected: 100,
-		},
-		{
-			name:     "none elements",
-			size:     2,
-			values:   []float64{},
-			expected: 0,
-		},
-	}
-	for _, arg := range args {
-		a, _ := avg.New(arg.size)
-		for _, elem := range arg.values {
-			a.Add(elem)
-		}
-		t.EqualValues(arg.expected, a.Average())
-
-	}
-
 }
