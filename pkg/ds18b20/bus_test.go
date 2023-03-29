@@ -9,6 +9,7 @@ import (
 	"errors"
 	"io"
 	"path"
+	"strings"
 	"testing"
 
 	"github.com/a-clap/iot/pkg/ds18b20"
@@ -126,9 +127,11 @@ func (t *BusSuite) TestBus_NewSensorGood() {
 
 	t.NotNil(sensor)
 	t.Nil(err)
-	busName, sID := sensor.Name()
-	t.EqualValues(id, sID)
-	t.EqualValues("w1_bus_master1", busName)
+	fullID := sensor.ID()
+	s := strings.Split(fullID, ":")
+	t.Len(s, 2)
+	t.EqualValues("w1_bus_master1", s[0])
+	t.EqualValues(id, s[1])
 
 	onewire.AssertExpectations(t.T())
 }
@@ -153,6 +156,142 @@ func (t *BusSuite) TestBus_NewSensorWrongID() {
 	t.ErrorContains(err, expectedErr.Error())
 
 	onewire.AssertExpectations(t.T())
+}
+
+func (t *BusSuite) TestBus_NewSensorIDsError() {
+	onewire := new(OnewireMock)
+
+	r := t.Require()
+	bus, err := ds18b20.NewBus(ds18b20.WithInterface(onewire))
+	r.Nil(err)
+	r.NotNil(bus)
+
+	w1Path := "error is coming"
+	internal := io.ErrShortBuffer
+	onewire.On("Path").Return(w1Path)
+	onewire.On("ReadDir", w1Path).Return([]string{}, internal).Once()
+
+	ids, err := bus.NewSensor("hello")
+	r.Nil(ids)
+	r.NotNil(err)
+	r.ErrorIs(err, internal)
+	r.ErrorContains(err, w1Path)
+	r.ErrorContains(err, "ReadDir")
+	r.ErrorContains(err, "NewSensor")
+}
+
+func (t *BusSuite) TestBus_IDSError() {
+	onewire := new(OnewireMock)
+
+	r := t.Require()
+	bus, err := ds18b20.NewBus(ds18b20.WithInterface(onewire))
+	r.Nil(err)
+	r.NotNil(bus)
+
+	w1Path := "error is coming"
+	internal := io.ErrShortBuffer
+	onewire.On("Path").Return(w1Path)
+	onewire.On("ReadDir", w1Path).Return([]string{}, internal).Once()
+
+	ids, err := bus.IDs()
+	r.Nil(ids)
+	r.NotNil(err)
+	r.ErrorIs(err, internal)
+	r.ErrorContains(err, w1Path)
+	r.ErrorContains(err, "ReadDir")
+}
+
+func (t *BusSuite) TestBus_DiscoverSingleError() {
+	onewire := new(OnewireMock)
+	w1Path := "all good"
+
+	ids := []string{"1", "2", "3"}
+	errs := []error{io.EOF, io.ErrNoProgress, io.EOF}
+	res := []byte("9")
+	for i, id := range ids {
+		f := new(FileMock)
+		f.On("Read", mock.Anything).Return(len(res), errs[i]).Run(
+			func(args mock.Arguments) {
+				buf := args.Get(0).([]byte)
+				copy(buf, res)
+			})
+		f.On("Read")
+		f.On("Close").Return(nil)
+		onewire.On("Open", path.Join(w1Path, id, "resolution")).Return(f, nil)
+	}
+
+	onewire.On("Path").Return(w1Path)
+	onewire.On("ReadDir", w1Path).Return(ids, nil)
+
+	r := t.Require()
+	bus, err := ds18b20.NewBus(ds18b20.WithInterface(onewire))
+	r.Nil(err)
+	r.NotNil(bus)
+
+	s, errs := bus.Discover()
+	r.NotNil(errs)
+	r.NotNil(s)
+
+	r.Len(s, 2)
+	r.Len(errs, 1)
+	r.ErrorIs(errs[0], io.ErrNoProgress)
+
+}
+
+func (t *BusSuite) TestBus_DiscoverFine() {
+	onewire := new(OnewireMock)
+	w1Path := "all good"
+
+	ids := []string{"1", "2", "3"}
+	res := []byte("9")
+	for _, id := range ids {
+		f := new(FileMock)
+		f.On("Read", mock.Anything).Return(len(res), io.EOF).Run(
+			func(args mock.Arguments) {
+				buf := args.Get(0).([]byte)
+				copy(buf, res)
+			})
+		f.On("Read")
+		f.On("Close").Return(nil)
+		onewire.On("Open", path.Join(w1Path, id, "resolution")).Return(f, nil)
+	}
+
+	onewire.On("Path").Return(w1Path)
+	onewire.On("ReadDir", w1Path).Return(ids, nil)
+
+	r := t.Require()
+	bus, err := ds18b20.NewBus(ds18b20.WithInterface(onewire))
+	r.Nil(err)
+	r.NotNil(bus)
+
+	s, errs := bus.Discover()
+	r.Nil(errs)
+	r.NotNil(s)
+	r.Len(s, len(ids))
+
+}
+
+func (t *BusSuite) TestBus_DiscoverError() {
+	onewire := new(OnewireMock)
+
+	r := t.Require()
+	bus, err := ds18b20.NewBus(ds18b20.WithInterface(onewire))
+	r.Nil(err)
+	r.NotNil(bus)
+
+	w1Path := "error is coming"
+	internal := io.ErrShortBuffer
+	onewire.On("Path").Return(w1Path)
+	onewire.On("ReadDir", w1Path).Return([]string{}, internal).Once()
+
+	sensors, errs := bus.Discover()
+	r.Nil(sensors)
+	r.NotNil(errs)
+	r.Len(errs, 1)
+	r.ErrorIs(errs[0], internal)
+	r.ErrorContains(errs[0], w1Path)
+	r.ErrorContains(errs[0], "ReadDir")
+	r.ErrorContains(errs[0], "Discover")
 }
 
 func (t *BusSuite) TestBus_NoInterface() {
