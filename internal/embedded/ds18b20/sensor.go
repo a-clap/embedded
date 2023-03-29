@@ -16,7 +16,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/avg"
+	"github.com/a-clap/iot/pkg/avg"
 )
 
 type Resolution int

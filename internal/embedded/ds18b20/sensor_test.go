@@ -13,8 +13,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/avg"
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/pkg/avg"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
