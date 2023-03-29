@@ -5,24 +5,20 @@
 
 package ds18b20
 
-type BusOption func(bus *Bus) error
+type BusOption func(bus *Bus)
 
 func WithInterface(o Onewire) BusOption {
-	return func(bus *Bus) error {
+	return func(bus *Bus) {
 		bus.o = o
-		return nil
 	}
 }
 
 func WithOnewire() BusOption {
-	return func(bus *Bus) error {
-		return WithOnewireOnPath("/sys/bus/w1/devices/w1_bus_master1")(bus)
-	}
+	return WithOnewireOnPath("/sys/bus/w1/devices/w1_bus_master1")
 }
 
 func WithOnewireOnPath(path string) BusOption {
-	return func(bus *Bus) error {
+	return func(bus *Bus) {
 		bus.o = &onewire{path: path}
-		return nil
 	}
 }

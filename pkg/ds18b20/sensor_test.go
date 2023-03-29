@@ -343,16 +343,13 @@ func (t *SensorSuite) TestSensor_PollTwice() {
 	r.Nil(sensor.Configure(cfg))
 
 	// We don't want to test Poll, just error handling
-	err := sensor.Poll()
-	r.Nil(err)
-
-	err = sensor.Poll()
-	r.ErrorContains(err, ds18b20.ErrAlreadyPolling.Error())
+	sensor.Poll()
+	sensor.Poll()
 
 	wait := make(chan struct{})
 
 	go func() {
-		r.Nil(sensor.Close())
+		sensor.Close()
 		wait <- struct{}{}
 	}()
 
@@ -437,12 +434,12 @@ func (t *SensorSuite) TestSensor_Poll() {
 		temperatureFile.On("Close").Return(nil)
 	}
 
-	r.Nil(sensor.Poll())
+	sensor.Poll()
 	data := make([]ds18b20.Readings, 0, len(temperatures))
 	<-time.After(cfg.PollInterval * time.Duration(len(temperatures)+1))
 	data = append(data, sensor.GetReadings()...)
 
-	r.Nil(sensor.Close())
+	sensor.Close()
 	r.Equal(len(data), len(temperatures))
 
 	for i := range data {

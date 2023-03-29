@@ -26,30 +26,10 @@ type FileMock struct {
 
 type BusSuite struct {
 	suite.Suite
-	onewire *OnewireMock
-	file    []*FileMock
 }
 
 func TestDS8B20Run(t *testing.T) {
 	suite.Run(t, new(BusSuite))
-}
-
-func (t *BusSuite) SetupTest() {
-	t.onewire = new(OnewireMock)
-	t.file = make([]*FileMock, 0)
-}
-
-func (t *BusSuite) TearDownTest() {
-	t.onewire.AssertExpectations(t.T())
-	for _, f := range t.file {
-		f.AssertExpectations(t.T())
-	}
-}
-func (t *BusSuite) TearDownAllSuite() {
-	t.onewire = nil
-	for i := range t.file {
-		t.file[i] = nil
-	}
 }
 
 func (t *BusSuite) TestBus_IDs() {
@@ -94,12 +74,12 @@ func (t *BusSuite) TestBus_IDs() {
 	}
 	r := t.Require()
 	for _, arg := range args {
-		t.onewire = new(OnewireMock)
-		t.onewire.On("Path").Return(arg.path)
-		t.onewire.On("ReadDir", arg.path).Return(arg.dirEntry, arg.err)
+		onewire := new(OnewireMock)
+		onewire.On("Path").Return(arg.path)
+		onewire.On("ReadDir", arg.path).Return(arg.dirEntry, arg.err)
 
 		h, err := ds18b20.NewBus(
-			ds18b20.WithInterface(t.onewire),
+			ds18b20.WithInterface(onewire),
 		)
 
 		r.NotNil(h, arg.name)
@@ -113,6 +93,7 @@ func (t *BusSuite) TestBus_IDs() {
 		} else {
 			r.Nil(err, arg.name)
 		}
+		onewire.AssertExpectations(t.T())
 	}
 }
 
@@ -121,23 +102,24 @@ func (t *BusSuite) TestBus_NewSensorGood() {
 	w1path := "/sys/bus/w1/devices/w1_bus_master1"
 	dirEntry := []string{"28-05169397aeff"}
 
-	t.file = make([]*FileMock, 1)
-	t.file[0] = new(FileMock)
-	t.onewire.On("Path").Return(w1path)
-	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil)
-	t.onewire.On("Open", path.Join(w1path, id, "resolution")).Return(t.file[0], nil).Once()
-	t.file[0].On("Close").Return(nil)
+	files := make([]*FileMock, 1)
+	files[0] = new(FileMock)
+	onewire := new(OnewireMock)
+	onewire.On("Path").Return(w1path)
+	onewire.On("ReadDir", w1path).Return(dirEntry, nil)
+	onewire.On("Open", path.Join(w1path, id, "resolution")).Return(files[0], nil).Once()
+	files[0].On("Close").Return(nil)
 
 	resolutionBuf := []byte("11")
-	call := t.file[0].On("Read", mock.Anything).Return(len(resolutionBuf), nil).Once().Run(func(args mock.Arguments) {
+	call := files[0].On("Read", mock.Anything).Return(len(resolutionBuf), nil).Once().Run(func(args mock.Arguments) {
 		buf := args.Get(0).([]byte)
 		copy(buf, resolutionBuf)
 	})
 
-	t.file[0].On("Read", mock.Anything).Return(0, io.EOF).NotBefore(call)
+	files[0].On("Read", mock.Anything).Return(0, io.EOF).NotBefore(call)
 
 	bus, _ := ds18b20.NewBus(
-		ds18b20.WithInterface(t.onewire),
+		ds18b20.WithInterface(onewire),
 	)
 
 	sensor, err := bus.NewSensor(id)
@@ -147,6 +129,8 @@ func (t *BusSuite) TestBus_NewSensorGood() {
 	busName, sID := sensor.Name()
 	t.EqualValues(id, sID)
 	t.EqualValues("w1_bus_master1", busName)
+
+	onewire.AssertExpectations(t.T())
 }
 
 func (t *BusSuite) TestBus_NewSensorWrongID() {
@@ -155,11 +139,12 @@ func (t *BusSuite) TestBus_NewSensorWrongID() {
 	dirEntry := []string{"28-05169397aeff"}
 	expectedErr := ds18b20.ErrNoSuchID
 
-	t.onewire.On("Path").Return(w1path)
-	t.onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
+	onewire := new(OnewireMock)
+	onewire.On("Path").Return(w1path)
+	onewire.On("ReadDir", w1path).Return(dirEntry, nil).Once()
 
 	bus, _ := ds18b20.NewBus(
-		ds18b20.WithInterface(t.onewire),
+		ds18b20.WithInterface(onewire),
 	)
 
 	sensor, err := bus.NewSensor(id)
@@ -167,6 +152,15 @@ func (t *BusSuite) TestBus_NewSensorWrongID() {
 	t.NotNil(err)
 	t.ErrorContains(err, expectedErr.Error())
 
+	onewire.AssertExpectations(t.T())
+}
+
+func (t *BusSuite) TestBus_NoInterface() {
+	r := t.Require()
+	bus, err := ds18b20.NewBus()
+	r.Nil(bus)
+	r.NotNil(err)
+	r.ErrorIs(err, ds18b20.ErrNoInterface)
 }
 
 func (d *OnewireMock) Path() string {

@@ -71,7 +71,10 @@ func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 		temperaturePath: path.Join(basePath, id, "temperature"),
 		resolutionPath:  path.Join(basePath, id, "resolution"),
 		polling:         atomic.Bool{},
-		mtx:             &sync.Mutex{},
+		fin:             nil,
+		stop:            nil,
+		data:            nil,
+		average:         nil,
 		cfg: SensorConfig{
 			ID:           id,
 			Correction:   0,
@@ -79,12 +82,14 @@ func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 			PollInterval: 100 * time.Millisecond,
 			Samples:      10,
 		},
+		readings: nil,
+		mtx:      &sync.Mutex{},
 	}
-	var err error
 	s.average = avg.New(s.cfg.Samples)
 
+	var err error
 	if s.cfg.Resolution, err = s.resolution(); err != nil {
-		return nil, &Error{Bus: s.bus, ID: s.id, Op: "NewSensor.resolution", Err: err.Error()}
+		return nil, fmt.Errorf("NewSensor.resolution {Bus: %v, ID: %s}: %w", s.bus, s.id, err)
 	}
 
 	return s, nil
@@ -94,9 +99,9 @@ func (s *Sensor) Name() (bus string, id string) {
 	return s.bus, s.id
 }
 
-func (s *Sensor) Poll() (err error) {
+func (s *Sensor) Poll() {
 	if s.polling.Load() {
-		return &Error{Bus: s.bus, ID: s.id, Op: "Poll", Err: ErrAlreadyPolling.Error()}
+		return
 	}
 
 	s.polling.Store(true)
@@ -104,21 +109,15 @@ func (s *Sensor) Poll() (err error) {
 	s.stop = make(chan struct{})
 	s.data = make(chan Readings, 10)
 	go s.poll()
-
-	return nil
 }
 
 func (s *Sensor) Temperature() (actual, avg float64, err error) {
 	conv, err := s.readFile(s.temperaturePath)
 	if err != nil {
-		err = &Error{
-			Bus: s.bus,
-			ID:  s.id,
-			Op:  "readFile :" + s.temperaturePath,
-			Err: err.Error(),
-		}
+		err = fmt.Errorf("Temperature.readFile {Bus: %v, ID: %v, path: %v}: %w", s.bus, s.id, s.temperaturePath, err)
 		return 0, 0, err
 	}
+
 	length := len(conv)
 	if length > 3 {
 		conv = conv[:length-3] + "." + conv[length-3:]
@@ -130,14 +129,10 @@ func (s *Sensor) Temperature() (actual, avg float64, err error) {
 		}
 		conv = leading + conv
 	}
+
 	t64, err := strconv.ParseFloat(conv, 64)
 	if err != nil {
-		err = &Error{
-			Bus: s.bus,
-			ID:  s.id,
-			Op:  "ParseFloat :" + conv,
-			Err: err.Error(),
-		}
+		err = fmt.Errorf("Temperature.ParseFloat {Bus: %v, ID: %v, path: %v, value:%v}: %w", s.bus, s.id, s.temperaturePath, conv, err)
 		return 0, 0, err
 	}
 	tmp := t64 + s.cfg.Correction
@@ -161,14 +156,7 @@ func (s *Sensor) GetReadings() []Readings {
 	s.readings = nil
 	return c
 }
-func (s *Sensor) add(r Readings) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.readings = append(s.readings, r)
-	if len(s.readings) > 100 {
-		s.readings = s.readings[1:]
-	}
-}
+
 func (s *Sensor) Configure(config SensorConfig) error {
 	if s.cfg.Samples != config.Samples {
 		s.average.Resize(config.Samples)
@@ -177,12 +165,7 @@ func (s *Sensor) Configure(config SensorConfig) error {
 
 	if s.cfg.Resolution != config.Resolution {
 		if err := s.setResolution(config.Resolution); err != nil {
-			return &Error{
-				Bus: s.bus,
-				ID:  s.id,
-				Op:  "Configure.setResolution",
-				Err: err.Error(),
-			}
+			return fmt.Errorf("Configure.setResolution {Bus: %v, ID: %v, Resolution: %v}: %w", s.bus, s.id, config.Resolution, err)
 		}
 		s.cfg.Resolution = config.Resolution
 	}
@@ -196,10 +179,10 @@ func (s *Sensor) GetConfig() SensorConfig {
 	return s.cfg
 }
 
-func (s *Sensor) Close() error {
+func (s *Sensor) Close() {
 	if !s.polling.Load() {
 		// Nothing to do
-		return nil
+		return
 	}
 
 	// Close stop channel to signal finish of polling
@@ -211,7 +194,7 @@ func (s *Sensor) Close() error {
 	for range s.fin {
 	}
 
-	return nil
+	return
 }
 
 func (s *Sensor) resolution() (r Resolution, err error) {
@@ -226,7 +209,7 @@ func (s *Sensor) resolution() (r Resolution, err error) {
 	}
 	r = Resolution(maybeRes)
 	if r < Resolution9Bit || r > Resolution12Bit {
-		return r, fmt.Errorf("%w : %v", ErrUnexpectedResolution, res)
+		return r, fmt.Errorf("resolution: {Bus: %v, ID: %v, Resolution: %v}: %w", s.bus, s.id, res, ErrUnexpectedResolution)
 	}
 
 	return
@@ -306,4 +289,13 @@ func (s *Sensor) readFile(path string) (r string, err error) {
 	}
 
 	return strings.TrimRight(string(buf), "\r\n"), err
+}
+
+func (s *Sensor) add(r Readings) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.readings = append(s.readings, r)
+	if len(s.readings) > 100 {
+		s.readings = s.readings[1:]
+	}
 }

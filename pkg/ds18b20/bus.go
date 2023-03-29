@@ -7,38 +7,15 @@ package ds18b20
 
 import (
 	"errors"
+	"fmt"
 	"io"
 )
 
 // Those are Err possible in Error.Err
 var (
-	ErrAlreadyPolling = errors.New("sensor is already polling")
-	ErrNoSuchID       = errors.New("there is no sensor with provided ID")
-	ErrNoInterface    = errors.New("no interface")
+	ErrNoSuchID    = errors.New("there is no sensor with provided ID")
+	ErrNoInterface = errors.New("no interface")
 )
-
-// Error is common error returned by this package
-type Error struct {
-	Bus string `json:"bus"`
-	ID  string `json:"ID"`
-	Op  string `json:"op"`
-	Err string `json:"error"`
-}
-
-func (d *Error) Error() string {
-	if d.Err == "" {
-		return "<nil>"
-	}
-	s := d.Op
-	if d.Bus != "" {
-		s += ":" + d.Bus
-	}
-	if d.ID != "" {
-		s += ":" + d.ID
-	}
-	s += ": " + d.Err
-	return s
-}
 
 type File interface {
 	io.ReadWriteCloser
@@ -62,13 +39,11 @@ type Bus struct {
 func NewBus(options ...BusOption) (*Bus, error) {
 	b := &Bus{}
 	for _, opt := range options {
-		if err := opt(b); err != nil {
-			return nil, &Error{Bus: "", ID: "", Op: "opt", Err: err.Error()}
-		}
+		opt(b)
 	}
 
 	if b.o == nil {
-		return nil, &Error{Bus: "", ID: "", Op: "NewBus", Err: ErrNoInterface.Error()}
+		return nil, fmt.Errorf("NewBus: %w", ErrNoInterface)
 	}
 
 	return b, nil
@@ -77,7 +52,7 @@ func NewBus(options ...BusOption) (*Bus, error) {
 func (b *Bus) IDs() ([]string, error) {
 	err := b.updateIDs()
 	if err != nil {
-		return nil, &Error{Bus: b.o.Path(), ID: "", Op: "updateIDs", Err: err.Error()}
+		return nil, fmt.Errorf("IDs {Bus: %s}: %w", b.o.Path(), err)
 	}
 	return b.ids, nil
 }
@@ -97,7 +72,7 @@ func (b *Bus) NewSensor(id string) (*Sensor, error) {
 	}
 
 	if !found {
-		return nil, &Error{Bus: b.o.Path(), ID: id, Op: "NewSensor", Err: ErrNoSuchID.Error()}
+		return nil, fmt.Errorf("NewSensor {Bus %v, ID: %v}: %w", b.o.Path(), id, ErrNoSuchID)
 	}
 
 	// delegate creation of Sensor to NewSensor
