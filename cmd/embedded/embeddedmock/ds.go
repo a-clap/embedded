@@ -8,7 +8,7 @@ package embeddedmock
 import (
 	"math/rand"
 	"time"
-	
+
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/a-clap/iot/pkg/avg"
 )
@@ -36,7 +36,7 @@ func NewDS(bus, id string) *DS {
 		r:       ds18b20.Readings{},
 		average: nil,
 	}
-	d.average, _ = avg.New(10)
+	d.average = avg.New(10)
 	return d
 }
 
@@ -56,13 +56,13 @@ func (d *DS) Temperature() (actual, average float64, err error) {
 func (d *DS) GetReadings() []ds18b20.Readings {
 	const min = 75.0
 	const max = 76.0
-	
+
 	if d.polling {
 		t := min + rand.Float64()*(max-min)
 		t += d.cfg.Correction
-		
+
 		d.average.Add(t)
-		
+
 		d.r = ds18b20.Readings{
 			ID:          d.id,
 			Temperature: t,
@@ -81,7 +81,8 @@ func (d *DS) Average() float64 {
 
 func (d *DS) Configure(config ds18b20.SensorConfig) error {
 	d.cfg = config
-	return d.average.Resize(d.cfg.Samples)
+	d.average.Resize(d.cfg.Samples)
+	return nil
 }
 
 func (d *DS) GetConfig() ds18b20.SensorConfig {

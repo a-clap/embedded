@@ -81,9 +81,7 @@ func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 		},
 	}
 	var err error
-	if s.average, err = avg.New(s.cfg.Samples); err != nil {
-		return nil, &Error{Bus: s.bus, ID: s.id, Op: "NewSensor", Err: err.Error()}
-	}
+	s.average = avg.New(s.cfg.Samples)
 
 	if s.cfg.Resolution, err = s.resolution(); err != nil {
 		return nil, &Error{Bus: s.bus, ID: s.id, Op: "NewSensor.resolution", Err: err.Error()}
@@ -173,14 +171,7 @@ func (s *Sensor) add(r Readings) {
 }
 func (s *Sensor) Configure(config SensorConfig) error {
 	if s.cfg.Samples != config.Samples {
-		if err := s.average.Resize(config.Samples); err != nil {
-			return &Error{
-				Bus: s.bus,
-				ID:  s.id,
-				Op:  "Configure.Resize",
-				Err: err.Error(),
-			}
-		}
+		s.average.Resize(config.Samples)
 		s.cfg.Samples = config.Samples
 	}
 

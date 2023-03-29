@@ -12,9 +12,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
-
+	
 	"github.com/a-clap/iot/internal/embedded/ds18b20"
-	"github.com/a-clap/iot/pkg/avg"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -259,17 +258,6 @@ func (t *SensorSuite) TestSensor_Configure() {
 			},
 			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution12Bit), 10) + "\r\n"),
 			expectedErr:    nil,
-		},
-		{
-			name: "wrong samples",
-			new: ds18b20.SensorConfig{
-				Correction:   13,
-				Resolution:   ds18b20.Resolution12Bit,
-				PollInterval: 123,
-				Samples:      0,
-			},
-			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution12Bit), 10) + "\r\n"),
-			expectedErr:    avg.ErrSizeIsZero,
 		},
 		{
 			name: "err on resolution write",

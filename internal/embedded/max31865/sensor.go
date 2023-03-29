@@ -84,11 +84,8 @@ func NewSensor(options ...Option) (*Sensor, error) {
 		}
 	}
 
-	var err error
-	s.average, err = avg.New(s.cfg.Samples)
-	if err != nil {
-		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.Avg", Err: err.Error()}
-	}
+	s.average = avg.New(s.cfg.Samples)
+
 	// verify after parsing opts
 	if err := s.verify(); err != nil {
 		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.Verify", Err: err.Error()}
@@ -150,9 +147,7 @@ func (s *Sensor) add(r Readings) {
 
 func (s *Sensor) Configure(config SensorConfig) error {
 	if s.cfg.Samples != config.Samples {
-		if err := s.average.Resize(config.Samples); err != nil {
-			return &Error{ID: s.ID(), Op: "Configure.Avg.Resize", Err: err.Error()}
-		}
+		s.average.Resize(config.Samples)
 		s.cfg.Samples = config.Samples
 	}
 	if config.ASyncPoll {
