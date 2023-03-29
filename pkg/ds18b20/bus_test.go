@@ -11,7 +11,7 @@ import (
 	"path"
 	"testing"
 
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -85,8 +85,10 @@ func (t *BusSuite) TestBus_IDs() {
 			name: "ignore other files",
 			path: "another temperaturePath",
 			err:  nil,
-			dirEntry: []string{"28-051693848dff", "w1_master_name", "28-05169397aeff", "w1_master_pointer", "driver", "w1_master_pullup", "power", "w1_master_remove", "subsystem", "w1_master_search",
-				"therm_bulk_read", "w1_master_slave_count", "uevent", "w1_master_slaves", "w1_master_add", "w1_master_timeout", "w1_master_attempts", "w1_master_timeout_us", "w1_master_max_slave_count"},
+			dirEntry: []string{"28-051693848dff", "w1_master_name", "28-05169397aeff", "w1_master_pointer", "driver", "w1_master_pullup", "power",
+				"w1_master_remove", "subsystem", "w1_master_search",
+				"therm_bulk_read", "w1_master_slave_count", "uevent", "w1_master_slaves", "w1_master_add", "w1_master_timeout", "w1_master_attempts",
+				"w1_master_timeout_us", "w1_master_max_slave_count"},
 			ids: []string{"28-051693848dff", "28-05169397aeff"},
 		},
 	}

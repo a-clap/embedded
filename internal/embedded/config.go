@@ -6,10 +6,10 @@
 package embedded
 
 import (
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/a-clap/iot/internal/embedded/gpio"
 	"github.com/a-clap/iot/internal/embedded/heater"
 	"github.com/a-clap/iot/internal/embedded/max31865"
+	"github.com/a-clap/iot/pkg/ds18b20"
 )
 
 type Config struct {

@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/a-clap/iot/internal/embedded"
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/gin-gonic/gin"
 )
 

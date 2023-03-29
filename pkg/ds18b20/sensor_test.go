@@ -12,8 +12,8 @@ import (
 	"strconv"
 	"testing"
 	"time"
-	
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
+
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )

@@ -9,8 +9,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
 	"github.com/a-clap/iot/pkg/avg"
+	"github.com/a-clap/iot/pkg/ds18b20"
 )
 
 type DS struct {
