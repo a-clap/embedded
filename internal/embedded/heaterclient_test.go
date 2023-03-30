@@ -43,7 +43,12 @@ func (p *HeaterClientSuite) Test_Configure() {
 	heaters := make(map[string]embedded.Heater, 0)
 	for _, arg := range args {
 		heater := new(HeaterMock)
-		heater.On("Enable", arg.Enabled).Once()
+		if arg.Enabled {
+			heater.On("Enable", mock.Anything).Once()
+		} else {
+			heater.On("Disable").Once()
+		}
+
 		mocks = append(mocks, heater)
 		heaters[arg.ID] = heater
 	}
@@ -72,7 +77,13 @@ func (p *HeaterClientSuite) Test_Configure() {
 	// All good
 	args[0].Power = 15
 	mocks[0].On("SetPower", args[0].Power).Return(nil)
-	mocks[0].On("Enable", args[0].Enabled).Once()
+
+	if args[0].Enabled {
+		mocks[0].On("Enable", mock.Anything).Once()
+	} else {
+		mocks[0].On("Disable").Once()
+	}
+
 	mocks[0].On("Power").Return(args[0].Power)
 	mocks[0].On("Enabled").Return(args[0].Enabled)
 	cfg, err := hc.Configure(args[0])

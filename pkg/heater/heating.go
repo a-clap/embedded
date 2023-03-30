@@ -6,29 +6,23 @@
 package heater
 
 import (
-	"errors"
-
 	"github.com/a-clap/iot/internal/embedded/gpio"
 )
 
 type gpioHeating struct {
 	*gpio.Out
+	err error
 }
 
-func newGpioHeating(pin gpio.Pin, id string) (*gpioHeating, error) {
+var _ Heating = (*gpioHeating)(nil)
+
+func newGpioHeating(pin gpio.Pin, id string) *gpioHeating {
 	out, err := gpio.Output(pin, id, false)
-	if err != nil {
-		return nil, err
-	}
-	return &gpioHeating{Out: out}, nil
+	return &gpioHeating{Out: out, err: err}
 }
 
 func (g *gpioHeating) Open() error {
-	if g.Out == nil {
-		return errors.New("gpio not usable")
-	}
-	return nil
-
+	return g.err
 }
 
 func (g *gpioHeating) Set(b bool) error {

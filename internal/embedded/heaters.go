@@ -31,7 +31,8 @@ func (e *HeaterError) Error() string {
 }
 
 type Heater interface {
-	Enable(ena bool)
+	Enable(chan error)
+	Disable()
 	SetPower(pwr uint) error
 	Enabled() bool
 	Power() uint
@@ -117,7 +118,12 @@ func (h *HeaterHandler) Config(cfg HeaterConfig) error {
 	if err := heater.SetPower(cfg.Power); err != nil {
 		return err
 	}
-	heater.Enable(cfg.Enabled)
+	if cfg.Enabled {
+		// TODO: add channel to handle errors
+		heater.Enable(nil)
+	} else {
+		heater.Disable()
+	}
 	return nil
 }
 
@@ -126,8 +132,11 @@ func (h *HeaterHandler) Enable(id string, ena bool) error {
 	if err != nil {
 		return &HeaterError{ID: id, Op: "Enable", Err: err.Error()}
 	}
-
-	heat.Enable(ena)
+	if ena {
+		heat.Enable(nil)
+	} else {
+		heat.Disable()
+	}
 	return nil
 }
 

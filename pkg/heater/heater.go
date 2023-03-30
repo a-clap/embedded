@@ -7,7 +7,7 @@ package heater
 
 import (
 	"errors"
-	"strconv"
+	"fmt"
 	"sync/atomic"
 	"time"
 )
@@ -36,26 +36,13 @@ type Ticker interface {
 	Tick() <-chan time.Time
 }
 
-type Error struct {
-	Op  string `json:"op"`
-	Err string `json:"error"`
-}
-
-func (e *Error) Error() string {
-	if e.Err == "" {
-		return "<nil>"
-	}
-	s := e.Op
-	s += ": " + e.Err
-	return s
-}
-
 var (
 	ErrPowerOutOfRange = errors.New("power out of range")
 	ErrNoHeating       = errors.New("lack of heating interface")
 	ErrNoTicker        = errors.New("lack of ticker interface")
 )
 
+// New creates new Heater with provided options
 func New(options ...Option) (*Heater, error) {
 	heater := &Heater{
 		heating:      nil,
@@ -68,46 +55,53 @@ func New(options ...Option) (*Heater, error) {
 		err:          nil,
 	}
 	for _, opt := range options {
-		if err := opt(heater); err != nil {
-			return nil, err
-		}
+		opt(heater)
 	}
+
 	if heater.heating == nil {
-		return nil, &Error{Op: "New", Err: ErrNoHeating.Error()}
+		return nil, fmt.Errorf("New: %w", ErrNoHeating)
 	}
 
 	if heater.ticker == nil {
-		return nil, &Error{Op: "New", Err: ErrNoTicker.Error()}
+		return nil, fmt.Errorf("New: %w", ErrNoTicker)
 	}
 
 	if err := heater.heating.Open(); err != nil {
-		return nil, &Error{Op: "New.Open", Err: err.Error()}
+		return nil, fmt.Errorf("New.Open: %w", err)
 	}
 
 	return heater, nil
 }
 
+// Enabled returns current state of Heater
 func (h *Heater) Enabled() bool {
 	return h.enabled.Load()
 }
+
+// Power returns current power of heater
 func (h *Heater) Power() uint {
 	return h.power
 }
 
-func (h *Heater) Enable(ena bool) {
-	enabled := h.Enabled()
-	if ena != enabled {
-		if ena {
-			h.enable()
-		} else {
-			h.disable()
-		}
+// Enable enables heater if it isn't enabled
+func (h *Heater) Enable(err chan error) {
+	if !h.Enabled() {
+		h.err = err
+		h.enable()
 	}
 }
 
+// Disable disables heater, if it is enabled
+func (h *Heater) Disable() {
+	if h.Enabled() {
+		h.disable()
+	}
+}
+
+// SetPower set current power of heater
 func (h *Heater) SetPower(power uint) error {
 	if power > 100 {
-		return &Error{Op: "SetPower " + strconv.FormatInt(int64(power), 10), Err: ErrPowerOutOfRange.Error()}
+		return fmt.Errorf("SetPower {Power: %v}: %w", power, ErrPowerOutOfRange)
 	}
 	h.power = power
 	return nil
@@ -117,7 +111,6 @@ func (h *Heater) enable() {
 	h.enabled.Store(true)
 	h.exit = make(chan struct{})
 	h.fin = make(chan struct{})
-	h.err = make(chan error, 100)
 
 	loopStarted := make(chan struct{})
 	go func(h *Heater) {
@@ -132,7 +125,7 @@ func (h *Heater) enable() {
 				state := h.currentPower <= h.power
 				if err := h.heating.Set(state); err != nil {
 					// non-blocking write
-					err = &Error{Op: "Set", Err: err.Error()}
+					err = fmt.Errorf("Heater.Set {Value: %v}: %w", state, err)
 					select {
 					case h.err <- err:
 					default:
@@ -143,7 +136,10 @@ func (h *Heater) enable() {
 		}
 		_ = h.heating.Set(false)
 		close(h.fin)
-		close(h.err)
+
+		if h.err != nil {
+			close(h.err)
+		}
 	}(h)
 
 	// make sure loop is running
