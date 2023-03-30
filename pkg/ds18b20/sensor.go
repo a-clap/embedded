@@ -21,6 +21,7 @@ import (
 
 type Resolution int
 
+// Possible resolutions
 const (
 	Resolution9Bit  Resolution = 9
 	Resolution10Bit Resolution = 10
@@ -32,6 +33,7 @@ var (
 	ErrUnexpectedResolution = errors.New("unexpected resolution")
 )
 
+// Readings are returned, when Sensor is used in Poll mode
 type Readings struct {
 	ID          string    `json:"id"`
 	Temperature float64   `json:"temperature"`
@@ -40,9 +42,11 @@ type Readings struct {
 	Error       string    `json:"error"`
 }
 
+// Sensor represents DS18b20
 type Sensor struct {
 	FileOpener
-	id, bus                         string
+	fullID                          string
+	id                              string
 	temperaturePath, resolutionPath string
 	polling                         atomic.Bool
 	fin, stop                       chan struct{}
@@ -53,7 +57,9 @@ type Sensor struct {
 	mtx                             *sync.Mutex
 }
 
+// SensorConfig allows user to configure Sensor (except ID, which is unique and can't be changed)
 type SensorConfig struct {
+	Name         string        `json:"name"`
 	ID           string        `json:"id"`
 	Correction   float64       `json:"correction"`
 	Resolution   Resolution    `json:"resolution"`
@@ -61,17 +67,21 @@ type SensorConfig struct {
 	Samples      uint          `json:"samples"`
 }
 
+// NewSensor creates new sensor based on args
 func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 	bus := basePath[strings.LastIndex(basePath, "/")+1:]
 
 	s := &Sensor{
 		FileOpener:      o,
 		id:              id,
-		bus:             bus,
+		fullID:          bus + ":" + id,
 		temperaturePath: path.Join(basePath, id, "temperature"),
 		resolutionPath:  path.Join(basePath, id, "resolution"),
 		polling:         atomic.Bool{},
-		mtx:             &sync.Mutex{},
+		fin:             nil,
+		stop:            nil,
+		data:            nil,
+		average:         nil,
 		cfg: SensorConfig{
 			ID:           id,
 			Correction:   0,
@@ -79,24 +89,34 @@ func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
 			PollInterval: 100 * time.Millisecond,
 			Samples:      10,
 		},
+		readings: nil,
+		mtx:      &sync.Mutex{},
 	}
-	var err error
 	s.average = avg.New(s.cfg.Samples)
 
+	var err error
 	if s.cfg.Resolution, err = s.resolution(); err != nil {
-		return nil, &Error{Bus: s.bus, ID: s.id, Op: "NewSensor.resolution", Err: err.Error()}
+		return nil, fmt.Errorf("NewSensor.resolution {ID: %v}: %w", s.fullID, err)
 	}
 
 	return s, nil
 }
 
-func (s *Sensor) Name() (bus string, id string) {
-	return s.bus, s.id
+// Name returns user provided name
+func (s *Sensor) Name() string {
+	return s.cfg.Name
 }
 
-func (s *Sensor) Poll() (err error) {
+// ID returns Sensor hardware id in convention: w1Path:id
+func (s *Sensor) ID() string {
+	return s.fullID
+}
+
+// Poll is an option to run temperature updates in background
+// After calling Poll, user can get data from GetReadings
+func (s *Sensor) Poll() {
 	if s.polling.Load() {
-		return &Error{Bus: s.bus, ID: s.id, Op: "Poll", Err: ErrAlreadyPolling.Error()}
+		return
 	}
 
 	s.polling.Store(true)
@@ -104,21 +124,16 @@ func (s *Sensor) Poll() (err error) {
 	s.stop = make(chan struct{})
 	s.data = make(chan Readings, 10)
 	go s.poll()
-
-	return nil
 }
 
+// Temperature returns current temperature and average (which is based on Samples)
 func (s *Sensor) Temperature() (actual, avg float64, err error) {
 	conv, err := s.readFile(s.temperaturePath)
 	if err != nil {
-		err = &Error{
-			Bus: s.bus,
-			ID:  s.id,
-			Op:  "readFile :" + s.temperaturePath,
-			Err: err.Error(),
-		}
+		err = fmt.Errorf("Temperature.readFile {ID: %v, path: %v}: %w", s.fullID, s.temperaturePath, err)
 		return 0, 0, err
 	}
+
 	length := len(conv)
 	if length > 3 {
 		conv = conv[:length-3] + "." + conv[length-3:]
@@ -130,14 +145,10 @@ func (s *Sensor) Temperature() (actual, avg float64, err error) {
 		}
 		conv = leading + conv
 	}
+
 	t64, err := strconv.ParseFloat(conv, 64)
 	if err != nil {
-		err = &Error{
-			Bus: s.bus,
-			ID:  s.id,
-			Op:  "ParseFloat :" + conv,
-			Err: err.Error(),
-		}
+		err = fmt.Errorf("Temperature.ParseFloat {ID: %v, path: %v, value:%v}: %w", s.fullID, s.temperaturePath, conv, err)
 		return 0, 0, err
 	}
 	tmp := t64 + s.cfg.Correction
@@ -145,10 +156,12 @@ func (s *Sensor) Temperature() (actual, avg float64, err error) {
 	return tmp, s.Average(), nil
 }
 
+// Average returns current average temperature
 func (s *Sensor) Average() float64 {
 	return s.average.Average()
 }
 
+// GetReadings returns all collected readings and then clears data
 func (s *Sensor) GetReadings() []Readings {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -161,15 +174,11 @@ func (s *Sensor) GetReadings() []Readings {
 	s.readings = nil
 	return c
 }
-func (s *Sensor) add(r Readings) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.readings = append(s.readings, r)
-	if len(s.readings) > 100 {
-		s.readings = s.readings[1:]
-	}
-}
+
+// Configure allows user to configure sensor with SensorConfig
 func (s *Sensor) Configure(config SensorConfig) error {
+	s.cfg.Name = config.Name
+
 	if s.cfg.Samples != config.Samples {
 		s.average.Resize(config.Samples)
 		s.cfg.Samples = config.Samples
@@ -177,12 +186,7 @@ func (s *Sensor) Configure(config SensorConfig) error {
 
 	if s.cfg.Resolution != config.Resolution {
 		if err := s.setResolution(config.Resolution); err != nil {
-			return &Error{
-				Bus: s.bus,
-				ID:  s.id,
-				Op:  "Configure.setResolution",
-				Err: err.Error(),
-			}
+			return fmt.Errorf("Configure.setResolution {ID: %v, Resolution: %v}: %w", s.fullID, config.Resolution, err)
 		}
 		s.cfg.Resolution = config.Resolution
 	}
@@ -192,14 +196,16 @@ func (s *Sensor) Configure(config SensorConfig) error {
 	return nil
 }
 
+// GetConfig returns current config
 func (s *Sensor) GetConfig() SensorConfig {
 	return s.cfg
 }
 
-func (s *Sensor) Close() error {
+// Close should be called, if user used Poll
+func (s *Sensor) Close() {
 	if !s.polling.Load() {
 		// Nothing to do
-		return nil
+		return
 	}
 
 	// Close stop channel to signal finish of polling
@@ -211,7 +217,7 @@ func (s *Sensor) Close() error {
 	for range s.fin {
 	}
 
-	return nil
+	return
 }
 
 func (s *Sensor) resolution() (r Resolution, err error) {
@@ -226,7 +232,7 @@ func (s *Sensor) resolution() (r Resolution, err error) {
 	}
 	r = Resolution(maybeRes)
 	if r < Resolution9Bit || r > Resolution12Bit {
-		return r, fmt.Errorf("%w : %v", ErrUnexpectedResolution, res)
+		return r, fmt.Errorf("resolution: {ID: %v, Resolution: %v}: %w", s.fullID, res, ErrUnexpectedResolution)
 	}
 
 	return
@@ -235,7 +241,7 @@ func (s *Sensor) resolution() (r Resolution, err error) {
 func (s *Sensor) setResolution(res Resolution) (err error) {
 	resFile, err := s.Open(s.resolutionPath)
 	if err != nil {
-		return
+		return fmt.Errorf("setResolution {Path: %v}: %w", s.resolutionPath, err)
 	}
 
 	defer func() {
@@ -306,4 +312,13 @@ func (s *Sensor) readFile(path string) (r string, err error) {
 	}
 
 	return strings.TrimRight(string(buf), "\r\n"), err
+}
+
+func (s *Sensor) add(r Readings) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.readings = append(s.readings, r)
+	if len(s.readings) > 100 {
+		s.readings = s.readings[1:]
+	}
 }

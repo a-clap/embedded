@@ -10,7 +10,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
+	"github.com/a-clap/iot/pkg/ds18b20"
 )
 
 func main() {
@@ -24,17 +24,16 @@ func main() {
 		log.Fatalln(err)
 	}
 
-	sensor, _ := ds.NewSensor(ids[0])
-
-	errs := sensor.Poll()
-	if errs != nil {
+	sensor, err := ds.NewSensor(ids[0])
+	if err != nil {
 		log.Fatalln(err)
 	}
+	sensor.Poll()
 
 	// Just to end this after time
 	select {
 	case <-time.After(10 * time.Second):
-		_ = sensor.Close()
+		sensor.Close()
 	}
 	reads := sensor.GetReadings()
 

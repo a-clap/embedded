@@ -11,6 +11,7 @@ import (
 
 var _ Onewire = (*onewire)(nil)
 
+// STD implementation
 type onewire struct {
 	path string
 }

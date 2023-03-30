@@ -12,15 +12,14 @@ import (
 	"strconv"
 	"testing"
 	"time"
-	
-	"github.com/a-clap/iot/internal/embedded/ds18b20"
+
+	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
 type SensorSuite struct {
 	suite.Suite
-	fileOpenerMock *FileOpenerMock
 }
 
 type FileOpenerMock struct {
@@ -31,8 +30,78 @@ func TestSensorSuite(t *testing.T) {
 	suite.Run(t, new(SensorSuite))
 }
 
-func (t *SensorSuite) SetupTest() {
-	t.fileOpenerMock = new(FileOpenerMock)
+func (t *SensorSuite) TestSensor_OpenFileError() {
+	resolution := []byte("9")
+	initResolutionFile := new(FileMock)
+	initResolutionFile.On("Read", mock.Anything).Return(len(resolution), io.EOF).Run(func(args mock.Arguments) {
+		buf := args.Get(0).([]byte)
+		copy(buf, resolution)
+	})
+	initResolutionFile.On("Close").Return(nil)
+	f := new(FileOpenerMock)
+	f.On("Open", path.Join("base", "1", "resolution")).Return(initResolutionFile, io.ErrNoProgress).Once()
+
+	r := t.Require()
+	s, err := ds18b20.NewSensor(f, "1", "base")
+	r.Nil(s)
+	r.NotNil(err)
+	r.ErrorIs(err, io.ErrNoProgress)
+	r.ErrorContains(err, "1")
+	r.ErrorContains(err, "resolution")
+	r.ErrorContains(err, "base")
+}
+
+func (t *SensorSuite) TestSensor_ResolutionParseIntError() {
+	resolution := []byte("magic")
+	initResolutionFile := new(FileMock)
+	initResolutionFile.On("Read", mock.Anything).Return(len(resolution), io.EOF).Run(func(args mock.Arguments) {
+		buf := args.Get(0).([]byte)
+		copy(buf, resolution)
+	})
+	initResolutionFile.On("Close").Return(nil)
+	f := new(FileOpenerMock)
+	f.On("Open", path.Join("base", "1", "resolution")).Return(initResolutionFile, nil).Once()
+
+	r := t.Require()
+	s, err := ds18b20.NewSensor(f, "1", "base")
+	r.Nil(s)
+	r.NotNil(err)
+	r.ErrorContains(err, "1")
+	r.ErrorContains(err, "resolution")
+	r.ErrorContains(err, "base")
+	r.ErrorContains(err, "magic")
+}
+
+func (t *SensorSuite) TestSensor_SetResolutionError() {
+	resolution := []byte("9")
+	initResolutionFile := new(FileMock)
+	initResolutionFile.On("Read", mock.Anything).Return(len(resolution), io.EOF).Run(func(args mock.Arguments) {
+		buf := args.Get(0).([]byte)
+		copy(buf, resolution)
+	})
+	initResolutionFile.On("Close").Return(nil)
+	f := new(FileOpenerMock)
+	f.On("Open", path.Join("base", "1", "resolution")).Return(initResolutionFile, nil).Once()
+
+	r := t.Require()
+	s, err := ds18b20.NewSensor(f, "1", "base")
+	r.NotNil(s)
+	r.Nil(err)
+
+	cfg := ds18b20.SensorConfig{
+		Name:         "blah",
+		ID:           "1",
+		Correction:   1,
+		Resolution:   ds18b20.Resolution12Bit,
+		PollInterval: 0,
+		Samples:      0,
+	}
+	f.On("Open", path.Join("base", "1", "resolution")).Return(initResolutionFile, io.ErrShortBuffer).Once()
+	e := s.Configure(cfg)
+	r.ErrorIs(e, io.ErrShortBuffer)
+	r.ErrorContains(e, "base")
+	r.ErrorContains(e, "1")
+	r.ErrorContains(e, "base/1/resolution")
 }
 
 func (t *SensorSuite) TestSensor_NewSensor_ReadResolution() {
@@ -94,7 +163,7 @@ func (t *SensorSuite) TestSensor_NewSensor_ReadResolution() {
 	}
 	for _, arg := range args {
 		r := t.Require()
-		t.fileOpenerMock = new(FileOpenerMock)
+		fileOpenerMock := new(FileOpenerMock)
 		resolutionPath := path.Join(arg.path, arg.id, "resolution")
 
 		runFunc := func(src []byte) func(args mock.Arguments) {
@@ -108,10 +177,10 @@ func (t *SensorSuite) TestSensor_NewSensor_ReadResolution() {
 		fileMock.On("Read", mock.Anything).Return(len(arg.resolution), io.EOF).Run(runFunc(arg.resolution)).Once()
 		fileMock.On("Close").Return(nil)
 
-		t.fileOpenerMock.On("Open", resolutionPath).Return(fileMock, nil)
-		t.fileOpenerMock.On("Close").Return(nil)
+		fileOpenerMock.On("Open", resolutionPath).Return(fileMock, nil)
+		fileOpenerMock.On("Close").Return(nil)
 
-		s, err := ds18b20.NewSensor(t.fileOpenerMock, arg.id, arg.path)
+		s, err := ds18b20.NewSensor(fileOpenerMock, arg.id, arg.path)
 		if arg.expectedErr != nil {
 			r.NotNil(err, arg.name)
 			r.ErrorContains(err, arg.expectedErr.Error(), arg.name)
@@ -169,7 +238,7 @@ func (t *SensorSuite) TestSensor_TemperatureConversions() {
 	resolution := []byte("11")
 	for _, arg := range args {
 		r := t.Require()
-		t.fileOpenerMock = new(FileOpenerMock)
+		fileOpenerMock := new(FileOpenerMock)
 
 		runFunc := func(src []byte) func(args mock.Arguments) {
 			return func(args mock.Arguments) {
@@ -190,11 +259,11 @@ func (t *SensorSuite) TestSensor_TemperatureConversions() {
 		temperatureFile.On("Read", mock.Anything).Return(0, io.EOF).NotBefore(tmpReadCall)
 		temperatureFile.On("Close").Return(nil)
 
-		t.fileOpenerMock.On("Open", path.Join("resolution")).Return(resolutionFile, nil)
-		t.fileOpenerMock.On("Open", path.Join("temperature")).Return(temperatureFile, nil)
-		t.fileOpenerMock.On("Close").Return(nil)
+		fileOpenerMock.On("Open", path.Join("resolution")).Return(resolutionFile, nil)
+		fileOpenerMock.On("Open", path.Join("temperature")).Return(temperatureFile, nil)
+		fileOpenerMock.On("Close").Return(nil)
 
-		s, err := ds18b20.NewSensor(t.fileOpenerMock, "", "")
+		s, err := ds18b20.NewSensor(fileOpenerMock, "", "")
 		r.Nil(err, arg.name)
 		v, _, err := s.Temperature()
 
@@ -207,7 +276,7 @@ func (t *SensorSuite) TestSensor_TemperatureConversions() {
 	}
 }
 
-func (t *SensorSuite) TestSensor_Configure() {
+func (t *SensorSuite) TestSensor_InitConfig() {
 	args := []struct {
 		name           string
 		new            ds18b20.SensorConfig
@@ -218,6 +287,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 		{
 			name: "all good - 9 bit",
 			new: ds18b20.SensorConfig{
+				Name:         "blah",
 				Correction:   13,
 				Resolution:   ds18b20.Resolution9Bit,
 				PollInterval: 123,
@@ -229,6 +299,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 		{
 			name: "all good - 10 bit",
 			new: ds18b20.SensorConfig{
+				Name:         "",
 				Correction:   13,
 				Resolution:   ds18b20.Resolution10Bit,
 				PollInterval: 123,
@@ -240,6 +311,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 		{
 			name: "all good - 11 bit",
 			new: ds18b20.SensorConfig{
+				Name:         "helooooooooo",
 				Correction:   13,
 				Resolution:   ds18b20.Resolution11Bit,
 				PollInterval: 123,
@@ -251,6 +323,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 		{
 			name: "all good - 12 bit",
 			new: ds18b20.SensorConfig{
+				Name:         "another",
 				Correction:   13,
 				Resolution:   ds18b20.Resolution12Bit,
 				PollInterval: 123,
@@ -262,6 +335,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 		{
 			name: "err on resolution write",
 			new: ds18b20.SensorConfig{
+				Name:         "1",
 				Correction:   13,
 				Resolution:   ds18b20.Resolution12Bit,
 				PollInterval: 123,
@@ -275,7 +349,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 	resolution := []byte("11")
 	for _, arg := range args {
 		r := t.Require()
-		t.fileOpenerMock = new(FileOpenerMock)
+		fileOpenerMock := new(FileOpenerMock)
 
 		runFunc := func(src []byte) func(args mock.Arguments) {
 			return func(args mock.Arguments) {
@@ -292,10 +366,10 @@ func (t *SensorSuite) TestSensor_Configure() {
 		resolutionWrite.On("Write", arg.expectedResBuf).Return(len(arg.expectedResBuf), arg.resWriteErr)
 		resolutionWrite.On("Close").Return(nil)
 
-		init := t.fileOpenerMock.On("Open", path.Join("resolution")).Return(initResolutionFile, nil).Once()
-		t.fileOpenerMock.On("Open", path.Join("resolution")).Return(resolutionWrite, nil).Once().NotBefore(init)
+		init := fileOpenerMock.On("Open", path.Join("resolution")).Return(initResolutionFile, nil).Once()
+		fileOpenerMock.On("Open", path.Join("resolution")).Return(resolutionWrite, nil).Once().NotBefore(init)
 
-		s, err := ds18b20.NewSensor(t.fileOpenerMock, "", "")
+		s, err := ds18b20.NewSensor(fileOpenerMock, "", "")
 		r.Nil(err, arg.name)
 
 		err = s.Configure(arg.new)
@@ -306,6 +380,7 @@ func (t *SensorSuite) TestSensor_Configure() {
 		}
 		r.Nil(err)
 		r.Equal(arg.new, s.GetConfig())
+		r.Equal(arg.new.Name, s.Name())
 
 	}
 }
@@ -326,12 +401,12 @@ func (t *SensorSuite) TestSensor_PollTwice() {
 	temperatureFile := new(FileMock)
 	temperatureFile.On("Read", mock.Anything).Return(len(temperature), io.EOF).Run(runFunc(temperature)).Once()
 	temperatureFile.On("Close").Return(nil)
+	fileOpenerMock := new(FileOpenerMock)
+	fileOpenerMock.On("Open", path.Join("resolution")).Return(resolutionFile, nil)
+	fileOpenerMock.On("Open", path.Join("temperature")).Return(temperatureFile, nil)
+	fileOpenerMock.On("Close").Return(nil)
 
-	t.fileOpenerMock.On("Open", path.Join("resolution")).Return(resolutionFile, nil)
-	t.fileOpenerMock.On("Open", path.Join("temperature")).Return(temperatureFile, nil)
-	t.fileOpenerMock.On("Close").Return(nil)
-
-	sensor, _ := ds18b20.NewSensor(t.fileOpenerMock, "", "")
+	sensor, _ := ds18b20.NewSensor(fileOpenerMock, "", "")
 	cfg := ds18b20.SensorConfig{
 		Correction:   0,
 		Resolution:   ds18b20.Resolution11Bit,
@@ -343,16 +418,13 @@ func (t *SensorSuite) TestSensor_PollTwice() {
 	r.Nil(sensor.Configure(cfg))
 
 	// We don't want to test Poll, just error handling
-	err := sensor.Poll()
-	r.Nil(err)
-
-	err = sensor.Poll()
-	r.ErrorContains(err, ds18b20.ErrAlreadyPolling.Error())
+	sensor.Poll()
+	sensor.Poll()
 
 	wait := make(chan struct{})
 
 	go func() {
-		r.Nil(sensor.Close())
+		sensor.Close()
 		wait <- struct{}{}
 	}()
 
@@ -379,11 +451,12 @@ func (t *SensorSuite) TestSensor_Poll() {
 
 	temperatureFile := new(FileMock)
 	id := "blah"
-	t.fileOpenerMock.On("Open", path.Join(id, "resolution")).Return(resolutionFile, nil)
-	t.fileOpenerMock.On("Open", path.Join(id, "temperature")).Return(temperatureFile, nil)
-	t.fileOpenerMock.On("Close").Return(nil)
+	fileOpenerMock := new(FileOpenerMock)
+	fileOpenerMock.On("Open", path.Join(id, "resolution")).Return(resolutionFile, nil)
+	fileOpenerMock.On("Open", path.Join(id, "temperature")).Return(temperatureFile, nil)
+	fileOpenerMock.On("Close").Return(nil)
 
-	sensor, _ := ds18b20.NewSensor(t.fileOpenerMock, id, "")
+	sensor, _ := ds18b20.NewSensor(fileOpenerMock, id, "")
 	cfg := ds18b20.SensorConfig{
 		Correction:   0,
 		Resolution:   ds18b20.Resolution11Bit,
@@ -437,12 +510,12 @@ func (t *SensorSuite) TestSensor_Poll() {
 		temperatureFile.On("Close").Return(nil)
 	}
 
-	r.Nil(sensor.Poll())
+	sensor.Poll()
 	data := make([]ds18b20.Readings, 0, len(temperatures))
 	<-time.After(cfg.PollInterval * time.Duration(len(temperatures)+1))
 	data = append(data, sensor.GetReadings()...)
 
-	r.Nil(sensor.Close())
+	sensor.Close()
 	r.Equal(len(data), len(temperatures))
 
 	for i := range data {
