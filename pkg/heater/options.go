@@ -9,36 +9,28 @@ import (
 	"github.com/a-clap/iot/internal/embedded/gpio"
 )
 
-type Option func(*Heater) error
+type Option func(*Heater)
 
 func WithHeating(h Heating) Option {
-	return func(heater *Heater) error {
+	return func(heater *Heater) {
 		heater.heating = h
-		return nil
 	}
 }
 
 func WithTicker(t Ticker) Option {
-	return func(heater *Heater) error {
+	return func(heater *Heater) {
 		heater.ticker = t
-		return nil
 	}
 }
 
 func WithGpioHeating(pin gpio.Pin, id string) Option {
-	return func(heater *Heater) error {
-		heating, err := newGpioHeating(pin, id)
-		if err != nil {
-			return err
-		}
-		heater.heating = heating
-		return nil
+	return func(heater *Heater) {
+		heater.heating = newGpioHeating(pin, id)
 	}
 }
 
 func WitTimeTicker() Option {
-	return func(heater *Heater) error {
+	return func(heater *Heater) {
 		heater.ticker = newTimeTicker()
-		return nil
 	}
 }
