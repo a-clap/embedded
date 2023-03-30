@@ -78,7 +78,12 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGood_ReturnValuesFromInterface(
 	heaterMock := new(HeaterMock)
 	t.mock[setHeater.ID] = heaterMock
 
-	heaterMock.On("Enable", setHeater.Enabled).Return(nil)
+	if setHeater.Enabled {
+		heaterMock.On("Enable", mock.Anything).Return(nil)
+	} else {
+		heaterMock.On("Disable").Return(nil)
+	}
+
 	heaterMock.On("SetPower", setHeater.Power).Return(nil)
 
 	heaterMock.On("Enabled").Return(returnHeater.Enabled).Twice()
@@ -107,7 +112,12 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 	heaterMock := new(HeaterMock)
 	t.mock[expectedHeater.ID] = heaterMock
 	{
-		heaterMock.On("Enable", expectedHeater.Enabled).Return(nil).Once()
+		if expectedHeater.Enabled {
+			heaterMock.On("Enable", mock.Anything).Return(nil).Once()
+		} else {
+			heaterMock.On("Disable").Return(nil).Once()
+		}
+
 		heaterMock.On("SetPower", expectedHeater.Power).Return(nil).Once()
 
 		heaterMock.On("Enabled").Return(expectedHeater.Enabled).Once()
@@ -134,8 +144,12 @@ func (t *HeaterTestSuite) TestHeater_PutHeaterAllGoodTwice() {
 			Enabled: !expectedHeater.Enabled,
 			Power:   uint(rand.Uint64() % 100),
 		}
+		if newExpected.Enabled {
+			heaterMock.On("Enable", mock.Anything).Return(nil).Once()
+		} else {
+			heaterMock.On("Disable").Return(nil).Once()
+		}
 
-		heaterMock.On("Enable", newExpected.Enabled).Return(nil).Once()
 		heaterMock.On("SetPower", newExpected.Power).Return(nil).Once()
 
 		heaterMock.On("Enabled").Return(newExpected.Enabled).Once()
@@ -263,7 +277,11 @@ func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
 
 	for _, arg := range args {
 		heater := new(HeaterMock)
-		heater.On("Enable", arg.enabled).Once()
+		if arg.enabled {
+			heater.On("Enable", mock.Anything).Once()
+		} else {
+			heater.On("Disable").Once()
+		}
 		heater.On("SetPower", arg.power).Return(nil).Once()
 		heater.On("Enabled").Return(arg.enabled).Once()
 		heater.On("Power").Return(arg.power).Once()
@@ -297,7 +315,7 @@ func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
 func (t *HeaterTestSuite) TestHeater_SingleHeater() {
 	firstMock := new(HeaterMock)
 
-	firstMock.On("Enable", true).Once()
+	firstMock.On("Enable", mock.Anything).Once()
 	firstMock.On("SetPower", uint(16)).Return(nil).Once()
 	firstMock.On("Enabled").Return(true).Once()
 	firstMock.On("Power").Return(uint(16)).Once()
@@ -337,8 +355,12 @@ func (t *HeaterTestSuite) TestHeater_NoHeaters() {
 	t.Len(stat, 0)
 }
 
-func (h *HeaterMock) Enable(ena bool) {
-	h.Called(ena)
+func (h *HeaterMock) Enable(err chan error) {
+	h.Called(err)
+}
+
+func (h *HeaterMock) Disable() {
+	h.Called()
 }
 
 func (h *HeaterMock) SetPower(pwr uint) error {

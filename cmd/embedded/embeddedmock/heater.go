@@ -17,8 +17,12 @@ func NewHeater() *Heater {
 	}
 }
 
-func (h *Heater) Enable(ena bool) {
-	h.enabled = ena
+func (h *Heater) Enable(err chan error) {
+	h.enabled = true
+}
+
+func (h *Heater) Disable() {
+	h.enabled = false
 }
 
 func (h *Heater) SetPower(pwr uint) error {
