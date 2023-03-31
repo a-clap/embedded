@@ -6,8 +6,9 @@
 package max31865
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func Test_rtd(t *testing.T) {
@@ -45,7 +46,7 @@ func Test_rtd(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rtd := newRtd()
+			rtd := new(rtd)
 			err := rtd.update(tt.msb, tt.lsb)
 			if tt.wantErr {
 				require.NotNil(t, err)

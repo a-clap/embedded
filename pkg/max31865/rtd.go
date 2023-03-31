@@ -12,10 +12,6 @@ type rtd struct {
 	err error
 }
 
-func newRtd() *rtd {
-	return &rtd{}
-}
-
 func (r *rtd) update(msb byte, lsb byte) error {
 	// first bit in lsb is information about error
 	if lsb&0x1 == 0x1 {

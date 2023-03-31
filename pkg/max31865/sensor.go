@@ -14,29 +14,13 @@ import (
 	"github.com/a-clap/iot/pkg/avg"
 )
 
-type Error struct {
-	ID  string `json:"ID"`
-	Op  string `json:"op"`
-	Err string `json:"error"`
-}
-
-func (e *Error) Error() string {
-	if e.Err == "" {
-		return "<nil>"
-	}
-	s := e.Op
-	if e.ID != "" {
-		s += ":" + e.ID
-	}
-	s += ": " + e.Err
-	return s
-}
-
+// Sensor is representation of each Max31865
 type Sensor struct {
 	ReadWriteCloser
 	configReg       *configReg
 	r               *rtd
 	trig, fin, stop chan struct{}
+	err             chan error
 	data            chan Readings
 	cfg             SensorConfig
 	average         *avg.Avg
@@ -46,7 +30,9 @@ type Sensor struct {
 	mtx             sync.Mutex
 }
 
+// SensorConfig holds configuration for Sensor
 type SensorConfig struct {
+	Name         string        `json:"name"`
 	ID           string        `json:"id"`
 	Correction   float64       `json:"correction"`
 	ASyncPoll    bool          `json:"a_sync_poll"`
@@ -54,6 +40,7 @@ type SensorConfig struct {
 	Samples      uint          `json:"samples"`
 }
 
+// Readings is a structure returned, when user uses Poll
 type Readings struct {
 	ID          string    `json:"id"`
 	Temperature float64   `json:"temperature"`
@@ -62,10 +49,11 @@ type Readings struct {
 	Error       string    `json:"error"`
 }
 
+// NewSensor creates Sensor with provided options
 func NewSensor(options ...Option) (*Sensor, error) {
 	s := &Sensor{
 		ReadWriteCloser: nil,
-		r:               newRtd(),
+		r:               &rtd{},
 		configReg:       newConfig(),
 		readings:        nil,
 		mtx:             sync.Mutex{},
@@ -73,36 +61,42 @@ func NewSensor(options ...Option) (*Sensor, error) {
 			ID:           "",
 			Correction:   0,
 			ASyncPoll:    false,
-			PollInterval: 100 * time.Millisecond,
+			PollInterval: 33 * time.Millisecond,
 			Samples:      10,
 		},
 	}
+	s.average = avg.New(s.cfg.Samples)
 
 	for _, opt := range options {
 		if err := opt(s); err != nil {
-			return nil, &Error{Op: "Max.NewSensor", Err: err.Error()}
+			return nil, fmt.Errorf("NewSensor: %w", err)
 		}
 	}
 
-	s.average = avg.New(s.cfg.Samples)
-
 	// verify after parsing opts
 	if err := s.verify(); err != nil {
-		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.Verify", Err: err.Error()}
+		return nil, fmt.Errorf("NewSensor.Verify: %w", err)
 	}
 
 	// Do initial regConfig
 	if err := s.config(); err != nil {
-		return nil, &Error{ID: s.ID(), Op: "Max.NewSensor.config", Err: err.Error()}
+		return nil, fmt.Errorf("NewSensor.config: %w", err)
 	}
 
 	return s, nil
 }
 
+// Poll allows user to enable background temperature updates
+// Then data can be retrieved by calling GetReadings()
 func (s *Sensor) Poll() (err error) {
 	if s.polling.Load() {
-		return &Error{ID: s.ID(), Op: "Poll", Err: ErrAlreadyPolling.Error()}
+		return fmt.Errorf("Poll {ID: %v}: %w", s.ID(), ErrAlreadyPolling)
 	}
+
+	s.fin = make(chan struct{})
+	s.stop = make(chan struct{})
+	s.err = make(chan error, 10)
+	s.data = make(chan Readings, 10)
 
 	s.polling.Store(true)
 	if s.cfg.ASyncPoll {
@@ -113,17 +107,14 @@ func (s *Sensor) Poll() (err error) {
 
 	if err != nil {
 		s.polling.Store(false)
-		return &Error{ID: s.ID(), Op: "Poll", Err: err.Error()}
+		return fmt.Errorf("Poll {ID: %v}: %w", s.ID(), err)
 	}
-
-	s.fin = make(chan struct{})
-	s.stop = make(chan struct{})
-	s.data = make(chan Readings, 10)
 	go s.poll()
 
-	return nil
+	return
 }
 
+// GetReadings returns accumulated data by Poll, clears data on read
 func (s *Sensor) GetReadings() []Readings {
 	s.mtx.Lock()
 	defer s.mtx.Unlock()
@@ -136,106 +127,41 @@ func (s *Sensor) GetReadings() []Readings {
 	return c
 }
 
-func (s *Sensor) add(r Readings) {
-	s.mtx.Lock()
-	defer s.mtx.Unlock()
-	s.readings = append(s.readings, r)
-	if len(s.readings) > 100 {
-		s.readings = s.readings[1:]
-	}
-}
-
+// Configure is a way to set Config
 func (s *Sensor) Configure(config SensorConfig) error {
+	if config.ASyncPoll {
+		if s.ready == nil {
+			return fmt.Errorf("Configure {ID: %v, Config: %v}: %w", s.ID(), config, ErrNoReadyInterface)
+		}
+	}
 	if s.cfg.Samples != config.Samples {
 		s.average.Resize(config.Samples)
 		s.cfg.Samples = config.Samples
 	}
-	if config.ASyncPoll {
-		if s.ready == nil {
-			return &Error{ID: s.ID(), Op: "Configure", Err: ErrNoReadyInterface.Error()}
-		}
-	}
+	s.cfg.Name = config.Name
 	s.cfg.ASyncPoll = config.ASyncPoll
-
 	s.cfg.PollInterval = config.PollInterval
 	s.cfg.Correction = config.Correction
+
 	return nil
 }
+
+// GetConfig returns current Config
 func (s *Sensor) GetConfig() SensorConfig {
 	return s.cfg
 }
 
-func (s *Sensor) prepareSyncPoll(pollTime time.Duration) error {
-	s.trig = make(chan struct{})
-	go func(s *Sensor, pollTime time.Duration) {
-		for s.polling.Load() {
-			<-time.After(pollTime)
-			if s.polling.Load() {
-				s.trig <- struct{}{}
-			}
-		}
-		close(s.trig)
-	}(s, pollTime)
-
-	return nil
-}
-
-func (s *Sensor) prepareAsyncPoll() error {
-	if s.ready == nil {
-		return ErrNoReadyInterface
-	}
-	s.trig = make(chan struct{}, 1)
-	return s.ready.Open(callback, s)
-}
-
-func (s *Sensor) poll() {
-	go func() {
-		for data := range s.data {
-			s.add(data)
-		}
-	}()
-
-	for s.polling.Load() {
-		select {
-		case <-s.stop:
-			s.polling.Store(false)
-		case <-s.trig:
-			tmp, average, err := s.Temperature()
-			e := ""
-			if err != nil {
-				e = err.Error()
-			}
-
-			s.data <- Readings{
-				ID:          s.ID(),
-				Temperature: tmp,
-				Average:     average,
-				Stamp:       time.Now(),
-				Error:       e,
-			}
-		}
-	}
-	// For sure there won't be more data
-	close(s.data)
-	if s.cfg.ASyncPoll {
-		s.ready.Close()
-		close(s.trig)
-	}
-
-	// Notify user that we are done
-	s.fin <- struct{}{}
-	close(s.fin)
-}
-
+// Average returns average temperature
 func (s *Sensor) Average() float64 {
 	return s.average.Average()
 }
 
+// Temperature returns actual temperature and average
 func (s *Sensor) Temperature() (actual float64, average float64, err error) {
 	r, err := s.read(regConf, regFault+1)
 	if err != nil {
 		//	can't do much about it
-		err = &Error{ID: s.ID(), Op: "Temperature.read", Err: err.Error()}
+		err = fmt.Errorf("Temperature.read {ID: %v}: %w", s.ID(), err)
 		return
 	}
 	err = s.r.update(r[regRtdMsb], r[regRtdLsb])
@@ -243,15 +169,15 @@ func (s *Sensor) Temperature() (actual float64, average float64, err error) {
 		// Not handling error here, should have happened on previous call
 		_ = s.clearFaults()
 		// make error more specific
-		err = fmt.Errorf("%w: errorReg: %v, posibble causes: %v", err, r[regFault], errorCauses(r[regFault], s.configReg.wiring))
-		err = &Error{ID: s.ID(), Op: "Temperature.update", Err: err.Error()}
+		err = fmt.Errorf("Temperature.rtd {ID: %v, Reg: %v, Cause: %v}: %w", s.ID(), r[regFault], errorCauses(r[regFault], s.configReg.wiring), err)
 		return
 	}
-	tmp := s.r.toTemperature(s.configReg.refRes, s.configReg.rNominal)
+	tmp := s.r.toTemperature(s.configReg.refRes, s.configReg.nominalRes)
 	s.average.Add(tmp + s.cfg.Correction)
 	return tmp, s.average.Average(), nil
 }
 
+// Close should be always called, if user used Poll
 func (s *Sensor) Close() error {
 	if !s.polling.Load() {
 		return nil
@@ -268,8 +194,73 @@ func (s *Sensor) Close() error {
 	return nil
 }
 
+// ID returns unique ID
 func (s *Sensor) ID() string {
 	return s.cfg.ID
+}
+
+func (s *Sensor) prepareSyncPoll(pollTime time.Duration) error {
+	s.trig = make(chan struct{})
+	go func(s *Sensor, pollTime time.Duration) {
+		for s.polling.Load() {
+			<-time.After(pollTime)
+			s.callback()
+		}
+		close(s.trig)
+	}(s, pollTime)
+
+	return nil
+}
+
+func (s *Sensor) prepareAsyncPoll() error {
+	if s.ready == nil {
+		return ErrNoReadyInterface
+	}
+	s.trig = make(chan struct{}, 1)
+	return s.ready.Open(s.callback)
+}
+
+func (s *Sensor) poll() {
+	go func() {
+		for data := range s.data {
+			s.add(data)
+		}
+	}()
+
+	for s.polling.Load() {
+		select {
+		case <-s.stop:
+			s.polling.Store(false)
+		case <-s.trig:
+			tmp, average, err := s.Temperature()
+			var e string
+			if err != nil {
+				e = err.Error()
+			}
+
+			s.data <- Readings{
+				ID:          s.ID(),
+				Temperature: tmp,
+				Average:     average,
+				Stamp:       time.Now(),
+				Error:       e,
+			}
+		case e := <-s.err:
+			s.data <- Readings{
+				Error: e.Error(),
+			}
+		}
+	}
+	// For sure there won't be more data
+	close(s.data)
+	if s.cfg.ASyncPoll {
+		s.ready.Close()
+		close(s.trig)
+	}
+
+	// Notify user that we are done
+	s.fin <- struct{}{}
+	close(s.fin)
 }
 
 func (s *Sensor) clearFaults() error {
@@ -329,19 +320,25 @@ func (s *Sensor) verify() error {
 	if onlyFF := checkReadings(0xff); onlyFF {
 		return ErrReadFF
 	}
+
 	return nil
 }
 
-func callback(args any) error {
-	s, ok := args.(*Sensor)
-	if !ok {
-		return ErrWrongArgs
-	}
+func (s *Sensor) callback() {
 	// We don't want to block on channel write, as it may be isr
 	select {
 	case s.trig <- struct{}{}:
-		return nil
+		return
 	default:
-		return ErrTooMuchTriggers
+		s.err <- ErrTooMuchTriggers
+	}
+}
+
+func (s *Sensor) add(r Readings) {
+	s.mtx.Lock()
+	defer s.mtx.Unlock()
+	s.readings = append(s.readings, r)
+	if len(s.readings) > 100 {
+		s.readings = s.readings[1:]
 	}
 }

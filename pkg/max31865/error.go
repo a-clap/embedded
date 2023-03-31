@@ -13,8 +13,6 @@ var (
 	ErrReadFF            = errors.New("read only 0xFF from device")
 	ErrRtd               = errors.New("rtd error")
 	ErrAlreadyPolling    = errors.New("max is already polling")
-	ErrNotPolling        = errors.New("max is not polling")
-	ErrWrongArgs         = errors.New("wrong args passed to callback")
 	ErrNoReadyInterface  = errors.New("lack of Ready interface")
 	ErrNoReadWriteCloser = errors.New("lack of ReadWriterCloser interface")
 	ErrTooMuchTriggers   = errors.New("poll received too much triggers")

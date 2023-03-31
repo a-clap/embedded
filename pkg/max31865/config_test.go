@@ -6,8 +6,9 @@
 package max31865
 
 import (
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestConfig_reg(t *testing.T) {
@@ -72,11 +73,13 @@ func TestConfig_faultDetectFinished(t *testing.T) {
 			c.wiring = wiring
 
 			for k, running := range regRunning {
-				require.Falsef(t, c.faultDetectFinished(running), "should detect running for wiring = %s, and regRunning %v", wireModes[i], regRunning[k])
+				require.Falsef(t, c.faultDetectFinished(running), "should detect running for wiring = %s, and regRunning %v", wireModes[i],
+					regRunning[k])
 			}
 
 			for k, finished := range regFinished {
-				require.True(t, c.faultDetectFinished(finished), "should detect finish for wiring = \"%s\", and regFinished \"%v\"", wireModes[i], regFinished[k])
+				require.True(t, c.faultDetectFinished(finished), "should detect finish for wiring = \"%s\", and regFinished \"%v\"", wireModes[i],
+					regFinished[k])
 			}
 
 		}

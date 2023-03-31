@@ -18,7 +18,7 @@ func main() {
 		max31865.WithSpidev("/dev/spidev0.0"),
 		max31865.WithWiring(max31865.ThreeWire),
 		max31865.WithRefRes(430.0),
-		max31865.WithRNominal(100.0),
+		max31865.WithNominalRes(100.0),
 	)
 	if err != nil {
 		panic(err)

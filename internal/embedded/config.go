@@ -104,10 +104,10 @@ func parsePT100(config []ConfigPT100) (Option, []error) {
 		s, err := max31865.NewSensor(
 			max31865.WithSpidev(cfg.Path),
 			max31865.WithID(cfg.ID),
-			max31865.WithRNominal(cfg.RNominal),
+			max31865.WithNominalRes(cfg.RNominal),
 			max31865.WithRefRes(cfg.RRef),
 			max31865.WithWiring(cfg.Wiring),
-			max31865.WithReadyPin(cfg.ReadyPin, cfg.ID, nil), // TODO: inject error callback here
+			max31865.WithReadyPin(cfg.ReadyPin, cfg.ID),
 		)
 
 		if err != nil {

@@ -11,6 +11,7 @@ import (
 
 type Option func(*Sensor) error
 
+// WithReadWriteCloser sets interface to communicate with Max
 func WithReadWriteCloser(readWriteCloser ReadWriteCloser) Option {
 	return func(s *Sensor) error {
 		s.ReadWriteCloser = readWriteCloser
@@ -18,12 +19,23 @@ func WithReadWriteCloser(readWriteCloser ReadWriteCloser) Option {
 	}
 }
 
+// WithName sets Max name - it can be changed
+func WithName(name string) Option {
+	return func(s *Sensor) error {
+		s.cfg.Name = name
+		return nil
+	}
+}
+
+// WithID sets unique ID for Sensor - cannot be changed
 func WithID(id string) Option {
 	return func(s *Sensor) error {
 		s.cfg.ID = id
 		return nil
 	}
 }
+
+// WithWiring sets sensor wiring
 func WithWiring(wiring Wiring) Option {
 	return func(s *Sensor) error {
 		s.configReg.wiring = wiring
@@ -31,6 +43,7 @@ func WithWiring(wiring Wiring) Option {
 	}
 }
 
+// WithRefRes sets value of reference resistor on pcb
 func WithRefRes(res float64) Option {
 	return func(s *Sensor) error {
 		s.configReg.refRes = res
@@ -38,13 +51,15 @@ func WithRefRes(res float64) Option {
 	}
 }
 
-func WithRNominal(nominal float64) Option {
+// WithNominalRes sets value of nominal resistance (usually 100)
+func WithNominalRes(nominal float64) Option {
 	return func(s *Sensor) error {
-		s.configReg.rNominal = nominal
+		s.configReg.nominalRes = nominal
 		return nil
 	}
 }
 
+// WithSpidev is a standard way of communication with Max - via spidev
 func WithSpidev(devfile string) Option {
 	return func(s *Sensor) error {
 		readWriteCloser, err := newMaxSpidev(devfile)
@@ -55,9 +70,10 @@ func WithSpidev(devfile string) Option {
 	}
 }
 
-func WithReadyPin(pin gpio.Pin, id string, errCallback func(err error)) Option {
+// WithReadyPin returns interface for async Poll on Max - based on DRDY pin
+func WithReadyPin(pin gpio.Pin, id string) Option {
 	return func(s *Sensor) error {
-		r, err := newGpioReady(pin, id, errCallback)
+		r, err := newGpioReady(pin, id)
 		if err == nil {
 			return WithReady(r)(s)
 		}
@@ -65,6 +81,7 @@ func WithReadyPin(pin gpio.Pin, id string, errCallback func(err error)) Option {
 	}
 }
 
+// WithReady returns user Ready interface for async Poll
 func WithReady(r Ready) Option {
 	return func(s *Sensor) error {
 		s.ready = r
