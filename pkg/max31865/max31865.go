@@ -9,6 +9,7 @@ import (
 	"io"
 )
 
+// Internal registers in Max
 const (
 	regConf = iota
 	regRtdMsb
@@ -20,6 +21,7 @@ const (
 	regFault
 )
 
+// ReadWriteCloser is full duplex communication with Max31865
 type ReadWriteCloser interface {
 	io.Closer
 	ReadWrite(write []byte) (read []byte, err error)
@@ -28,6 +30,6 @@ type ReadWriteCloser interface {
 // Ready is an interface which allows to register a callback
 // max31865 has a pin DRDY, which goes low, when new conversion is ready, this interface should rely on that pin
 type Ready interface {
-	Open(callback func(any) error, args any) error
+	Open(callback func()) error
 	Close()
 }

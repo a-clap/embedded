@@ -32,7 +32,7 @@ pt_100:
     id: "pt100_1"
     r_nominal: 100.0
     r_ref: 430.0
-    wiring: "threeWire"
+    wiring: 3
     ready_pin:
       chip: "gpiochip1"
       line: 4
@@ -40,7 +40,7 @@ pt_100:
     id: "pt100_2"
     r_nominal: 100.0
     r_ref: 430.0
-    wiring: "threeWire"
+    wiring: 3
     ready_pin:
       chip: "gpiochip1"
       line: 2

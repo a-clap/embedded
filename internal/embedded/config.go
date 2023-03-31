@@ -7,9 +7,9 @@ package embedded
 
 import (
 	"github.com/a-clap/iot/internal/embedded/gpio"
-	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/a-clap/iot/pkg/ds18b20"
 	"github.com/a-clap/iot/pkg/heater"
+	"github.com/a-clap/iot/pkg/max31865"
 )
 
 type Config struct {
@@ -51,7 +51,7 @@ type ConfigGPIO struct {
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
 	log.Debugf("parsing ConfigHeater: %#v", config)
-	
+
 	heaters := make(map[string]Heater, len(config))
 	var errs []error
 	for _, maybeHeater := range config {
@@ -71,7 +71,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 
 func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 	log.Debugf("parsing ConfigDS1B20: %#v", config)
-	
+
 	sensors := make([]DSSensor, 0, len(config))
 	var errs []error
 	for _, busConfig := range config {
@@ -81,7 +81,7 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 			errs = append(errs, err)
 			continue
 		}
-		
+
 		sensors, discoverErrs := bus.Discover()
 		if discoverErrs != nil {
 			log.Error("error on discovering, err:", discoverErrs)
@@ -97,34 +97,34 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 
 func parsePT100(config []ConfigPT100) (Option, []error) {
 	log.Debugf("parsing ConfigPT100: %#v", config)
-	
+
 	pts := make([]PTSensor, 0, len(config))
 	var errs []error
 	for _, cfg := range config {
 		s, err := max31865.NewSensor(
 			max31865.WithSpidev(cfg.Path),
 			max31865.WithID(cfg.ID),
-			max31865.WithRNominal(cfg.RNominal),
+			max31865.WithNominalRes(cfg.RNominal),
 			max31865.WithRefRes(cfg.RRef),
 			max31865.WithWiring(cfg.Wiring),
-			max31865.WithReadyPin(cfg.ReadyPin, cfg.ID, nil), // TODO: inject error callback here
+			max31865.WithReadyPin(cfg.ReadyPin, cfg.ID),
 		)
-		
+
 		if err != nil {
 			log.Errorf("error to create PT100 with config %#v: %v", cfg, err)
 			errs = append(errs, err)
 			continue
 		}
-		
+
 		pts = append(pts, s)
 	}
-	
+
 	return WithPT(pts), errs
 }
 
 func parseGPIO(config []ConfigGPIO) (Option, []error) {
 	log.Debugf("parsing ConfigGPIO: %#v", config)
-	
+
 	ios := make([]GPIO, 0, len(config))
 	var errs []error
 	for _, cfg := range config {
@@ -147,20 +147,20 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 			}
 			maybeGpio = &gpioHandler{GPIO: gp}
 		}
-		
+
 		cfg := gpio.Config{
 			ID:          "",
 			Direction:   cfg.Direction,
 			ActiveLevel: cfg.ActiveLevel,
 			Value:       cfg.Value,
 		}
-		
+
 		if err := maybeGpio.Configure(cfg); err != nil {
 			log.Errorf("failed to Configure on gpio: %v, err: %v", maybeGpio.ID(), err)
 			errs = append(errs, err)
 			continue
 		}
-		
+
 		ios = append(ios, maybeGpio)
 	}
 	return WithGPIOs(ios), errs

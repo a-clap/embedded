@@ -8,8 +8,8 @@ package max31865_test
 import (
 	"errors"
 	"testing"
-
-	"github.com/a-clap/iot/internal/embedded/max31865"
+	
+	"github.com/a-clap/iot/pkg/max31865"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )

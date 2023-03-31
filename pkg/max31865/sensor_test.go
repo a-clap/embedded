@@ -7,10 +7,11 @@ package max31865_test
 
 import (
 	"errors"
+	"io"
 	"testing"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/max31865"
+	"github.com/a-clap/iot/pkg/max31865"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
@@ -25,18 +26,7 @@ type SensorTransferMock struct {
 
 type SensorTriggerMock struct {
 	mock.Mock
-	cb   func(any) error
-	args any
-}
-
-func (s *SensorTransferMock) Close() error {
-	args := s.Called()
-	return args.Error(0)
-}
-
-func (s *SensorTransferMock) ReadWrite(write []byte) (read []byte, err error) {
-	args := s.Called(write)
-	return args.Get(0).([]byte), args.Error(1)
+	cb func()
 }
 
 var (
@@ -170,6 +160,7 @@ func (s *SensorSuite) TestConfigure() {
 		{
 			name: "basic",
 			newCfg: max31865.SensorConfig{
+				Name:         "hey",
 				ID:           "",
 				Correction:   11,
 				ASyncPoll:    false,
@@ -223,7 +214,6 @@ func (s *SensorSuite) TestConfigure() {
 		newCfg := sensor.GetConfig()
 		r.Equal(arg.newCfg, newCfg)
 	}
-
 }
 
 func (s *SensorSuite) TestPollTime() {
@@ -322,38 +312,87 @@ func (s *SensorSuite) TestPollTriggerReturnsCorrectErrors() {
 	cfg.ASyncPoll = true
 	r.Nil(max.Configure(cfg))
 
+	// Error on Open
 	triggerErr := errors.New("broken")
 	triggerMock.On("Open", mock.Anything).Return(triggerErr).Once()
 	err := max.Poll()
 	r.NotNil(err)
 	r.ErrorContains(err, triggerErr.Error())
 
-	{
-		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Twice()
-		sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, nil).Once()
-		max, _ := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
+	// Try to get too much triggers
+	triggerMock.On("Open", mock.Anything).Return(nil).Once()
+	err = max.Poll()
+	r.Nil(err)
 
-		triggerMock.On("Open", mock.Anything).Return(nil).Once()
-		err = max.Poll()
-		r.Nil(err)
+	tmp := []byte{0x0, 0xd1, 0x40, 0x00, 0xFF, 0xFF, 0x0, 0x0, 0x0}
+	sensorMock.On("ReadWrite", []byte{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0}).Return(tmp, nil)
 
-		err = triggerMock.cb(triggerMock.args)
-		r.Nil(err)
+	triggerMock.cb()
+	triggerMock.cb()
+	<-time.After(1 * time.Millisecond)
+	readings := max.GetReadings()
+	r.Len(readings, 2)
+	// One of error should be ErrToMuchTriggers, dunno which one
+	// The other error should be empty, so...
+	r.Equal(max31865.ErrTooMuchTriggers.Error(), readings[0].Error+readings[1].Error)
 
-		err = triggerMock.cb(triggerMock.args)
-		r.NotNil(err)
-		r.ErrorIs(max31865.ErrTooMuchTriggers, err)
+	// Here, if we call Readings, it should be empty
+	r.Nil(max.GetReadings())
 
-	}
+	// Proper close
+	triggerMock.On("Close").Return(nil).Once()
+	sensorMock.On("Close").Once()
+	r.Nil(max.Close())
+	// Second call should do... nothing
+	r.Nil(max.Close())
 }
 
-func (s *SensorTriggerMock) Open(callback func(any) error, args any) error {
+func (s *SensorSuite) TestNew_Errors() {
+	t := s.Require()
+	{
+		// no ReadWriteCloser interface
+		max, err := max31865.NewSensor()
+		t.Nil(max)
+		t.NotNil(err)
+		t.ErrorIs(err, max31865.ErrNoReadWriteCloser)
+	}
+	{
+		// error on Opt
+		e := max31865.WithSpidev("blah")(nil)
+		max, err := max31865.NewSensor(max31865.WithSpidev("blah"))
+		t.Nil(max)
+		t.NotNil(err)
+		t.ErrorContains(err, e.Error())
+	}
+	{
+		// Error on initial config
+		// Initial configReg call, always constant
+		sensorMock.On("ReadWrite", maxInitCall).Return(maxPORState, nil).Once()
+		// Configuration call
+		err := io.ErrClosedPipe
+		sensorMock.On("ReadWrite", []byte{0x80, 0xd1}).Return([]byte{0x00, 0x00}, err).Once()
+		max, e := max31865.NewSensor(max31865.WithReadWriteCloser(sensorMock), max31865.WithRefRes(400.0), max31865.WithReady(triggerMock))
+		t.Nil(max)
+		t.ErrorIs(e, err)
+	}
+
+}
+func (s *SensorTriggerMock) Open(callback func()) error {
 	called := s.Called()
 	s.cb = callback
-	s.args = args
 	return called.Error(0)
 }
 
 func (s *SensorTriggerMock) Close() {
 	_ = s.Called()
+}
+
+func (s *SensorTransferMock) Close() error {
+	args := s.Called()
+	return args.Error(0)
+}
+
+func (s *SensorTransferMock) ReadWrite(write []byte) (read []byte, err error) {
+	args := s.Called(write)
+	return args.Get(0).([]byte), args.Error(1)
 }

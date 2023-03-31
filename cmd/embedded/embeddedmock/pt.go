@@ -10,8 +10,8 @@ import (
 	"math/rand"
 	"time"
 
-	"github.com/a-clap/iot/internal/embedded/max31865"
 	"github.com/a-clap/iot/pkg/avg"
+	"github.com/a-clap/iot/pkg/max31865"
 )
 
 type PT struct {
