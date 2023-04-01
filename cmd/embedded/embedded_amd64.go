@@ -7,22 +7,14 @@ package main
 
 import (
 	"log"
-	"os"
-
+	
 	"github.com/a-clap/iot/cmd/embedded/embeddedmock"
 	"github.com/a-clap/iot/internal/embedded"
 	"github.com/a-clap/iot/internal/embedded/gpio"
-	"github.com/spf13/viper"
 )
 
 func main() {
-
-	var handler *embedded.Handler
-	if _, ok := os.LookupEnv("TESTING"); ok {
-		handler = getMockedEmbedded()
-	} else {
-		handler = getEmbeddedFromConfig()
-	}
+	handler := getMockedEmbedded()
 	err := handler.Run()
 	log.Println(err)
 }
@@ -87,24 +79,4 @@ func getMockedEmbedded() *embedded.Handler {
 		log.Fatalln(err)
 	}
 	return handler
-}
-
-func getEmbeddedFromConfig() *embedded.Handler {
-	viper.SetConfigName("config")
-	viper.SetConfigType("yaml")
-	viper.AddConfigPath(".")
-	if err := viper.ReadInConfig(); err != nil {
-		panic(err)
-	}
-
-	cfg := embedded.Config{}
-	if err := viper.Unmarshal(&cfg); err != nil {
-		panic(err)
-	}
-
-	e, err := embedded.NewFromConfig(cfg)
-	if err != nil {
-		panic(err)
-	}
-	return e
 }
