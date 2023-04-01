@@ -124,8 +124,8 @@ func (t *HeaterSuite) TestHeater_Running() {
 	t.Nil(h.SetPower(37))
 	h.Enable(nil)
 
-	heating.On("Set", true).Return(nil).Times(37)
-	heating.On("Set", false).Return(nil).Times(63)
+	heating.On("Set", true).Return(nil).Times(36)
+	heating.On("Set", false).Return(nil).Times(64)
 
 	for i := 0; i < 100; i++ {
 		tickerCh <- time.Now()

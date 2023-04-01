@@ -122,7 +122,7 @@ func (h *Heater) enable() {
 				h.ticker.Stop()
 			case <-h.ticker.Tick():
 				h.currentPower = (h.currentPower + 1) % 100
-				state := h.currentPower <= h.power
+				state := h.power > h.currentPower
 				if err := h.heating.Set(state); err != nil {
 					// non-blocking write
 					err = fmt.Errorf("Heater.Set {Value: %v}: %w", state, err)
