@@ -12,7 +12,6 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/driver/desktop"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -34,7 +33,6 @@ const (
 	bs           = '\x08'
 	enter        = '\x0A'
 	clr          = '\x7F' // use DEL as clr
-	inp          = '\xFF'
 	dot          = '.'
 	minus        = '-'
 )
@@ -42,8 +40,15 @@ const (
 var (
 	ErrNoAppRunning = errors.New("no app running")
 	numericKeyboard = &numeric{
-		w:       nil,
-		impl:    nil,
+		w:    nil,
+		impl: nil,
+		valueLabel: widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{
+			Bold:      true,
+			Italic:    false,
+			Monospace: false,
+			Symbol:    false,
+			TabWidth:  0,
+		}),
 		buttons: make(map[button]*widget.Button),
 	}
 
@@ -52,17 +57,19 @@ var (
 		{key: bs, label: "BS", handler: func() { numericKeyboard.impl.Backspace(); numericKeyboard.update() }},
 		{key: enter, label: "=", handler: func() { numericKeyboard.impl.Enter(); numericKeyboard.w.Hide() }},
 		{key: clr, label: "CLR", handler: func() { numericKeyboard.impl.Clear(); numericKeyboard.update() }},
-		{key: inp, label: "", handler: nil}, {key: dot, label: ".", handler: func() { numericKeyboard.impl.Dot(); numericKeyboard.update() }},
-		{key: minus, label: "-", handler: func() { numericKeyboard.impl.Minus(); numericKeyboard.update() }},
+		{key: dot, label: ".", handler: func() { numericKeyboard.maybeClear(); numericKeyboard.impl.Dot(); numericKeyboard.update() }},
+		{key: minus, label: "-", handler: func() { numericKeyboard.maybeClear(); numericKeyboard.impl.Minus(); numericKeyboard.update() }},
 	}
 )
 
 type numeric struct {
-	impl    impl
-	buttons map[button]*widget.Button
-	w       fyne.Window
-	once    sync.Once
-	ctn     *fyne.Container
+	impl       impl
+	clearNeed  bool
+	valueLabel *widget.Label
+	buttons    map[button]*widget.Button
+	w          fyne.Window
+	once       sync.Once
+	ctn        *fyne.Container
 }
 
 func Show(v Value) (fyne.Window, error) {
@@ -70,15 +77,24 @@ func Show(v Value) (fyne.Window, error) {
 	if app == nil {
 		return nil, ErrNoAppRunning
 	}
+
 	numericKeyboard.impl = newImpl(v)
 	numericKeyboard.init(app)
 	numericKeyboard.update()
+	numericKeyboard.clearNeed = true
 
 	return numericKeyboard.w, nil
 }
 
+func (n *numeric) maybeClear() {
+	if n.clearNeed {
+		n.impl.Clear()
+		n.clearNeed = false
+	}
+}
+
 func (n *numeric) update() {
-	n.buttons[inp].SetText(n.impl.Get())
+	n.valueLabel.SetText(n.impl.Get())
 }
 
 func (n *numeric) init(app fyne.App) {
@@ -91,6 +107,7 @@ func (n *numeric) init(app fyne.App) {
 		for i := 0; i < 10; i++ {
 			v := strconv.Itoa(i)
 			n.buttons[button(i)+'0'] = widget.NewButton(v, func() {
+				n.maybeClear()
 				n.impl.Digit(v)
 				n.update()
 			})
@@ -98,7 +115,7 @@ func (n *numeric) init(app fyne.App) {
 
 		layout := n.layout()
 		n.ctn = container.NewGridWithColumns(1,
-			n.buttons[inp],
+			n.valueLabel,
 		)
 
 		for _, line := range layout {
@@ -109,17 +126,11 @@ func (n *numeric) init(app fyne.App) {
 			n.ctn.Add(ctn)
 		}
 
-		drv := app.Driver()
-		if drv, ok := drv.(desktop.Driver); ok {
-			numericKeyboard.w = drv.CreateSplashWindow()
-		} else {
-			numericKeyboard.w = app.NewWindow("")
-		}
+		numericKeyboard.w = app.NewWindow("")
 
 		numericKeyboard.w.SetContent(numericKeyboard.ctn)
 		numericKeyboard.w.SetFixedSize(true)
 		numericKeyboard.w.CenterOnScreen()
-
 	})
 }
 

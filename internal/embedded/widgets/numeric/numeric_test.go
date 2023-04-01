@@ -51,7 +51,7 @@ func (ks *KeyboardSuite) TestInput() {
 		{
 			name:      "basic",
 			getReturn: "12",
-			setArg:    "12123",
+			setArg:    "123",
 			sequence:  []button{'1', '2', '3', enter},
 		},
 		{
@@ -63,7 +63,7 @@ func (ks *KeyboardSuite) TestInput() {
 		{
 			name:      "float, then input",
 			getReturn: "1.2",
-			setArg:    "1.23",
+			setArg:    "3.0",
 			sequence:  []button{'3', enter},
 		},
 		{
@@ -87,25 +87,25 @@ func (ks *KeyboardSuite) TestInput() {
 		{
 			name:      "int: minus toggles impl",
 			getReturn: "631",
-			setArg:    "-631",
+			setArg:    "-0",
 			sequence:  []button{minus, enter},
 		},
 		{
 			name:      "int: minus toggles impl twice",
 			getReturn: "631",
-			setArg:    "631",
+			setArg:    "0",
 			sequence:  []button{minus, minus, enter},
 		},
 		{
 			name:      "float: minus toggles impl",
 			getReturn: "631.0",
-			setArg:    "-631.0",
+			setArg:    "-0.0",
 			sequence:  []button{minus, enter},
 		},
 		{
 			name:      "float: minus toggles impl twice",
 			getReturn: "631.0",
-			setArg:    "631.0",
+			setArg:    "0.0",
 			sequence:  []button{minus, minus, enter},
 		},
 		{
@@ -167,7 +167,7 @@ func (ks *KeyboardSuite) TestInput() {
 }
 
 // From now we are not closing window, just hiding
-//func (ks *KeyboardSuite) TestEsc() {
+// func (ks *KeyboardSuite) TestEsc() {
 //	mocker = new(ValuerMock)
 //	mocker.On("Get").Return("123")
 //	w, _ := Show(mocker)
@@ -186,7 +186,7 @@ func (ks *KeyboardSuite) TestInput() {
 //		ks.Failf("expectations not fulfilled", "TestEsc")
 //	}
 //	ks.True(called, "should be closed on esc")
-//}
+// }
 
 func (v *ValuerMock) Set(val string) {
 	_ = v.Called(val)
