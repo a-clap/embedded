@@ -64,23 +64,6 @@ func (b *Bus) IDs() ([]string, error) {
 
 // NewSensor creates DS18B20 Sensor based on ID
 func (b *Bus) NewSensor(id string) (*Sensor, error) {
-	ids, err := b.IDs()
-	if err != nil {
-		return nil, fmt.Errorf("NewSensor: %w", err)
-	}
-
-	found := false
-	for _, elem := range ids {
-		if elem == id {
-			found = true
-			break
-		}
-	}
-
-	if !found {
-		return nil, fmt.Errorf("NewSensor {Bus: %v, ID: %v}: %w", b.o.Path(), id, ErrNoSuchID)
-	}
-
 	// delegate creation of Sensor to NewSensor
 	s, err := NewSensor(b.o, id, b.o.Path())
 	if err != nil {
@@ -108,6 +91,7 @@ func (b *Bus) Discover() (s []*Sensor, errs []error) {
 }
 
 func (b *Bus) updateIDs() error {
+	b.ids = nil
 	fileNames, err := b.o.ReadDir(b.o.Path())
 	if err != nil {
 		return fmt.Errorf("ReadDir: {Path: %v}: %w", b.o.Path(), err)
