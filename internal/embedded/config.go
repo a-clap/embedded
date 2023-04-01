@@ -82,13 +82,17 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 			continue
 		}
 
-		sensors, discoverErrs := bus.Discover()
+		discovered, discoverErrs := bus.Discover()
 		if discoverErrs != nil {
 			log.Error("error on discovering, err:", discoverErrs)
 			errs = append(errs, discoverErrs...)
 			continue
 		}
-		for _, s := range sensors {
+		if len(discovered) == 0 {
+			log.Debug("Not found sensors on ", busConfig.Path)
+		}
+		for _, s := range discovered {
+			log.Debug("Adding sensor: ", s.ID())
 			sensors = append(sensors, s)
 		}
 	}

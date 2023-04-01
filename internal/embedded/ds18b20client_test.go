@@ -40,7 +40,6 @@ func (p *DS18B20ClientSuite) Test_Temperatures() {
 	}{
 		{
 			cfg: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "heyo",
@@ -61,7 +60,6 @@ func (p *DS18B20ClientSuite) Test_Temperatures() {
 			},
 		}, {
 			cfg: embedded.DSSensorConfig{
-				Bus:     "2",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "heyo 13",
@@ -87,11 +85,10 @@ func (p *DS18B20ClientSuite) Test_Temperatures() {
 	var readings []embedded.DSTemperature
 	for _, elem := range args {
 		m := new(DS18B20SensorMock)
-		m.On("Name").Return(elem.cfg.Bus, elem.cfg.ID)
+		m.On("ID").Return(elem.cfg.ID)
 		m.On("GetConfig").Return(elem.cfg.SensorConfig)
 		m.On("GetReadings").Return(elem.readings)
-
-		readings = append(readings, embedded.DSTemperature{Bus: elem.cfg.Bus, Readings: elem.readings})
+		readings = append(readings, embedded.DSTemperature{Readings: elem.readings})
 		sensors = append(sensors, m)
 	}
 
@@ -99,8 +96,8 @@ func (p *DS18B20ClientSuite) Test_Temperatures() {
 	srv := httptest.NewServer(h)
 	defer srv.Close()
 
-	pt := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
-	s, err := pt.Temperatures()
+	ds := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
+	s, err := ds.Temperatures()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(readings, s)
@@ -114,7 +111,6 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 	}{
 		{
 			cfg: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "heyo",
@@ -126,7 +122,6 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 			},
 		}, {
 			cfg: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "heyo 2",
@@ -144,7 +139,7 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 	var mocks []*DS18B20SensorMock
 	for _, elem := range args {
 		m := new(DS18B20SensorMock)
-		m.On("Name").Return(elem.cfg.Bus, elem.cfg.ID)
+		m.On("ID").Return(elem.cfg.ID)
 		m.On("GetConfig").Return(elem.cfg.SensorConfig).Once()
 		cfgs = append(cfgs, elem.cfg)
 		mocks = append(mocks, m)

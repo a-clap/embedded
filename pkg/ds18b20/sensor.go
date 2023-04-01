@@ -8,7 +8,6 @@ package ds18b20
 import (
 	"errors"
 	"fmt"
-	"io"
 	"path"
 	"strconv"
 	"strings"
@@ -44,7 +43,7 @@ type Readings struct {
 
 // Sensor represents DS18b20
 type Sensor struct {
-	FileOpener
+	FileReaderWriter
 	fullID                          string
 	id                              string
 	temperaturePath, resolutionPath string
@@ -68,20 +67,20 @@ type SensorConfig struct {
 }
 
 // NewSensor creates new sensor based on args
-func NewSensor(o FileOpener, id, basePath string) (*Sensor, error) {
+func NewSensor(o FileReaderWriter, id, basePath string) (*Sensor, error) {
 	bus := basePath[strings.LastIndex(basePath, "/")+1:]
 
 	s := &Sensor{
-		FileOpener:      o,
-		id:              id,
-		fullID:          bus + ":" + id,
-		temperaturePath: path.Join(basePath, id, "temperature"),
-		resolutionPath:  path.Join(basePath, id, "resolution"),
-		polling:         atomic.Bool{},
-		fin:             nil,
-		stop:            nil,
-		data:            nil,
-		average:         nil,
+		FileReaderWriter: o,
+		id:               id,
+		fullID:           bus + ":" + id,
+		temperaturePath:  path.Join(basePath, id, "temperature"),
+		resolutionPath:   path.Join(basePath, id, "resolution"),
+		polling:          atomic.Bool{},
+		fin:              nil,
+		stop:             nil,
+		data:             nil,
+		average:          nil,
 		cfg: SensorConfig{
 			ID:           id,
 			Correction:   0,
@@ -107,8 +106,13 @@ func (s *Sensor) Name() string {
 	return s.cfg.Name
 }
 
-// ID returns Sensor hardware id in convention: w1Path:id
+// ID returns Sensor hardware id in id
 func (s *Sensor) ID() string {
+	return s.id
+}
+
+// FullID returns Sensor hardware id in convention: w1Path:id
+func (s *Sensor) FullID() string {
 	return s.fullID
 }
 
@@ -223,12 +227,12 @@ func (s *Sensor) Close() {
 func (s *Sensor) resolution() (r Resolution, err error) {
 	res, err := s.readFile(s.resolutionPath)
 	if err != nil {
-		return
+		return r, fmt.Errorf("resolution: {ID: %v}: %w", s.fullID, err)
 	}
 
 	maybeRes, err := strconv.ParseInt(res, 10, 32)
 	if err != nil {
-		return
+		return r, fmt.Errorf("resolution: {ID: %v, Resolution: %v}: %w", s.fullID, res, err)
 	}
 	r = Resolution(maybeRes)
 	if r < Resolution9Bit || r > Resolution12Bit {
@@ -239,22 +243,9 @@ func (s *Sensor) resolution() (r Resolution, err error) {
 }
 
 func (s *Sensor) setResolution(res Resolution) (err error) {
-	resFile, err := s.Open(s.resolutionPath)
-	if err != nil {
-		return fmt.Errorf("setResolution {Path: %v}: %w", s.resolutionPath, err)
-	}
-
-	defer func() {
-		errOnClose := resFile.Close()
-		// If there is already error, we don't want to hide it
-		if err == nil {
-			err = errOnClose
-		}
-	}()
-
 	buf := strconv.FormatInt(int64(res), 10) + "\r\n"
-	if _, err = resFile.Write([]byte(buf)); err != nil {
-		return
+	if err = s.WriteFile(s.resolutionPath, []byte(buf)); err != nil {
+		return fmt.Errorf("setResolution {Path: %v}: %w", s.resolutionPath, err)
 	}
 	return
 }
@@ -292,25 +283,10 @@ func (s *Sensor) poll() {
 }
 
 func (s *Sensor) readFile(path string) (r string, err error) {
-	f, err := s.Open(path)
+	buf, err := s.ReadFile(path)
 	if err != nil {
-		return "", err
+		return
 	}
-
-	defer func() {
-		errOnClose := f.Close()
-		// If there is already error, we don't want to hide it
-		if err == nil {
-			err = errOnClose
-		}
-	}()
-
-	// Files used by ds will have just few bytes, io.ReadAll seems okay for that purpose
-	buf, err := io.ReadAll(f)
-	if err != nil {
-		return "", err
-	}
-
 	return strings.TrimRight(string(buf), "\r\n"), err
 }
 

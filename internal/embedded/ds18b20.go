@@ -32,24 +32,22 @@ func (d *DSError) Error() string {
 }
 
 type DSSensor interface {
-	Name() (bus string, id string)
-	Poll() (err error)
+	ID() (id string)
+	Poll()
 	Temperature() (actual, average float64, err error)
 	GetReadings() []ds18b20.Readings
 	Average() float64
 	Configure(config ds18b20.SensorConfig) error
 	GetConfig() ds18b20.SensorConfig
-	Close() error
+	Close()
 }
 
 type DSSensorConfig struct {
-	Bus     string `json:"bus"`
-	Enabled bool   `json:"enabled"`
+	Enabled bool `json:"enabled"`
 	ds18b20.SensorConfig
 }
 
 type DSTemperature struct {
-	Bus      string             `json:"bus"`
 	Readings []ds18b20.Readings `json:"readings"`
 }
 
@@ -143,9 +141,7 @@ func (d *DSHandler) GetTemperatures() []DSTemperature {
 	sensors := make([]DSTemperature, 0, len(d.sensors))
 
 	for _, s := range d.sensors {
-		bus, _ := s.Name()
 		tmp := DSTemperature{
-			Bus:      bus,
 			Readings: s.GetReadings(),
 		}
 		sensors = append(sensors, tmp)
@@ -179,15 +175,9 @@ func (d *DSHandler) SetConfig(cfg DSSensorConfig) (newConfig DSSensorConfig, err
 
 	if cfg.Enabled != ds.cfg.Enabled {
 		if cfg.Enabled {
-			if err = ds.Poll(); err != nil {
-				err = &DSError{ID: cfg.ID, Op: "SetConfig.Poll", Err: err.Error()}
-				return
-			}
+			ds.Poll()
 		} else {
-			if err = ds.Close(); err != nil {
-				err = &DSError{ID: cfg.ID, Op: "SetConfig.Close", Err: err.Error()}
-				return
-			}
+			ds.Close()
 		}
 	}
 	ds.cfg.Enabled = cfg.Enabled
@@ -222,13 +212,8 @@ func (d *DSHandler) GetSensors() []DSSensorConfig {
 func (d *DSHandler) Open() {
 }
 
-func (d *DSHandler) Close() []error {
-	var errs []error
-	for name, sensor := range d.sensors {
-		if err := sensor.Close(); err != nil {
-			err = &DSError{ID: name, Op: "Close", Err: err.Error()}
-			errs = append(errs, err)
-		}
+func (d *DSHandler) Close() {
+	for _, sensor := range d.sensors {
+		sensor.Close()
 	}
-	return errs
 }

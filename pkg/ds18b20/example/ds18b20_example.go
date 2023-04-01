@@ -23,16 +23,25 @@ func main() {
 	if err != nil && len(ids) == 0 {
 		log.Fatalln(err)
 	}
+	log.Fatalln(ids)
 
 	sensor, err := ds.NewSensor(ids[0])
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	cfg := sensor.GetConfig()
+	cfg.Resolution = ds18b20.Resolution10Bit
+	err = sensor.Configure(cfg)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	sensor.Poll()
 
 	// Just to end this after time
 	select {
-	case <-time.After(10 * time.Second):
+	case <-time.After(3 * time.Second):
 		sensor.Close()
 	}
 	reads := sensor.GetReadings()

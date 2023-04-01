@@ -39,14 +39,16 @@ func NewDS(bus, id string) *DS {
 	d.average = avg.New(10)
 	return d
 }
+func (d *DS) ID() string {
+	return d.id
+}
 
 func (d *DS) Name() (bus string, id string) {
 	return d.bus, d.id
 }
 
-func (d *DS) Poll() (err error) {
+func (d *DS) Poll() {
 	d.polling = true
-	return nil
 }
 
 func (d *DS) Temperature() (actual, average float64, err error) {
@@ -89,7 +91,6 @@ func (d *DS) GetConfig() ds18b20.SensorConfig {
 	return d.cfg
 }
 
-func (d *DS) Close() error {
+func (d *DS) Close() {
 	d.polling = false
-	return nil
 }

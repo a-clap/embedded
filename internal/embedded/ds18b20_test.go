@@ -58,7 +58,6 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 		{
 			name: "basic",
 			old: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -69,7 +68,6 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 				},
 			},
 			new: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -83,7 +81,6 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 		{
 			name: "enable dsSensor",
 			old: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "3",
@@ -94,7 +91,6 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 				},
 			},
 			new: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: true,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "3",
@@ -110,8 +106,8 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 	t.mock = make([]*DS18B20SensorMock, len(args))
 	for i, cfg := range args {
 		m := new(DS18B20SensorMock)
-		m.On("Name").Return(cfg.old.Bus, cfg.old.ID)
 		initCall := m.On("GetConfig").Return(cfg.old.SensorConfig).Once()
+		m.On("ID").Return(cfg.new.ID)
 		m.On("GetConfig").Return(cfg.new.SensorConfig).NotBefore(initCall).Once()
 		m.On("Configure", cfg.new.SensorConfig).Return(nil).Once()
 		if cfg.new.Enabled != cfg.old.Enabled {
@@ -147,7 +143,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 	}{
 		{
 			cfg: embedded.DSSensorConfig{
-				Bus:     "456",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "ablah",
@@ -158,7 +153,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 				},
 			},
 			temperature: embedded.DSTemperature{
-				Bus: "456",
 				Readings: []ds18b20.Readings{
 					{
 						ID:          "ablah",
@@ -179,7 +173,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 		},
 		{
 			cfg: embedded.DSSensorConfig{
-				Bus:     "676",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "zablah",
@@ -190,7 +183,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 				},
 			},
 			temperature: embedded.DSTemperature{
-				Bus: "676",
 				Readings: []ds18b20.Readings{
 					{
 						ID:          "zablah",
@@ -215,8 +207,8 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 	var temps []embedded.DSTemperature
 	for i, arg := range args {
 		m := new(DS18B20SensorMock)
+		m.On("ID").Return(arg.cfg.ID)
 		m.On("GetConfig").Return(arg.cfg.SensorConfig)
-		m.On("Name").Return(arg.cfg.Bus, arg.cfg.ID)
 		m.On("GetReadings").Return(arg.temperature.Readings)
 		temps = append(temps, arg.temperature)
 		t.mock[i] = m
@@ -238,7 +230,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 	cfgs := []embedded.DSSensorConfig{
 		{
-			Bus:     "123",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "blah",
@@ -249,7 +240,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 			},
 		},
 		{
-			Bus:     "456",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "ablah",
@@ -264,8 +254,8 @@ func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 	t.mock = make([]*DS18B20SensorMock, len(cfgs))
 	for i, cfg := range cfgs {
 		m := new(DS18B20SensorMock)
+		m.On("ID").Return(cfg.ID)
 		m.On("GetConfig").Return(cfg.SensorConfig)
-		m.On("Name").Return(cfg.Bus, cfg.ID)
 		t.mock[i] = m
 	}
 
@@ -284,7 +274,6 @@ func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 
 func (t *DS18B20TestSuite) TestDSConfig_EnableDisable() {
 	startCfg := embedded.DSSensorConfig{
-		Bus:     "1",
 		Enabled: false,
 		SensorConfig: ds18b20.SensorConfig{
 			ID:           "2",
@@ -299,7 +288,7 @@ func (t *DS18B20TestSuite) TestDSConfig_EnableDisable() {
 	enableCfg.Enabled = true
 
 	m := new(DS18B20SensorMock)
-	m.On("Name").Return(startCfg.Bus, startCfg.ID)
+	m.On("ID").Return(startCfg.ID)
 	initCall := m.On("GetConfig").Return(startCfg.SensorConfig).Once()
 	configureCall := m.On("GetConfig").Return(enableCfg.SensorConfig).NotBefore(initCall).Once()
 	m.On("GetConfig").Return(startCfg.SensorConfig).NotBefore(configureCall).Once()
@@ -328,7 +317,6 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 		{
 			name: "basic",
 			old: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -339,7 +327,6 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 				},
 			},
 			new: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -353,7 +340,6 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 		{
 			name: "enable dsSensor",
 			old: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "3",
@@ -364,7 +350,6 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 				},
 			},
 			new: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: true,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "3",
@@ -380,8 +365,8 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 	t.mock = make([]*DS18B20SensorMock, len(args))
 	for i, cfg := range args {
 		m := new(DS18B20SensorMock)
-		m.On("Name").Return(cfg.old.Bus, cfg.old.ID)
 		initCall := m.On("GetConfig").Return(cfg.old.SensorConfig).Once()
+		m.On("ID").Return(cfg.new.ID)
 		m.On("GetConfig").Return(cfg.new.SensorConfig).NotBefore(initCall).Once()
 		m.On("Configure", cfg.new.SensorConfig).Return(nil).Once()
 		if cfg.new.Enabled != cfg.old.Enabled {
@@ -410,7 +395,6 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 func (t *DS18B20TestSuite) TestDS_GetSensors() {
 	cfgs := []embedded.DSSensorConfig{
 		{
-			Bus:     "123",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "blah",
@@ -421,7 +405,6 @@ func (t *DS18B20TestSuite) TestDS_GetSensors() {
 			},
 		},
 		{
-			Bus:     "456",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "ablah",
@@ -436,8 +419,8 @@ func (t *DS18B20TestSuite) TestDS_GetSensors() {
 	t.mock = make([]*DS18B20SensorMock, len(cfgs))
 	for i, cfg := range cfgs {
 		m := new(DS18B20SensorMock)
+		m.On("ID").Return(cfg.ID)
 		m.On("GetConfig").Return(cfg.SensorConfig)
-		m.On("Name").Return(cfg.Bus, cfg.ID)
 		t.mock[i] = m
 	}
 
@@ -448,8 +431,8 @@ func (t *DS18B20TestSuite) TestDS_GetSensors() {
 	t.ElementsMatch(cfgs, cfg)
 }
 
-func (m *DS18B20SensorMock) Poll() (err error) {
-	return m.Called().Error(0)
+func (m *DS18B20SensorMock) Poll() {
+	m.Called()
 }
 
 func (m *DS18B20SensorMock) Temperature() (actual, average float64, err error) {
@@ -469,13 +452,12 @@ func (m *DS18B20SensorMock) GetConfig() ds18b20.SensorConfig {
 	return m.Called().Get(0).(ds18b20.SensorConfig)
 }
 
-func (m *DS18B20SensorMock) Close() error {
-	return m.Called().Error(0)
+func (m *DS18B20SensorMock) Close() {
+	m.Called()
 }
 
-func (m *DS18B20SensorMock) Name() (bus string, id string) {
-	args := m.Called()
-	return args.String(0), args.String(1)
+func (m *DS18B20SensorMock) ID() (id string) {
+	return m.Called().String(0)
 }
 
 func (m *DS18B20SensorMock) GetReadings() []ds18b20.Readings {

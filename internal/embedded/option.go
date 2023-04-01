@@ -17,21 +17,20 @@ func WithHeaters(heaters map[string]Heater) Option {
 
 func WithDS18B20(ds []DSSensor) Option {
 	return func(h *Handler) error {
-		log.Debug("with ds18b20")
+		log.Debug("with ds18b20 ", len(ds))
 		h.DS.sensors = make(map[string]*dsSensor)
 		for _, ds := range ds {
-			bus, id := ds.Name()
-			log.Debug("Adding ds: ", bus, id)
+			id := ds.ID()
+			log.Debug("Adding ds: ", id)
 			cfg := ds.GetConfig()
 			h.DS.sensors[id] = &dsSensor{
 				DSSensor: ds,
 				cfg: DSSensorConfig{
-					Bus:          bus,
 					Enabled:      false,
 					SensorConfig: cfg,
 				},
 			}
-			log.Debugf("new dsSensor on bus: %v with ID: %v", bus, id)
+			log.Debugf("new dsSensor with ID: %v", id)
 		}
 		return nil
 	}

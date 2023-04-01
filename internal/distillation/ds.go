@@ -193,7 +193,6 @@ func (d *DSHandler) History() []embedded.DSTemperature {
 		data, v.temps.Readings = v.temps.Readings[0:length-1], v.temps.Readings[length-1:]
 
 		t = append(t, embedded.DSTemperature{
-			Bus:      v.Bus,
 			Readings: data,
 		})
 	}

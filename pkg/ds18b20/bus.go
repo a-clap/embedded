@@ -8,7 +8,9 @@ package ds18b20
 import (
 	"errors"
 	"fmt"
-	"io"
+	"log"
+	"path"
+	"strings"
 )
 
 var (
@@ -16,20 +18,15 @@ var (
 	ErrNoInterface = errors.New("no interface")
 )
 
-type File interface {
-	io.ReadWriteCloser
-}
-
-// FileOpener is the simplest interface to Open File for read/write
-type FileOpener interface {
-	Open(name string) (File, error)
+type FileReaderWriter interface {
+	WriteFile(name string, data []byte) error
+	ReadFile(name string) ([]byte, error)
 }
 
 // Onewire represents Linux onewire driver
 type Onewire interface {
 	Path() string
-	ReadDir(dirname string) ([]string, error)
-	FileOpener
+	FileReaderWriter
 }
 
 type Bus struct {
@@ -91,18 +88,19 @@ func (b *Bus) Discover() (s []*Sensor, errs []error) {
 }
 
 func (b *Bus) updateIDs() error {
-	b.ids = nil
-	fileNames, err := b.o.ReadDir(b.o.Path())
+	slavesPath := path.Join(b.o.Path(), "w1_master_slaves")
+	ids, err := b.o.ReadFile(slavesPath)
 	if err != nil {
-		return fmt.Errorf("ReadDir: {Path: %v}: %w", b.o.Path(), err)
+		return fmt.Errorf("ReadFile: {Path: %v}: %w", slavesPath, err)
 	}
-	for _, name := range fileNames {
-		if len(name) > 0 {
-			// Onewire id starts with digit
-			if name[0] >= '0' && name[0] <= '9' {
-				b.ids = append(b.ids, name)
-			}
-		}
+	log.Println(ids)
+	b.ids = nil
+	if len(ids) == 0 {
+		return nil
+	}
+	b.ids = strings.Split(string(ids), "\n")
+	if b.ids[len(b.ids)-1] == "" {
+		b.ids = b.ids[:len(b.ids)-1]
 	}
 	return nil
 }

@@ -49,7 +49,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 		{
 			name: "single element",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -60,7 +59,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 				}}},
 			expected: []distillation.DSConfig{{
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -73,7 +71,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 		{
 			name: "two sensors on one bus",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -82,7 +79,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -94,7 +90,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 			},
 			expected: []distillation.DSConfig{{
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -104,7 +99,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "2",
@@ -117,7 +111,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 		{
 			name: "multiple sensors on multiple bus",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -126,7 +119,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -135,7 +127,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "4",
@@ -144,7 +135,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "5",
@@ -153,7 +143,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "5",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "12",
@@ -165,7 +154,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 			},
 			expected: []distillation.DSConfig{{
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -175,7 +163,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "2",
@@ -185,7 +172,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "4",
@@ -195,7 +181,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "5",
@@ -205,7 +190,6 @@ func (t *DSTestSuite) TestGetSensors_Rest() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "5",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "12",
@@ -245,7 +229,6 @@ func (t *DSTestSuite) TestTemperature_REST() {
 		{
 			name: "return average",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -255,7 +238,6 @@ func (t *DSTestSuite) TestTemperature_REST() {
 					Samples:      0,
 				}}},
 			onTemperatures: []embedded.DSTemperature{{
-				Bus: "1",
 				Readings: []ds18b20.Readings{{
 					ID:          "1",
 					Temperature: 1,
@@ -269,7 +251,6 @@ func (t *DSTestSuite) TestTemperature_REST() {
 			}}}, {
 			name: "return last average",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -279,7 +260,6 @@ func (t *DSTestSuite) TestTemperature_REST() {
 					Samples:      0,
 				}}},
 			onTemperatures: []embedded.DSTemperature{{
-				Bus: "1",
 				Readings: []ds18b20.Readings{{
 					ID:          "1",
 					Temperature: 1,
@@ -287,7 +267,6 @@ func (t *DSTestSuite) TestTemperature_REST() {
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}, {
-				Bus: "1",
 				Readings: []ds18b20.Readings{{
 					ID:          "1",
 					Temperature: 1,
@@ -295,7 +274,6 @@ func (t *DSTestSuite) TestTemperature_REST() {
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}, {
-				Bus: "1",
 				Readings: []ds18b20.Readings{{
 					ID:          "1",
 					Temperature: 1,
@@ -341,7 +319,6 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 	}{{
 		name: "all good",
 		newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -351,7 +328,6 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 				Samples:      4,
 			}}},
 		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -365,7 +341,6 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 	}, {
 		name: "error on set interface",
 		newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -375,7 +350,6 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 				Samples:      4,
 			}}},
 		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -389,7 +363,6 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 	}, {
 		name: "wrong ID",
 		newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -399,7 +372,6 @@ func (t *DSTestSuite) TestConfigureSensor_REST() {
 				Samples:      4,
 			}}},
 		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "2",
@@ -454,7 +426,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 	}{{
 		name: "single element in history",
 		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -464,7 +435,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Samples:      0,
 			}}},
 		onTemperatures: []embedded.DSTemperature{{
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "1",
 				Temperature: 1,
@@ -478,7 +448,7 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 	}, {
 		name: "return all  but last element in history",
 		onGet: []embedded.DSSensorConfig{
-			{Bus: "1",
+			{
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -488,7 +458,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 					Samples:      0,
 				}}},
 		onTemperatures: []embedded.DSTemperature{{
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "1",
 				Temperature: 1,
@@ -496,7 +465,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "1",
 				Temperature: 1,
@@ -504,7 +472,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "1",
 				Temperature: 1,
@@ -513,7 +480,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Error:       "",
 			}}}},
 		expectedHistory: []embedded.DSTemperature{{
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "1",
 				Temperature: 1,
@@ -532,7 +498,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 	}, {
 		name: "return all  but last element in history - more and mixed data",
 		onGet: []embedded.DSSensorConfig{{
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
@@ -541,7 +506,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				PollInterval: 0,
 				Samples:      0,
 			}}, {
-			Bus:     "2",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "2",
@@ -550,7 +514,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				PollInterval: 0,
 				Samples:      0,
 			}}, {
-			Bus:     "1",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "3",
@@ -560,7 +523,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Samples:      0,
 			}}},
 		onTemperatures: []embedded.DSTemperature{{
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "1",
 				Temperature: 1,
@@ -586,7 +548,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "2",
 			Readings: []ds18b20.Readings{{
 				ID:          "2",
 				Temperature: 1,
@@ -606,7 +567,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "1",
 			Readings: []ds18b20.Readings{
 				{
 					ID:          "3",
@@ -616,7 +576,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 					Error:       "",
 				}}}},
 		expectedHistory: []embedded.DSTemperature{{
-			Bus: "1",
 			Readings: []ds18b20.Readings{
 				{
 					ID:          "1",
@@ -625,7 +584,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 					Stamp:       time.Time{},
 					Error:       "",
 				}}}, {
-			Bus: "1",
 			Readings: []ds18b20.Readings{{
 				ID:          "3",
 				Temperature: 1,
@@ -639,7 +597,6 @@ func (t *DSTestSuite) TestAfterHistory_StillCanReadData() {
 				Stamp:       time.Time{},
 				Error:       "",
 			}}}, {
-			Bus: "2",
 			Readings: []ds18b20.Readings{{
 				ID:          "2",
 				Temperature: 1,
@@ -694,7 +651,6 @@ func (t *DSTestSuite) TestHistory() {
 			name: "single element in history",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -707,7 +663,6 @@ func (t *DSTestSuite) TestHistory() {
 			},
 			onTemperatures: []embedded.DSTemperature{
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -725,7 +680,6 @@ func (t *DSTestSuite) TestHistory() {
 			name: "return all  but last element in history",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -738,7 +692,6 @@ func (t *DSTestSuite) TestHistory() {
 			},
 			onTemperatures: []embedded.DSTemperature{
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -750,7 +703,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -762,7 +714,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -776,7 +727,6 @@ func (t *DSTestSuite) TestHistory() {
 			},
 			expectedHistory: []embedded.DSTemperature{
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -800,7 +750,6 @@ func (t *DSTestSuite) TestHistory() {
 			name: "return all  but last element in history - more and mixed data",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -811,7 +760,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus:     "2",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "2",
@@ -822,7 +770,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "3",
@@ -835,7 +782,7 @@ func (t *DSTestSuite) TestHistory() {
 			},
 			onTemperatures: []embedded.DSTemperature{
 				{
-					Bus: "1",
+
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -868,7 +815,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "2",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "2",
@@ -894,7 +840,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "3",
@@ -908,7 +853,6 @@ func (t *DSTestSuite) TestHistory() {
 			},
 			expectedHistory: []embedded.DSTemperature{
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -920,7 +864,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "1",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "3",
@@ -939,7 +882,6 @@ func (t *DSTestSuite) TestHistory() {
 					},
 				},
 				{
-					Bus: "2",
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "2",
@@ -990,7 +932,6 @@ func (t *DSTestSuite) TestTemperature() {
 			id:   "1",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1003,7 +944,7 @@ func (t *DSTestSuite) TestTemperature() {
 			},
 			onTemperatures: []embedded.DSTemperature{
 				{
-					Bus: "1",
+
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -1022,7 +963,6 @@ func (t *DSTestSuite) TestTemperature() {
 			id:   "1",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1035,7 +975,7 @@ func (t *DSTestSuite) TestTemperature() {
 			},
 			onTemperatures: []embedded.DSTemperature{
 				{
-					Bus: "1",
+
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -1047,7 +987,7 @@ func (t *DSTestSuite) TestTemperature() {
 					},
 				},
 				{
-					Bus: "1",
+
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -1059,7 +999,7 @@ func (t *DSTestSuite) TestTemperature() {
 					},
 				},
 				{
-					Bus: "1",
+
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "1",
@@ -1104,7 +1044,6 @@ func (t *DSTestSuite) TestUpdate_Errors() {
 			name: "interface error",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1123,7 +1062,6 @@ func (t *DSTestSuite) TestUpdate_Errors() {
 			name: "unexpected ID",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1136,7 +1074,7 @@ func (t *DSTestSuite) TestUpdate_Errors() {
 			},
 			onTemperatures: []embedded.DSTemperature{
 				{
-					Bus: "1",
+
 					Readings: []ds18b20.Readings{
 						{
 							ID:          "2",
@@ -1181,7 +1119,6 @@ func (t *DSTestSuite) TestTemperatureErrors() {
 			name: "wrong ID",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1199,7 +1136,6 @@ func (t *DSTestSuite) TestTemperatureErrors() {
 			name: "no temps",
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1239,7 +1175,6 @@ func (t *DSTestSuite) TestConfigureSensor() {
 		{
 			name: "all good",
 			newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -1251,7 +1186,6 @@ func (t *DSTestSuite) TestConfigureSensor() {
 			}},
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1267,7 +1201,6 @@ func (t *DSTestSuite) TestConfigureSensor() {
 		{
 			name: "error on set interface",
 			newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -1279,7 +1212,6 @@ func (t *DSTestSuite) TestConfigureSensor() {
 			}},
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1295,7 +1227,6 @@ func (t *DSTestSuite) TestConfigureSensor() {
 		{
 			name: "wrong ID",
 			newConfig: distillation.DSConfig{DSSensorConfig: embedded.DSSensorConfig{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -1307,7 +1238,6 @@ func (t *DSTestSuite) TestConfigureSensor() {
 			}},
 			onGet: []embedded.DSSensorConfig{
 				{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "2",
@@ -1353,7 +1283,6 @@ func (t *DSTestSuite) TestGetSensors() {
 		{
 			name: "single element",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -1364,7 +1293,6 @@ func (t *DSTestSuite) TestGetSensors() {
 				}}},
 			expected: []distillation.DSConfig{{
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1377,7 +1305,6 @@ func (t *DSTestSuite) TestGetSensors() {
 		{
 			name: "two sensors on one bus",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -1386,7 +1313,6 @@ func (t *DSTestSuite) TestGetSensors() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -1398,7 +1324,6 @@ func (t *DSTestSuite) TestGetSensors() {
 			},
 			expected: []distillation.DSConfig{{
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1408,7 +1333,6 @@ func (t *DSTestSuite) TestGetSensors() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "2",
@@ -1421,7 +1345,6 @@ func (t *DSTestSuite) TestGetSensors() {
 		{
 			name: "multiple sensors on multiple bus",
 			onGet: []embedded.DSSensorConfig{{
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "1",
@@ -1430,7 +1353,6 @@ func (t *DSTestSuite) TestGetSensors() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "1",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "2",
@@ -1439,7 +1361,6 @@ func (t *DSTestSuite) TestGetSensors() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "4",
@@ -1448,7 +1369,6 @@ func (t *DSTestSuite) TestGetSensors() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "3",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "5",
@@ -1457,7 +1377,6 @@ func (t *DSTestSuite) TestGetSensors() {
 					PollInterval: 0,
 					Samples:      0,
 				}}, {
-				Bus:     "5",
 				Enabled: false,
 				SensorConfig: ds18b20.SensorConfig{
 					ID:           "12",
@@ -1469,7 +1388,6 @@ func (t *DSTestSuite) TestGetSensors() {
 			},
 			expected: []distillation.DSConfig{{
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "1",
@@ -1479,7 +1397,6 @@ func (t *DSTestSuite) TestGetSensors() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "1",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "2",
@@ -1489,7 +1406,6 @@ func (t *DSTestSuite) TestGetSensors() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "4",
@@ -1499,7 +1415,6 @@ func (t *DSTestSuite) TestGetSensors() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "3",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "5",
@@ -1509,7 +1424,6 @@ func (t *DSTestSuite) TestGetSensors() {
 						Samples:      0,
 					}}}, {
 				DSSensorConfig: embedded.DSSensorConfig{
-					Bus:     "5",
 					Enabled: false,
 					SensorConfig: ds18b20.SensorConfig{
 						ID:           "12",
@@ -1552,7 +1466,6 @@ func (t *DSTestSuite) TestNew() {
 	{
 		m := new(DSMock)
 		sensor := embedded.DSSensorConfig{
-			Bus:     "blah",
 			Enabled: false,
 			SensorConfig: ds18b20.SensorConfig{
 				ID:           "1",
