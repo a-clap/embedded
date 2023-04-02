@@ -8,7 +8,6 @@ package ds18b20
 import (
 	"errors"
 	"fmt"
-	"log"
 	"path"
 	"strings"
 )
@@ -41,12 +40,12 @@ func NewBus(options ...BusOption) (*Bus, error) {
 	for _, opt := range options {
 		opt(b)
 	}
-
+	
 	// Can't do anything without interface
 	if b.o == nil {
 		return nil, fmt.Errorf("NewBus: %w", ErrNoInterface)
 	}
-
+	
 	return b, nil
 }
 
@@ -93,7 +92,6 @@ func (b *Bus) updateIDs() error {
 	if err != nil {
 		return fmt.Errorf("ReadFile: {Path: %v}: %w", slavesPath, err)
 	}
-	log.Println(ids)
 	b.ids = nil
 	if len(ids) == 0 {
 		return nil
