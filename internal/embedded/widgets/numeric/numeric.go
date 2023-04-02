@@ -12,6 +12,7 @@ import (
 
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 )
 
@@ -113,12 +114,11 @@ func (n *numeric) init(app fyne.App) {
 			})
 		}
 
-		layout := n.layout()
 		n.ctn = container.NewGridWithColumns(1,
-			n.valueLabel,
+			container.NewVBox(layout.NewSpacer(), n.valueLabel, layout.NewSpacer()),
 		)
 
-		for _, line := range layout {
+		for _, line := range n.layout() {
 			ctn := container.NewGridWithColumns(len(line))
 			for _, elem := range line {
 				ctn.Add(elem)

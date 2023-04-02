@@ -7,10 +7,12 @@ package alphanumeric
 
 import (
 	"errors"
+	"sync"
+
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/container"
+	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"sync"
 )
 
 type Value interface {
@@ -23,6 +25,7 @@ type button rune
 type alphaNumeric struct {
 	Value
 	current        string
+	valueLabel     *widget.Label
 	buttons        map[button]*widget.Button
 	upper, special bool
 	w              fyne.Window
@@ -31,7 +34,15 @@ type alphaNumeric struct {
 
 var (
 	ErrNoAppRunning = errors.New("no app running")
-	keyboard        = &alphaNumeric{buttons: make(map[button]*widget.Button)}
+	keyboard        = &alphaNumeric{
+		buttons: make(map[button]*widget.Button),
+		valueLabel: widget.NewLabelWithStyle("", fyne.TextAlignCenter, fyne.TextStyle{
+			Bold:      true,
+			Italic:    false,
+			Monospace: false,
+			Symbol:    false,
+			TabWidth:  0,
+		})}
 )
 
 func Show(v Value) (fyne.Window, error) {
@@ -52,9 +63,11 @@ func Show(v Value) (fyne.Window, error) {
 
 func (a *alphaNumeric) refresh() {
 
-	split := container.NewHSplit(a.buttons[inp], a.buttons[clr])
-	split.SetOffset(1)
-	view := container.NewGridWithColumns(1, split)
+	valueCtn := container.NewGridWithColumns(1,
+		container.NewVBox(layout.NewSpacer(), a.valueLabel, layout.NewSpacer()),
+	)
+
+	view := container.NewGridWithColumns(1, valueCtn)
 	for _, current := range keyboard.layout() {
 		ctn := container.NewGridWithColumns(len(current))
 		for _, elem := range current {
@@ -76,8 +89,8 @@ func (a *alphaNumeric) refresh() {
 func (a *alphaNumeric) layout() [][]*widget.Button {
 	lines := func() [][]button {
 		return [][]button{
-			{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0'},
-			{'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'},
+			{'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', esc},
+			{'q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p', clr},
 			{'a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'},
 			{shift, 'z', 'x', 'c', 'v', 'b', 'n', 'm', bs},
 		}
@@ -134,7 +147,7 @@ func (a *alphaNumeric) standardKey(key string) {
 }
 
 func (a *alphaNumeric) updateInput() {
-	a.buttons[inp].SetText(a.current)
+	a.valueLabel.SetText(a.current)
 }
 
 func (a *alphaNumeric) clear() {

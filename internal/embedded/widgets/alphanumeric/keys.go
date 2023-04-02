@@ -26,10 +26,10 @@ const (
 )
 
 const (
+	esc   = '\x1B'
 	bs    = '\x08'
 	alt   = '\x1A'
 	enter = '\x0A'
-	inp   = '\xFF'
 	shift = '\x11'
 	dot   = '.'
 	comma = ','
@@ -120,14 +120,14 @@ var (
 	}
 
 	specialButtons = []specialButton{
-		{key: inp, label: "", handler: nil},
+		{key: esc, label: "ESC", handler: func() { keyboard.w.Close() }},
 		{key: space, label: " ", handler: func() { keyboard.space() }},
-		{key: bs, label: "bs", handler: func() { keyboard.bs() }},
-		{key: alt, label: "alt", handler: func() { keyboard.alt() }},
+		{key: bs, label: "BS", handler: func() { keyboard.bs() }},
+		{key: alt, label: "Alt", handler: func() { keyboard.alt() }},
 		{key: enter, label: "=", handler: func() { keyboard.enter() }},
-		{key: shift, label: "shift", handler: func() { keyboard.shift() }},
+		{key: shift, label: "Shift", handler: func() { keyboard.shift() }},
 		{key: dot, label: ".", handler: func() { keyboard.dot() }},
 		{key: comma, label: ",", handler: func() { keyboard.comma() }},
-		{key: clr, label: "clr", handler: func() { keyboard.clear() }},
+		{key: clr, label: "CLR", handler: func() { keyboard.clear() }},
 	}
 )
