@@ -1,0 +1,17 @@
+# https://taskfile.dev
+
+version: '3'
+
+tasks:
+  embedded:
+    cmds:
+      - go run ./cmd/embedded
+  distillation:
+    cmds:
+      - go run ./cmd/distillation
+  gui:
+    cmds:
+      - go run ./cmd/gui
+  dev:
+    deps: [embedded, distillation, gui]
+    silent: true
