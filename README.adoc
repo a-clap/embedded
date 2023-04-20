@@ -1,10 +1,14 @@
-= Distillation
+= Embedded
 :toc: preamble
 :toclevels: 7
 :distro-link: https://github.com/a-clap/distillation-distro
 :imagesdir: docs/images/
 
 This repo is part of distillation project based on https://wiki.banana-pi.org/Banana_Pi_BPI-M2_ZERO[BananaPi Zero] and {distro-link}[distillation distro].
+
+== DISCLAIMER
+
+Repository split from https://github.com/a-clap/distillation[distillation], this readme is [red yellow-background big]*OUTDATED* - at least for now.
 
 == What is this?
 
