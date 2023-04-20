@@ -7,8 +7,8 @@ package embedded
 
 import (
 	"time"
-	
-	"github.com/a-clap/iot/pkg/restclient"
+
+	"github.com/a-clap/embedded/pkg/restclient"
 )
 
 type DS18B20Client struct {

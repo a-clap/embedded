@@ -14,9 +14,9 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-	
-	"github.com/a-clap/iot/pkg/ds18b20"
-	"github.com/a-clap/iot/pkg/embedded"
+
+	"github.com/a-clap/embedded/pkg/ds18b20"
+	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
@@ -102,7 +102,7 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 			},
 		},
 	}
-	
+
 	t.mock = make([]*DS18B20SensorMock, len(args))
 	for i, cfg := range args {
 		m := new(DS18B20SensorMock)
@@ -124,13 +124,13 @@ func (t *DS18B20TestSuite) TestRestAPI_DSConfig() {
 	for _, arg := range args {
 		var body bytes.Buffer
 		r.Nil(json.NewEncoder(&body).Encode(arg.new))
-		
+
 		t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigOnewireSensor, &body)
 		t.req.Header.Add("Content-Type", "application/json")
-		
+
 		h.ServeHTTP(t.resp, t.req)
 		b, _ := io.ReadAll(t.resp.Body)
-		
+
 		r.Equal(http.StatusOK, t.resp.Code)
 		r.JSONEq(toJSON(arg.new), string(b))
 	}
@@ -202,7 +202,7 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 			},
 		},
 	}
-	
+
 	t.mock = make([]*DS18B20SensorMock, len(args))
 	var temps []embedded.DSTemperature
 	for i, arg := range args {
@@ -213,19 +213,19 @@ func (t *DS18B20TestSuite) TestRestAPI_GetTemperatures() {
 		temps = append(temps, arg.temperature)
 		t.mock[i] = m
 	}
-	
+
 	r := t.Require()
 	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
-	
+
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetOnewireTemperatures, nil)
 	h.ServeHTTP(t.resp, t.req)
-	
+
 	b, _ := io.ReadAll(t.resp.Body)
 	var bodyJson []embedded.DSTemperature
 	fromJSON(b, &bodyJson)
 	r.Equal(http.StatusOK, t.resp.Code)
 	r.ElementsMatch(temps, bodyJson)
-	
+
 }
 func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 	cfgs := []embedded.DSSensorConfig{
@@ -250,7 +250,7 @@ func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 			},
 		},
 	}
-	
+
 	t.mock = make([]*DS18B20SensorMock, len(cfgs))
 	for i, cfg := range cfgs {
 		m := new(DS18B20SensorMock)
@@ -258,12 +258,12 @@ func (t *DS18B20TestSuite) TestRestAPI_GetSensors() {
 		m.On("GetConfig").Return(cfg.SensorConfig)
 		t.mock[i] = m
 	}
-	
+
 	h, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	r := t.Require()
-	
+
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetOnewireSensors, nil)
-	
+
 	h.ServeHTTP(t.resp, t.req)
 	b, _ := io.ReadAll(t.resp.Body)
 	var bodyJson []embedded.DSSensorConfig
@@ -283,16 +283,16 @@ func (t *DS18B20TestSuite) TestDSConfig_EnableDisable() {
 			Samples:      4,
 		},
 	}
-	
+
 	enableCfg := startCfg
 	enableCfg.Enabled = true
-	
+
 	m := new(DS18B20SensorMock)
 	m.On("ID").Return(startCfg.ID)
 	initCall := m.On("GetConfig").Return(startCfg.SensorConfig).Once()
 	configureCall := m.On("GetConfig").Return(enableCfg.SensorConfig).NotBefore(initCall).Once()
 	m.On("GetConfig").Return(startCfg.SensorConfig).NotBefore(configureCall).Once()
-	
+
 	firstConfigure := m.On("Configure", enableCfg.SensorConfig).Return(nil).Once()
 	m.On("Poll").Return(nil)
 	m.On("Configure", startCfg.SensorConfig).Return(nil).Once().NotBefore(firstConfigure)
@@ -302,12 +302,12 @@ func (t *DS18B20TestSuite) TestDSConfig_EnableDisable() {
 	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	ds := mainHandler.DS
 	r := t.Require()
-	
+
 	_, err := ds.SetConfig(enableCfg)
 	r.Nil(err)
 	_, err = ds.SetConfig(startCfg)
 	r.Nil(err)
-	
+
 }
 func (t *DS18B20TestSuite) TestDSConfig() {
 	args := []struct {
@@ -361,7 +361,7 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 			},
 		},
 	}
-	
+
 	t.mock = make([]*DS18B20SensorMock, len(args))
 	for i, cfg := range args {
 		m := new(DS18B20SensorMock)
@@ -378,7 +378,7 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 		}
 		t.mock[i] = m
 	}
-	
+
 	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	ds := mainHandler.DS
 	r := t.Require()
@@ -390,7 +390,7 @@ func (t *DS18B20TestSuite) TestDSConfig() {
 	for _, m := range t.mock {
 		m.AssertExpectations(t.T())
 	}
-	
+
 }
 func (t *DS18B20TestSuite) TestDS_GetSensors() {
 	cfgs := []embedded.DSSensorConfig{
@@ -415,7 +415,7 @@ func (t *DS18B20TestSuite) TestDS_GetSensors() {
 			},
 		},
 	}
-	
+
 	t.mock = make([]*DS18B20SensorMock, len(cfgs))
 	for i, cfg := range cfgs {
 		m := new(DS18B20SensorMock)
@@ -423,7 +423,7 @@ func (t *DS18B20TestSuite) TestDS_GetSensors() {
 		m.On("GetConfig").Return(cfg.SensorConfig)
 		t.mock[i] = m
 	}
-	
+
 	mainHandler, _ := embedded.New(embedded.WithDS18B20(t.sensors()))
 	ds := mainHandler.DS
 	cfg := ds.GetSensors()

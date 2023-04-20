@@ -7,8 +7,8 @@ package main
 
 import (
 	"log"
-	
-	"github.com/a-clap/iot/pkg/embedded"
+
+	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/spf13/viper"
 )
 
@@ -25,12 +25,12 @@ func getEmbeddedFromConfig() *embedded.Handler {
 	if err := viper.ReadInConfig(); err != nil {
 		panic(err)
 	}
-	
+
 	cfg := embedded.Config{}
 	if err := viper.Unmarshal(&cfg); err != nil {
 		panic(err)
 	}
-	
+
 	e, err := embedded.NewFromConfig(cfg)
 	if err != nil {
 		panic(err)

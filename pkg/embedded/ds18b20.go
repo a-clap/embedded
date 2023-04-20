@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/a-clap/iot/pkg/ds18b20"
+	"github.com/a-clap/embedded/pkg/ds18b20"
 	"github.com/gin-gonic/gin"
 )
 

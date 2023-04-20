@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/a-clap/iot/pkg/heater"
+	"github.com/a-clap/embedded/pkg/heater"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )

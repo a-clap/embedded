@@ -11,7 +11,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/a-clap/iot/pkg/avg"
+	"github.com/a-clap/embedded/pkg/avg"
 )
 
 // Sensor is representation of each Max31865
