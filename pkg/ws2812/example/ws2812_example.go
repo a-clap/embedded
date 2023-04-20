@@ -8,8 +8,8 @@ package main
 import (
 	"log"
 	"time"
-
-	"github.com/a-clap/embedded/pkg/embedded/ws2812"
+	
+	"github.com/a-clap/embedded/pkg/ws2812"
 )
 
 const (
@@ -25,7 +25,7 @@ func (c Color) color() []byte {
 	red := c.generic(c.r)
 	green := c.generic(c.g)
 	blue := c.generic(c.b)
-
+	
 	full := make([]byte, 0, 24)
 	full = append(full, green...)
 	full = append(full, red...)
@@ -56,7 +56,7 @@ func main() {
 	for {
 		for i := 0; i < LEDS; i++ {
 			_ = w.SetColor(uint(i), 50, 0, 0)
-
+			
 			err := w.Refresh()
 			if err != nil {
 				log.Println(err)
@@ -66,7 +66,7 @@ func main() {
 		}
 		for i := 6; i > 0; i-- {
 			_ = w.SetColor(uint(i), 50, 0, 0)
-
+			
 			err := w.Refresh()
 			if err != nil {
 				log.Println(err)
@@ -75,5 +75,5 @@ func main() {
 			<-time.After(30 * time.Millisecond)
 		}
 	}
-
+	
 }

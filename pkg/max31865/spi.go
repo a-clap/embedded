@@ -6,7 +6,7 @@
 package max31865
 
 import (
-	"github.com/a-clap/embedded/pkg/embedded/spidev"
+	"github.com/a-clap/embedded/pkg/spidev"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 )

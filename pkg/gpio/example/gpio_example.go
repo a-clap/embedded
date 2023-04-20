@@ -8,8 +8,8 @@ package main
 import (
 	"log"
 	"time"
-
-	"github.com/a-clap/embedded/pkg/embedded/gpio"
+	
+	"github.com/a-clap/embedded/pkg/gpio"
 )
 
 func main() {
@@ -17,7 +17,7 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-
+	
 	states := []struct {
 		delay time.Duration
 		value bool
@@ -39,7 +39,7 @@ func main() {
 			value: false,
 		},
 	}
-
+	
 	for {
 		for _, state := range states {
 			err = out.Set(state.value)

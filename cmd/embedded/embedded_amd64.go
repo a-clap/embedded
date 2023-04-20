@@ -7,10 +7,10 @@ package main
 
 import (
 	"log"
-
+	
 	"github.com/a-clap/embedded/cmd/embedded/embeddedmock"
 	"github.com/a-clap/embedded/pkg/embedded"
-	"github.com/a-clap/embedded/pkg/embedded/gpio"
+	"github.com/a-clap/embedded/pkg/gpio"
 )
 
 func main() {
@@ -25,7 +25,7 @@ func getMockedEmbedded() *embedded.Handler {
 	for i, id := range ptIds {
 		pts[i] = embeddedmock.NewPT(id)
 	}
-
+	
 	dsIds := []struct {
 		bus, id string
 	}{
@@ -42,13 +42,13 @@ func getMockedEmbedded() *embedded.Handler {
 	for i, id := range dsIds {
 		dss[i] = embeddedmock.NewDS(id.bus, id.id)
 	}
-
+	
 	heaterIds := []string{"heater_1", "heater_2", "heater_3"}
 	heaters := make(map[string]embedded.Heater, len(heaterIds))
 	for _, id := range heaterIds {
 		heaters[id] = embeddedmock.NewHeater()
 	}
-
+	
 	gpioIds := []struct {
 		id    string
 		state bool
@@ -68,7 +68,7 @@ func getMockedEmbedded() *embedded.Handler {
 	for i, id := range gpioIds {
 		gpios[i] = embeddedmock.NewGPIO(id.id, id.state, id.dir)
 	}
-
+	
 	handler, err := embedded.New(
 		embedded.WithPT(pts),
 		embedded.WithDS18B20(dss),

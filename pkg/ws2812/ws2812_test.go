@@ -8,8 +8,8 @@ package ws2812_test
 import (
 	"fmt"
 	"testing"
-
-	"github.com/a-clap/embedded/pkg/embedded/ws2812"
+	
+	"github.com/a-clap/embedded/pkg/ws2812"
 	"github.com/stretchr/testify/require"
 )
 
@@ -69,7 +69,7 @@ func TestWS2812_SetColor(t *testing.T) {
 }
 
 func TestWS2812_Refresh(t *testing.T) {
-
+	
 	t.Run("interface error", func(t *testing.T) {
 		w := ws2812.New(1, &WS2821Writer{err: fmt.Errorf("interface error")})
 		_ = w.SetColor(0, 0, 0, 0)
@@ -77,7 +77,7 @@ func TestWS2812_Refresh(t *testing.T) {
 		require.NotNil(t, err)
 		require.ErrorIs(t, err, ws2812.ErrInterface)
 	})
-
+	
 	t.Run("internal buffer len corresponds to size", func(t *testing.T) {
 		sizes := []uint{0, 5, 13, 122, 13}
 		for i, size := range sizes {
@@ -91,7 +91,7 @@ func TestWS2812_Refresh(t *testing.T) {
 			require.Len(t, writer.bytes, int(expectedSize), "failed on pos %v, size %v", i, size)
 		}
 	})
-
+	
 	t.Run("buffer starts with {0,0,0}", func(t *testing.T) {
 		writer := WS2821Writer{}
 		w := ws2812.New(1, &writer)
@@ -102,23 +102,23 @@ func TestWS2812_Refresh(t *testing.T) {
 			require.Equal(t, byte(0), writer.bytes[i])
 		}
 	})
-
+	
 	t.Run("SetColor affects specified led", func(t *testing.T) {
 		writer := WS2821Writer{}
 		w := ws2812.New(5, &writer)
 		require.Nil(t, w.Refresh())
-
+		
 		// get buffer written, no matter what is inside
 		b := make([]byte, 0, len(writer.bytes))
 		_ = copy(b, writer.bytes)
 		for i := uint(0); i < 5; i++ {
-
+			
 			require.Nil(t, w.SetColor(i, 255, 255, 255))
 			require.Nil(t, w.Refresh())
-
+			
 			touchedLedStart := int(i*24 + 3)
 			touchedLedEnd := int((i+1)*24 + 3)
-
+			
 			newBuf := make([]byte, 0, len(writer.bytes))
 			_ = copy(newBuf, writer.bytes)
 			for pos, elem := range newBuf {
@@ -140,7 +140,7 @@ func TestWS2812_Refresh(t *testing.T) {
 			b = newBuf
 		}
 	})
-
+	
 	t.Run("buffer is handled properly", func(t *testing.T) {
 		const (
 			zero byte = 0b11000000
@@ -149,21 +149,21 @@ func TestWS2812_Refresh(t *testing.T) {
 		writer := WS2821Writer{}
 		w := ws2812.New(1, &writer)
 		r, g, b := uint8(255), uint8(255), uint8(0)
-
+		
 		require.Nil(t, w.SetColor(0, r, g, b))
 		require.Nil(t, w.Refresh())
-
+		
 		parseColor := func(pos int, color uint8) uint8 {
 			if (color & (1 << pos)) == 0 {
 				return zero
 			}
 			return one
 		}
-
+		
 		greenBytes := 1*8 + 3 - 1
 		redBytes := 2*8 + 3 - 1
 		blueBytes := 3*8 + 3 - 1
-
+		
 		for pos, elem := range writer.bytes {
 			switch {
 			// first three elements are 0

@@ -8,8 +8,8 @@ package ws2812
 import (
 	"errors"
 	"fmt"
-
-	"github.com/a-clap/embedded/pkg/embedded/spidev"
+	
+	"github.com/a-clap/embedded/pkg/spidev"
 	"periph.io/x/conn/v3/physic"
 	"periph.io/x/conn/v3/spi"
 )
@@ -59,7 +59,7 @@ func New(size uint, w Writer) *WS2812 {
 	}
 	// turn off all
 	led.SetAll(0, 0, 0)
-
+	
 	return led
 }
 
