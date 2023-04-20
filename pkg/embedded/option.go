@@ -5,11 +5,15 @@
 
 package embedded
 
+import (
+	"github.com/a-clap/logging"
+)
+
 type Option func(*Handler) error
 
 func WithHeaters(heaters map[string]Heater) Option {
 	return func(h *Handler) error {
-		log.Debug("with heaters: ", len(heaters))
+		logger.Debug("WithHeaters", logging.Int("len", len(heaters)))
 		h.Heaters.heaters = heaters
 		return nil
 	}
@@ -17,11 +21,10 @@ func WithHeaters(heaters map[string]Heater) Option {
 
 func WithDS18B20(ds []DSSensor) Option {
 	return func(h *Handler) error {
-		log.Debug("with ds18b20 ", len(ds))
+		logger.Debug("WithDS18B20", logging.Int("len", len(ds)))
 		h.DS.sensors = make(map[string]*dsSensor)
 		for _, ds := range ds {
 			id := ds.ID()
-			log.Debug("Adding ds: ", id)
 			cfg := ds.GetConfig()
 			h.DS.sensors[id] = &dsSensor{
 				DSSensor: ds,
@@ -30,7 +33,7 @@ func WithDS18B20(ds []DSSensor) Option {
 					SensorConfig: cfg,
 				},
 			}
-			log.Debugf("new dsSensor with ID: %v", id)
+			logger.Debug("New DSSensor", logging.String("ID", id))
 		}
 		return nil
 	}
@@ -38,10 +41,9 @@ func WithDS18B20(ds []DSSensor) Option {
 
 func WithPT(pt []PTSensor) Option {
 	return func(h *Handler) error {
-		log.Debug("with pt100s")
+		logger.Debug("WithPT", logging.Int("len", len(pt)))
 		h.PT.sensors = make(map[string]*ptSensor)
 		for _, p := range pt {
-			log.Debug("Adding pt100 ", p.ID())
 			id := p.ID()
 			cfg := p.GetConfig()
 			h.PT.sensors[id] = &ptSensor{
@@ -51,7 +53,7 @@ func WithPT(pt []PTSensor) Option {
 					SensorConfig: cfg,
 				},
 			}
-			log.Debugf("new ptSensor with ID: %v", id)
+			logger.Debug("New PTSensor", logging.String("ID", id))
 		}
 		return nil
 	}
@@ -59,19 +61,13 @@ func WithPT(pt []PTSensor) Option {
 
 func WithGPIOs(gpios []GPIO) Option {
 	return func(h *Handler) error {
+		logger.Debug("WithGPIOs", logging.Int("len", len(gpios)))
 		h.GPIO.io = make(map[string]*gpioHandler)
 		for _, gpio := range gpios {
-			log.Debug("adding GPIO: ", gpio.ID())
+			logger.Debug("New GPIO", logging.String("ID", gpio.ID()))
 			h.GPIO.io[gpio.ID()] = &gpioHandler{
 				GPIO: gpio}
 		}
-		return nil
-	}
-}
-
-func WithLogger(l Logger) Option {
-	return func(*Handler) error {
-		log = l
 		return nil
 	}
 }

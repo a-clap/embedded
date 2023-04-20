@@ -6,7 +6,12 @@
 package embedded
 
 import (
+	"github.com/a-clap/logging"
 	"github.com/gin-gonic/gin"
+)
+
+var (
+	logger = logging.GetLogger()
 )
 
 type Handler struct {
@@ -25,18 +30,18 @@ func New(options ...Option) (*Handler, error) {
 		PT:      new(PTHandler),
 		GPIO:    new(GPIOHandler),
 	}
-
+	
 	for _, opt := range options {
 		if err := opt(h); err != nil {
 			return nil, err
 		}
 	}
-
+	
 	h.Heaters.Open()
 	h.DS.Open()
 	h.PT.Open()
 	h.GPIO.Open()
-
+	
 	h.routes()
 	return h, nil
 }
@@ -53,9 +58,9 @@ func NewFromConfig(c Config) (*Handler, error) {
 	{
 		heaterOpts, err := parseHeaters(c.Heaters)
 		if err != nil {
-			log.Error("parsing ConfigHeaters resulted with errors: ", err)
+			logger.Error("parseHeaters failed")
 		}
-
+		
 		if heaterOpts != nil {
 			opts = append(opts, heaterOpts)
 		}
@@ -63,7 +68,7 @@ func NewFromConfig(c Config) (*Handler, error) {
 	{
 		dsOpts, err := parseDS18B20(c.DS18B20)
 		if err != nil {
-			log.Error("parsing ConfigDS18B20 resulted with errors: ", err)
+			logger.Error("parseDS18B20 failed")
 		}
 		if dsOpts != nil {
 			opts = append(opts, dsOpts)
@@ -72,7 +77,7 @@ func NewFromConfig(c Config) (*Handler, error) {
 	{
 		ptOpts, err := parsePT100(c.PT100)
 		if err != nil {
-			log.Error("parsing ConfigPT100 resulted with errors: ", err)
+			logger.Error("parsePT100 failed")
 		}
 		if ptOpts != nil {
 			opts = append(opts, ptOpts)
@@ -81,7 +86,7 @@ func NewFromConfig(c Config) (*Handler, error) {
 	{
 		gpioOpts, err := parseGPIO(c.GPIO)
 		if err != nil {
-			log.Error("parsing ConfigGPIO resulted with errors: ", err)
+			logger.Error("parseGPIO failed")
 		}
 		if gpioOpts != nil {
 			opts = append(opts, gpioOpts)
