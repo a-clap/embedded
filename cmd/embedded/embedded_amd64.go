@@ -19,7 +19,7 @@ func main() {
 	log.Println(err)
 }
 
-func getMockedEmbedded() *embedded.Handler {
+func getMockedEmbedded() *embedded.Embedded {
 	ptIds := []string{"PT_1", "PT_2", "PT_3"}
 	pts := make([]embedded.PTSensor, len(ptIds))
 	for i, id := range ptIds {

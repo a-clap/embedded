@@ -12,7 +12,8 @@ import (
 )
 
 var (
-	ErrNoSuchID = errors.New("specified ID doesnt' exist")
+	ErrNoSuchID       = errors.New("specified ID doesnt' exist")
+	ErrNotImplemented = errors.New("not implemented")
 )
 
 // Error is common struct returned via rest api

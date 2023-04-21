@@ -51,77 +51,77 @@ type GPIOHandler struct {
 	io map[string]*gpioHandler
 }
 
-func (h *Handler) configGPIO() gin.HandlerFunc {
+func (e *Embedded) configGPIO() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if len(h.GPIO.io) == 0 {
-			e := &Error{
+		if len(e.GPIO.io) == 0 {
+			err := &Error{
 				Title:     "Failed to Config GPIO",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		
 		cfg := GPIOConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to bind GPIOConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusBadRequest, e)
+			e.respond(ctx, http.StatusBadRequest, err)
 			return
 		}
 		
-		err := h.GPIO.SetConfig(cfg)
+		err := e.GPIO.SetConfig(cfg)
 		if err != nil {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to SetConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		
-		cfg, err = h.GPIO.GetConfig(cfg.ID)
+		cfg, err = e.GPIO.GetConfig(cfg.ID)
 		if err != nil {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to GetConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-		h.respond(ctx, http.StatusOK, cfg)
+		e.respond(ctx, http.StatusOK, cfg)
 	}
 }
-func (h *Handler) getGPIOS() gin.HandlerFunc {
+func (e *Embedded) getGPIOS() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if len(h.GPIO.io) == 0 {
-			e := &Error{
+		if len(e.GPIO.io) == 0 {
+			err := &Error{
 				Title:     "Failed to GetGPIO",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigGPIO,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
 		
-		gpios, err := h.GPIO.GetConfigAll()
+		gpios, err := e.GPIO.GetConfigAll()
 		if len(gpios) == 0 || err != nil {
 			notImpl := GPIOError{ID: "", Op: "GetConfigAll", Err: ErrNotImplemented.Error()}
-			h.respond(ctx, http.StatusInternalServerError, &notImpl)
+			e.respond(ctx, http.StatusInternalServerError, &notImpl)
 			return
 		}
-		h.respond(ctx, http.StatusOK, gpios)
+		e.respond(ctx, http.StatusOK, gpios)
 	}
 }
 

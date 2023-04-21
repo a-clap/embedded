@@ -8,7 +8,7 @@ package embedded
 import (
 	"net/http"
 	"time"
-
+	
 	"github.com/gin-gonic/gin"
 )
 
@@ -48,64 +48,64 @@ type HeaterHandler struct {
 	heaters map[string]Heater
 }
 
-func (h *Handler) configHeater() gin.HandlerFunc {
+func (e *Embedded) configHeater() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if len(h.Heaters.heaters) == 0 {
-			e := &Error{
+		if len(e.Heaters.heaters) == 0 {
+			err := &Error{
 				Title:     "Failed to Config",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-
+		
 		cfg := HeaterConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to bind HeaterConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusBadRequest, e)
+			e.respond(ctx, http.StatusBadRequest, err)
 			return
 		}
-
-		if err := h.Heaters.Config(cfg); err != nil {
-			e := &Error{
+		
+		if err := e.Heaters.Config(cfg); err != nil {
+			err := &Error{
 				Title:     "Failed to Config",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-
-		s, _ := h.Heaters.StatusBy(cfg.ID)
-		h.respond(ctx, http.StatusOK, s)
+		
+		s, _ := e.Heaters.StatusBy(cfg.ID)
+		e.respond(ctx, http.StatusOK, s)
 	}
 }
 
-func (h *Handler) getHeaters() gin.HandlerFunc {
+func (e *Embedded) getHeaters() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var heaters []HeaterConfig
-		if len(h.Heaters.heaters) != 0 {
-			heaters = h.Heaters.Status()
+		if len(e.Heaters.heaters) != 0 {
+			heaters = e.Heaters.Status()
 		}
 		if len(heaters) == 0 {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to Config",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-		h.respond(ctx, http.StatusOK, heaters)
+		e.respond(ctx, http.StatusOK, heaters)
 	}
 }
 
@@ -114,7 +114,7 @@ func (h *HeaterHandler) Config(cfg HeaterConfig) error {
 	if err != nil {
 		return &HeaterError{ID: cfg.ID, Op: "Config", Err: err.Error()}
 	}
-
+	
 	if err := heater.SetPower(cfg.Power); err != nil {
 		return err
 	}

@@ -8,7 +8,7 @@ package embedded
 import (
 	"net/http"
 	"time"
-
+	
 	"github.com/a-clap/embedded/pkg/max31865"
 	"github.com/gin-gonic/gin"
 )
@@ -61,80 +61,80 @@ type PTHandler struct {
 }
 
 // configPTSensor is middleware for configuring specified by ID PTSensor
-func (h *Handler) configPTSensor() gin.HandlerFunc {
+func (e *Embedded) configPTSensor() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if h.PT.sensors == nil {
-			e := &Error{
+		if e.PT.sensors == nil {
+			err := &Error{
 				Title:     "Failed to Configure",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigPT100Sensor,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-
+		
 		cfg := PTSensorConfig{}
 		if err := ctx.ShouldBind(&cfg); err != nil {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to bind PTSensorConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigPT100Sensor,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusBadRequest, e)
+			e.respond(ctx, http.StatusBadRequest, err)
 			return
 		}
-
-		cfg, err := h.PT.SetConfig(cfg)
+		
+		cfg, err := e.PT.SetConfig(cfg)
 		if err != nil {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to SetConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigPT100Sensor,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-
-		h.respond(ctx, http.StatusOK, cfg)
+		
+		e.respond(ctx, http.StatusOK, cfg)
 	}
 }
-func (h *Handler) getPTTemperatures() gin.HandlerFunc {
+func (e *Embedded) getPTTemperatures() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		if h.PT.sensors == nil {
-			e := &Error{
+		if e.PT.sensors == nil {
+			err := &Error{
 				Title:     "Failed to GetTemperatures",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesGetPT100Temperatures,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-		temperatures := h.PT.GetTemperatures()
-		h.respond(ctx, http.StatusOK, temperatures)
+		temperatures := e.PT.GetTemperatures()
+		e.respond(ctx, http.StatusOK, temperatures)
 	}
 }
 
-func (h *Handler) getPTSensors() gin.HandlerFunc {
+func (e *Embedded) getPTSensors() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var sensors []PTSensorConfig
-		if h.PT.sensors != nil {
-			sensors = h.PT.GetSensors()
+		if e.PT.sensors != nil {
+			sensors = e.PT.GetSensors()
 		}
 		if len(sensors) == 0 {
-			e := &Error{
+			err := &Error{
 				Title:     "Failed to GetSensors",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesGetPT100Temperatures,
 				Timestamp: time.Now(),
 			}
-			h.respond(ctx, http.StatusInternalServerError, e)
+			e.respond(ctx, http.StatusInternalServerError, err)
 			return
 		}
-		h.respond(ctx, http.StatusOK, sensors)
+		e.respond(ctx, http.StatusOK, sensors)
 	}
 }
 
@@ -163,12 +163,12 @@ func (p *PTHandler) SetConfig(cfg PTSensorConfig) (newCfg PTSensorConfig, err er
 		err = &PTError{ID: cfg.ID, Op: "SetConfig.sensorBy", Err: err.Error()}
 		return
 	}
-
+	
 	if err = sensor.Configure(cfg.SensorConfig); err != nil {
 		err = &PTError{ID: cfg.ID, Op: "SetConfig.Configure", Err: err.Error()}
 		return
 	}
-
+	
 	if cfg.Enabled != sensor.Enabled {
 		if cfg.Enabled {
 			if err = sensor.Poll(); err != nil {
@@ -183,7 +183,7 @@ func (p *PTHandler) SetConfig(cfg PTSensorConfig) (newCfg PTSensorConfig, err er
 		}
 	}
 	sensor.Enabled = cfg.Enabled
-
+	
 	return p.GetConfig(cfg.ID)
 }
 

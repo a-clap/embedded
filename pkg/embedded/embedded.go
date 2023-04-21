@@ -14,7 +14,7 @@ var (
 	logger = logging.GetLogger()
 )
 
-type Handler struct {
+type Embedded struct {
 	*gin.Engine
 	Heaters *HeaterHandler
 	DS      *DSHandler
@@ -22,8 +22,8 @@ type Handler struct {
 	GPIO    *GPIOHandler
 }
 
-func New(options ...Option) (*Handler, error) {
-	h := &Handler{
+func New(options ...Option) (*Embedded, error) {
+	h := &Embedded{
 		Engine:  gin.Default(),
 		Heaters: new(HeaterHandler),
 		DS:      new(DSHandler),
@@ -46,14 +46,14 @@ func New(options ...Option) (*Handler, error) {
 	return h, nil
 }
 
-func (h *Handler) Close() {
-	h.Heaters.Close()
-	h.DS.Close()
-	h.PT.Close()
-	h.GPIO.Close()
+func (e *Embedded) Close() {
+	e.Heaters.Close()
+	e.DS.Close()
+	e.PT.Close()
+	e.GPIO.Close()
 }
 
-func NewFromConfig(c Config) (*Handler, error) {
+func NewFromConfig(c Config) (*Embedded, error) {
 	var opts []Option
 	{
 		heaterOpts, err := parseHeaters(c.Heaters)
