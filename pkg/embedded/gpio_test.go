@@ -76,8 +76,8 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_ConfigGPIO() {
 	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigGPIO, &body)
 	t.req.Header.Add("Content-Type", "application/json")
 	
-	h, _ := embedded.New(embedded.WithGPIOs(t.gpios()))
-	h.ServeHTTP(t.resp, t.req)
+	h, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
+	h.Router.ServeHTTP(t.resp, t.req)
 	b, _ := io.ReadAll(t.resp.Body)
 	
 	t.Equal(http.StatusOK, t.resp.Code)
@@ -111,11 +111,11 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_GetGPIOs() {
 		t.mocks = append(t.mocks, m)
 	}
 	
-	handler, _ := embedded.New(embedded.WithGPIOs(t.gpios()))
+	handler, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
 	r.NotNil(handler)
 	
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetGPIOs, nil)
-	handler.ServeHTTP(t.resp, t.req)
+	handler.Router.ServeHTTP(t.resp, t.req)
 	
 	r.Equal(http.StatusOK, t.resp.Code)
 	
@@ -176,7 +176,7 @@ func (t *GPIOTestSuite) TestGPIO_SetConfig() {
 		t.mocks = append(t.mocks, m)
 	}
 	
-	handler, _ := embedded.New(embedded.WithGPIOs(t.gpios()))
+	handler, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
 	r.NotNil(handler)
 	
 	gpio := handler.GPIO
@@ -220,7 +220,7 @@ func (t *GPIOTestSuite) TestGPIO_GetConfig() {
 		t.mocks = append(t.mocks, m)
 	}
 	
-	handler, _ := embedded.New(embedded.WithGPIOs(t.gpios()))
+	handler, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
 	r.NotNil(handler)
 	
 	gpio := handler.GPIO

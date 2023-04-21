@@ -19,7 +19,7 @@ func main() {
 	log.Println(err)
 }
 
-func getMockedEmbedded() *embedded.Embedded {
+func getMockedEmbedded() *embedded.Rest {
 	ptIds := []string{"PT_1", "PT_2", "PT_3"}
 	pts := make([]embedded.PTSensor, len(ptIds))
 	for i, id := range ptIds {
@@ -69,7 +69,7 @@ func getMockedEmbedded() *embedded.Embedded {
 		gpios[i] = embeddedmock.NewGPIO(id.id, id.state, id.dir)
 	}
 	
-	handler, err := embedded.New(
+	handler, err := embedded.NewRest(
 		embedded.WithPT(pts),
 		embedded.WithDS18B20(dss),
 		embedded.WithHeaters(heaters),

@@ -9,24 +9,24 @@ import (
 	"github.com/a-clap/logging"
 )
 
-type Option func(*Embedded) error
+type Option func(e *Embedded) error
 
 func WithHeaters(heaters map[string]Heater) Option {
-	return func(h *Embedded) error {
+	return func(e *Embedded) error {
 		logger.Debug("WithHeaters", logging.Int("len", len(heaters)))
-		h.Heaters.heaters = heaters
+		e.Heaters.heaters = heaters
 		return nil
 	}
 }
 
 func WithDS18B20(ds []DSSensor) Option {
-	return func(h *Embedded) error {
+	return func(e *Embedded) error {
 		logger.Debug("WithDS18B20", logging.Int("len", len(ds)))
-		h.DS.sensors = make(map[string]*dsSensor)
+		e.DS.sensors = make(map[string]*dsSensor)
 		for _, ds := range ds {
 			id := ds.ID()
 			cfg := ds.GetConfig()
-			h.DS.sensors[id] = &dsSensor{
+			e.DS.sensors[id] = &dsSensor{
 				DSSensor: ds,
 				cfg: DSSensorConfig{
 					Enabled:      false,
@@ -40,13 +40,13 @@ func WithDS18B20(ds []DSSensor) Option {
 }
 
 func WithPT(pt []PTSensor) Option {
-	return func(h *Embedded) error {
+	return func(e *Embedded) error {
 		logger.Debug("WithPT", logging.Int("len", len(pt)))
-		h.PT.sensors = make(map[string]*ptSensor)
+		e.PT.sensors = make(map[string]*ptSensor)
 		for _, p := range pt {
 			id := p.ID()
 			cfg := p.GetConfig()
-			h.PT.sensors[id] = &ptSensor{
+			e.PT.sensors[id] = &ptSensor{
 				PTSensor: p,
 				PTSensorConfig: PTSensorConfig{
 					Enabled:      false,
@@ -72,8 +72,9 @@ func WithGPIOs(gpios []GPIO) Option {
 	}
 }
 
-func WithREST(url string) Option {
+func WithURL(url string) Option {
 	return func(e *Embedded) error {
+		e.url = url
 		return nil
 	}
 }

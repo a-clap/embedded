@@ -6,11 +6,7 @@
 package embedded
 
 import (
-	"net/http"
-	"time"
-	
 	"github.com/a-clap/embedded/pkg/gpio"
-	"github.com/gin-gonic/gin"
 )
 
 type GPIOError struct {
@@ -49,80 +45,6 @@ type gpioHandler struct {
 
 type GPIOHandler struct {
 	io map[string]*gpioHandler
-}
-
-func (e *Embedded) configGPIO() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if len(e.GPIO.io) == 0 {
-			err := &Error{
-				Title:     "Failed to Config GPIO",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesConfigGPIO,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		cfg := GPIOConfig{}
-		if err := ctx.ShouldBind(&cfg); err != nil {
-			err := &Error{
-				Title:     "Failed to bind GPIOConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigGPIO,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusBadRequest, err)
-			return
-		}
-		
-		err := e.GPIO.SetConfig(cfg)
-		if err != nil {
-			err := &Error{
-				Title:     "Failed to SetConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigGPIO,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		cfg, err = e.GPIO.GetConfig(cfg.ID)
-		if err != nil {
-			err := &Error{
-				Title:     "Failed to GetConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigGPIO,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		e.respond(ctx, http.StatusOK, cfg)
-	}
-}
-func (e *Embedded) getGPIOS() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if len(e.GPIO.io) == 0 {
-			err := &Error{
-				Title:     "Failed to GetGPIO",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesConfigGPIO,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		gpios, err := e.GPIO.GetConfigAll()
-		if len(gpios) == 0 || err != nil {
-			notImpl := GPIOError{ID: "", Op: "GetConfigAll", Err: ErrNotImplemented.Error()}
-			e.respond(ctx, http.StatusInternalServerError, &notImpl)
-			return
-		}
-		e.respond(ctx, http.StatusOK, gpios)
-	}
 }
 
 func (g *GPIOHandler) SetConfig(cfg GPIOConfig) error {

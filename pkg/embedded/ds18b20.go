@@ -6,11 +6,7 @@
 package embedded
 
 import (
-	"net/http"
-	"time"
-	
 	"github.com/a-clap/embedded/pkg/ds18b20"
-	"github.com/gin-gonic/gin"
 )
 
 type DSError struct {
@@ -58,83 +54,6 @@ type dsSensor struct {
 
 type DSHandler struct {
 	sensors map[string]*dsSensor
-}
-
-func (e *Embedded) configOnewireSensor() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if e.DS.sensors == nil {
-			err := &Error{
-				Title:     "Failed to Configure",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesConfigOnewireSensor,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		cfg := DSSensorConfig{}
-		if err := ctx.ShouldBind(&cfg); err != nil {
-			err := &Error{
-				Title:     "Failed to bind DSSensorConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigOnewireSensor,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusBadRequest, err)
-			return
-		}
-		
-		cfg, err := e.DS.SetConfig(cfg)
-		if err != nil {
-			err := &Error{
-				Title:     "Failed to SetConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigOnewireSensor,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		e.respond(ctx, http.StatusOK, cfg)
-	}
-}
-func (e *Embedded) getOnewireTemperatures() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if e.DS.sensors == nil {
-			err := &Error{
-				Title:     "Failed to GetTemperatures",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesGetOnewireTemperatures,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		temperatures := e.DS.GetTemperatures()
-		e.respond(ctx, http.StatusOK, temperatures)
-	}
-}
-
-func (e *Embedded) getOnewireSensors() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		var sensors []DSSensorConfig
-		if e.DS.sensors != nil {
-			sensors = e.DS.GetSensors()
-		}
-		if len(sensors) == 0 {
-			err := &Error{
-				Title:     "Failed to GetTemperatures",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesGetOnewireSensors,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		e.respond(ctx, http.StatusOK, sensors)
-	}
 }
 
 func (d *DSHandler) GetTemperatures() []DSTemperature {

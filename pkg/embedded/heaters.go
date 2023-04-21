@@ -5,13 +5,6 @@
 
 package embedded
 
-import (
-	"net/http"
-	"time"
-	
-	"github.com/gin-gonic/gin"
-)
-
 type HeaterError struct {
 	ID  string `json:"ID"`
 	Op  string `json:"op"`
@@ -46,67 +39,6 @@ type HeaterConfig struct {
 
 type HeaterHandler struct {
 	heaters map[string]Heater
-}
-
-func (e *Embedded) configHeater() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if len(e.Heaters.heaters) == 0 {
-			err := &Error{
-				Title:     "Failed to Config",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesConfigHeater,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		cfg := HeaterConfig{}
-		if err := ctx.ShouldBind(&cfg); err != nil {
-			err := &Error{
-				Title:     "Failed to bind HeaterConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigHeater,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusBadRequest, err)
-			return
-		}
-		
-		if err := e.Heaters.Config(cfg); err != nil {
-			err := &Error{
-				Title:     "Failed to Config",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigHeater,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		s, _ := e.Heaters.StatusBy(cfg.ID)
-		e.respond(ctx, http.StatusOK, s)
-	}
-}
-
-func (e *Embedded) getHeaters() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		var heaters []HeaterConfig
-		if len(e.Heaters.heaters) != 0 {
-			heaters = e.Heaters.Status()
-		}
-		if len(heaters) == 0 {
-			err := &Error{
-				Title:     "Failed to Config",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesConfigHeater,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		e.respond(ctx, http.StatusOK, heaters)
-	}
 }
 
 func (h *HeaterHandler) Config(cfg HeaterConfig) error {

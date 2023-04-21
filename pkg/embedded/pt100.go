@@ -6,11 +6,7 @@
 package embedded
 
 import (
-	"net/http"
-	"time"
-	
 	"github.com/a-clap/embedded/pkg/max31865"
-	"github.com/gin-gonic/gin"
 )
 
 type PTSensor interface {
@@ -58,84 +54,6 @@ type PTTemperature struct {
 // PTHandler is responsible for handling models.PTSensors
 type PTHandler struct {
 	sensors map[string]*ptSensor
-}
-
-// configPTSensor is middleware for configuring specified by ID PTSensor
-func (e *Embedded) configPTSensor() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if e.PT.sensors == nil {
-			err := &Error{
-				Title:     "Failed to Configure",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesConfigPT100Sensor,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		cfg := PTSensorConfig{}
-		if err := ctx.ShouldBind(&cfg); err != nil {
-			err := &Error{
-				Title:     "Failed to bind PTSensorConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigPT100Sensor,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusBadRequest, err)
-			return
-		}
-		
-		cfg, err := e.PT.SetConfig(cfg)
-		if err != nil {
-			err := &Error{
-				Title:     "Failed to SetConfig",
-				Detail:    err.Error(),
-				Instance:  RoutesConfigPT100Sensor,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		
-		e.respond(ctx, http.StatusOK, cfg)
-	}
-}
-func (e *Embedded) getPTTemperatures() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		if e.PT.sensors == nil {
-			err := &Error{
-				Title:     "Failed to GetTemperatures",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesGetPT100Temperatures,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		temperatures := e.PT.GetTemperatures()
-		e.respond(ctx, http.StatusOK, temperatures)
-	}
-}
-
-func (e *Embedded) getPTSensors() gin.HandlerFunc {
-	return func(ctx *gin.Context) {
-		var sensors []PTSensorConfig
-		if e.PT.sensors != nil {
-			sensors = e.PT.GetSensors()
-		}
-		if len(sensors) == 0 {
-			err := &Error{
-				Title:     "Failed to GetSensors",
-				Detail:    ErrNotImplemented.Error(),
-				Instance:  RoutesGetPT100Temperatures,
-				Timestamp: time.Now(),
-			}
-			e.respond(ctx, http.StatusInternalServerError, err)
-			return
-		}
-		e.respond(ctx, http.StatusOK, sensors)
-	}
 }
 
 func (p *PTHandler) GetTemperatures() []PTTemperature {

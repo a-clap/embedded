@@ -14,7 +14,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-
+	
 	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/a-clap/embedded/pkg/max31865"
 	"github.com/gin-gonic/gin"
@@ -107,20 +107,20 @@ func (t *PTTestSuite) TestPTRestAPI_ConfigSensor() {
 		m.On("ID").Return(elem.old.ID)
 		m.On("GetConfig").Return(elem.new.SensorConfig)
 		m.On("Configure", elem.new.SensorConfig).Return(nil)
-
+		
 		t.mock = append(t.mock, m)
 	}
-
-	handler, _ := embedded.New(embedded.WithPT(t.pts()))
-
+	
+	handler, _ := embedded.NewRest(embedded.WithPT(t.pts()))
+	
 	for i, elem := range args {
 		var body bytes.Buffer
 		_ = json.NewEncoder(&body).Encode(elem.new)
-
+		
 		t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigPT100Sensor, &body)
 		t.req.Header.Add("Content-Type", "application/json")
-
-		handler.ServeHTTP(t.resp, t.req)
+		
+		handler.Router.ServeHTTP(t.resp, t.req)
 		b, _ := io.ReadAll(t.resp.Body)
 		var bodyJson embedded.PTSensorConfig
 		fromJSON(b, &bodyJson)
@@ -145,7 +145,7 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 					Samples:      15,
 				},
 			},
-
+			
 			stat: embedded.PTTemperature{
 				Readings: []max31865.Readings{
 					{
@@ -174,12 +174,12 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 		m.On("GetReadings").Return(elem.stat.Readings)
 		m.On("Configure", mock.Anything).Return(nil)
 		m.On("Poll").Return(nil)
-
+		
 		t.mock = append(t.mock, m)
 	}
-
+	
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetPT100Temperatures, nil)
-	h, _ := embedded.New(embedded.WithPT(t.pts()))
+	h, _ := embedded.NewRest(embedded.WithPT(t.pts()))
 	// enable sensor, so we can get temperatures
 	for _, elem := range args {
 		cfg, err := h.PT.GetConfig(elem.cfg.ID)
@@ -188,21 +188,21 @@ func (t *PTTestSuite) TestPTRestAPI_GetTemperatures() {
 		_, err = h.PT.SetConfig(cfg)
 		t.Nil(err)
 	}
-
-	h.ServeHTTP(t.resp, t.req)
-
+	
+	h.Router.ServeHTTP(t.resp, t.req)
+	
 	b, _ := io.ReadAll(t.resp.Body)
 	var bodyJson []embedded.PTTemperature
 	fromJSON(b, &bodyJson)
 	t.Equal(http.StatusOK, t.resp.Code)
-
+	
 	expected := make([]embedded.PTTemperature, 0, len(args))
 	for _, stat := range args {
 		expected = append(expected, stat.stat)
 	}
-
+	
 	t.ElementsMatch(expected, bodyJson)
-
+	
 }
 func (t *PTTestSuite) TestPTRestAPI_GetSensors() {
 	args := []embedded.PTSensorConfig{
@@ -234,13 +234,13 @@ func (t *PTTestSuite) TestPTRestAPI_GetSensors() {
 		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
 	}
-
+	
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetPT100Sensors, nil)
-
-	handler, _ := embedded.New(embedded.WithPT(t.pts()))
-
-	handler.ServeHTTP(t.resp, t.req)
-
+	
+	handler, _ := embedded.NewRest(embedded.WithPT(t.pts()))
+	
+	handler.Router.ServeHTTP(t.resp, t.req)
+	
 	b, _ := io.ReadAll(t.resp.Body)
 	var bodyJson []embedded.PTSensorConfig
 	fromJSON(b, &bodyJson)
@@ -259,7 +259,7 @@ func (t *PTTestSuite) TestPT_SetConfig_EnableDisable() {
 			Samples:      1,
 		},
 	}
-
+	
 	enabled := embedded.PTSensorConfig{
 		Enabled: true,
 		SensorConfig: max31865.SensorConfig{
@@ -270,29 +270,29 @@ func (t *PTTestSuite) TestPT_SetConfig_EnableDisable() {
 			Samples:      1,
 		},
 	}
-
+	
 	t.mock = make([]*PTMock, 0, 1)
 	m := new(PTMock)
 	m.On("ID").Return(disabled.ID)
 	m.On("GetConfig").Return(disabled.SensorConfig)
 	m.On("Configure", enabled.SensorConfig).Return(nil)
 	t.mock = append(t.mock, m)
-
-	handler, _ := embedded.New(embedded.WithPT(t.pts()))
+	
+	handler, _ := embedded.NewRest(embedded.WithPT(t.pts()))
 	pt := handler.PT
-
+	
 	// Poll should be called
 	m.On("Poll").Return(nil)
 	cfg, err := pt.SetConfig(enabled)
 	t.Nil(err)
 	t.EqualValues(enabled, cfg)
-
+	
 	// Close should be called
 	m.On("Close").Return(nil)
 	cfg, err = pt.SetConfig(disabled)
 	t.Nil(err)
 	t.EqualValues(disabled, cfg)
-
+	
 }
 func (t *PTTestSuite) TestPT_SetConfig() {
 	args := []struct {
@@ -349,19 +349,19 @@ func (t *PTTestSuite) TestPT_SetConfig() {
 		m.On("ID").Return(elem.old.ID)
 		m.On("GetConfig").Return(elem.new.SensorConfig)
 		m.On("Configure", elem.new.SensorConfig).Return(nil)
-
+		
 		t.mock = append(t.mock, m)
 	}
-
-	handler, _ := embedded.New(embedded.WithPT(t.pts()))
+	
+	handler, _ := embedded.NewRest(embedded.WithPT(t.pts()))
 	pt := handler.PT
-
+	
 	for i, arg := range args {
 		cfg, err := pt.SetConfig(arg.new)
 		t.Nil(err, i)
 		t.EqualValues(arg.new, cfg, i)
 	}
-
+	
 }
 func (t *PTTestSuite) TestPT_GetSensors() {
 	args := []embedded.PTSensorConfig{
@@ -393,8 +393,8 @@ func (t *PTTestSuite) TestPT_GetSensors() {
 		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
 	}
-
-	handler, _ := embedded.New(embedded.WithPT(t.pts()))
+	
+	handler, _ := embedded.NewRest(embedded.WithPT(t.pts()))
 	pt := handler.PT
 	s := pt.GetSensors()
 	t.ElementsMatch(args, s)
@@ -430,15 +430,15 @@ func (t *PTTestSuite) TestPT_GetConfig() {
 		m.On("GetConfig").Return(elem.SensorConfig)
 		t.mock = append(t.mock, m)
 	}
-
-	handler, _ := embedded.New(embedded.WithPT(t.pts()))
+	
+	handler, _ := embedded.NewRest(embedded.WithPT(t.pts()))
 	pt := handler.PT
 	for _, elem := range args {
 		s, err := pt.GetConfig(elem.ID)
 		t.Nil(err)
 		t.EqualValues(elem, s)
 	}
-
+	
 	_, err := pt.GetConfig("not exist")
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNoSuchID.Error())

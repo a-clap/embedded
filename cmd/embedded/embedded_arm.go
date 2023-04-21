@@ -18,7 +18,7 @@ func main() {
 	log.Println(err)
 }
 
-func getEmbeddedFromConfig() *embedded.Embedded {
+func getEmbeddedFromConfig() *embedded.Rest {
 	viper.SetConfigName("config")
 	viper.SetConfigType("yaml")
 	viper.AddConfigPath(".")

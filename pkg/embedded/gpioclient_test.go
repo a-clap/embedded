@@ -60,8 +60,8 @@ func (p *GPIOClientSuite) Test_Configure() {
 		gpios = append(gpios, m)
 		mocks = append(mocks, m)
 	}
-	h, _ := embedded.New(embedded.WithGPIOs(gpios))
-	srv := httptest.NewServer(h)
+	h, _ := embedded.NewRest(embedded.WithGPIOs(gpios))
+	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
 	
 	hc := embedded.NewGPIOClient(srv.URL, 1*time.Second)
@@ -91,8 +91,8 @@ func (p *GPIOClientSuite) Test_Configure() {
 
 func (p *GPIOClientSuite) Test_NotImplemented() {
 	t := p.Require()
-	h, _ := embedded.New()
-	srv := httptest.NewServer(h)
+	h, _ := embedded.NewRest()
+	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
 	
 	hc := embedded.NewGPIOClient(srv.URL, 1*time.Second)
