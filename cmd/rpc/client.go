@@ -8,7 +8,7 @@ import (
 	"github.com/a-clap/embedded/pkg/embedded"
 )
 
-func main() {
+func testGpio() {
 	client, err := embedded.NewGPIORPCClient("localhost:50051", time.Second)
 	if err != nil {
 		log.Fatalln(err)
@@ -36,4 +36,38 @@ func main() {
 		
 	}
 	
+}
+
+func testds() {
+	client, err := embedded.NewDSRPCClient("localhost:50051", time.Second)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	
+	// Contact the server and print out its response.
+	for {
+		<-time.After(1 * time.Second)
+		r, err := client.Get()
+		if err != nil {
+			log.Println(err)
+			continue
+		}
+		for _, elem := range r {
+			log.Println(elem)
+			elem.Enabled = true
+			_, err := client.Configure(elem)
+			if err != nil {
+				log.Println(err)
+			}
+		}
+		
+		t, err := client.Temperatures()
+		log.Println(t, err)
+		
+	}
+	
+}
+
+func main() {
+	testds()
 }

@@ -11,6 +11,7 @@ import (
 )
 
 type RPC struct {
+	embeddedproto.UnimplementedDSServer
 	embeddedproto.UnimplementedGPIOServer
 	*Embedded
 }
@@ -35,6 +36,7 @@ func (r *RPC) Run() error {
 	}
 	s := grpc.NewServer()
 	embeddedproto.RegisterGPIOServer(s, r)
+	embeddedproto.RegisterDSServer(s, r)
 	return s.Serve(listener)
 }
 
@@ -68,4 +70,31 @@ func (r *RPC) GPIOConfigure(c context.Context, cfg *embeddedproto.GPIOConfig) (*
 	}
 	cfg = gpioConfigToRPC(&config)
 	return cfg, nil
+}
+
+func (r *RPC) DSGet(ctx context.Context, e *empty.Empty) (*embeddedproto.DSConfigs, error) {
+	logger.Debug("DSGet")
+	g := r.Embedded.DS.GetSensors()
+	
+	configs := make([]*embeddedproto.DSConfig, len(g))
+	for i, elem := range g {
+		configs[i] = dsConfigToRPC(&elem)
+	}
+	return &embeddedproto.DSConfigs{Configs: configs}, nil
+}
+
+func (r *RPC) DSConfigure(ctx context.Context, config *embeddedproto.DSConfig) (*embeddedproto.DSConfig, error) {
+	logger.Debug("DSConfigure")
+	cfg := rpcToDSConfig(config)
+	newCfg, err := r.Embedded.DS.SetConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	return dsConfigToRPC(&newCfg), nil
+}
+
+func (r *RPC) DSGetTemperatures(ctx context.Context, e *empty.Empty) (*embeddedproto.DSTemperatures, error) {
+	logger.Debug("DSGetTemperatures")
+	t := r.Embedded.DS.GetTemperatures()
+	return dsTemperatureToRPC(t), nil
 }
