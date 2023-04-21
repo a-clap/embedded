@@ -14,12 +14,27 @@ import (
 )
 
 func main() {
-	handler := getMockedEmbedded()
-	err := handler.Run()
+	var err error
+	opts := getOpts()
+	if false {
+		handler, err := embedded.NewRest(opts...)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		err = handler.Run()
+	} else {
+		handler, err := embedded.NewRPC(opts...)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		err = handler.Run()
+		log.Fatalln(err)
+	}
 	log.Println(err)
 }
 
-func getMockedEmbedded() *embedded.Rest {
+func getOpts() []embedded.Option {
+	
 	ptIds := []string{"PT_1", "PT_2", "PT_3"}
 	pts := make([]embedded.PTSensor, len(ptIds))
 	for i, id := range ptIds {
@@ -68,15 +83,10 @@ func getMockedEmbedded() *embedded.Rest {
 	for i, id := range gpioIds {
 		gpios[i] = embeddedmock.NewGPIO(id.id, id.state, id.dir)
 	}
-	
-	handler, err := embedded.NewRest(
-		embedded.WithPT(pts),
-		embedded.WithDS18B20(dss),
-		embedded.WithHeaters(heaters),
-		embedded.WithGPIOs(gpios),
-	)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	return handler
+	var opts []embedded.Option
+	opts = append(opts, embedded.WithPT(pts))
+	opts = append(opts, embedded.WithDS18B20(dss))
+	opts = append(opts, embedded.WithHeaters(heaters))
+	opts = append(opts, embedded.WithGPIOs(gpios))
+	return opts
 }

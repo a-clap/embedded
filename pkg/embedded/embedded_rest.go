@@ -6,12 +6,7 @@
 package embedded
 
 import (
-	"github.com/a-clap/logging"
 	"github.com/gin-gonic/gin"
-)
-
-var (
-	logger = logging.GetLogger()
 )
 
 type Rest struct {

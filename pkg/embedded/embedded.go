@@ -5,6 +5,14 @@
 
 package embedded
 
+import (
+	"github.com/a-clap/logging"
+)
+
+var (
+	logger = logging.GetLogger()
+)
+
 type Embedded struct {
 	Heaters *HeaterHandler
 	DS      *DSHandler

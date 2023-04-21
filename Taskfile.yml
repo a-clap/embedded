@@ -6,6 +6,11 @@ tasks:
   embedded:
     cmds:
       - go run ./cmd/embedded
-  dev:
-    deps: [embedded, distillation, gui]
-    silent: true
+  proto:
+    cmds:
+      - >
+        protoc
+        --go_out=.
+        --go_opt=paths=source_relative
+        --go-grpc_out=. --go-grpc_opt=paths=source_relative
+        pkg/embedded/embeddedproto/*.proto
