@@ -6,9 +6,14 @@
 package embedded
 
 import (
+	"context"
 	"time"
-
+	
+	"github.com/a-clap/embedded/pkg/embedded/embeddedproto"
 	"github.com/a-clap/embedded/pkg/restclient"
+	"github.com/golang/protobuf/ptypes/empty"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 )
 
 type PTClient struct {
@@ -30,4 +35,58 @@ func (p *PTClient) Configure(setConfig PTSensorConfig) (PTSensorConfig, error) {
 
 func (p *PTClient) Temperatures() ([]PTTemperature, error) {
 	return restclient.Get[[]PTTemperature, *Error](p.addr+RoutesGetPT100Temperatures, p.timeout)
+}
+
+type PTRPCClient struct {
+	timeout time.Duration
+	conn    *grpc.ClientConn
+	client  embeddedproto.PTClient
+}
+
+func NewPTRPCClient(addr string, timeout time.Duration) (*PTRPCClient, error) {
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return nil, err
+	}
+	return &PTRPCClient{timeout: timeout, conn: conn, client: embeddedproto.NewPTClient(conn)}, nil
+}
+
+func (g *PTRPCClient) Get() ([]PTSensorConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	got, err := g.client.PTGet(ctx, &empty.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	confs := make([]PTSensorConfig, len(got.Configs))
+	for i, elem := range got.Configs {
+		confs[i] = rpcToPTConfig(elem)
+	}
+	return confs, nil
+}
+
+func (g *PTRPCClient) Configure(setConfig PTSensorConfig) (PTSensorConfig, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	set := ptConfigToRPC(&setConfig)
+	got, err := g.client.PTConfigure(ctx, set)
+	if err != nil {
+		return PTSensorConfig{}, err
+	}
+	setConfig = rpcToPTConfig(got)
+	return setConfig, nil
+}
+
+func (g *PTRPCClient) Temperatures() ([]PTTemperature, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), g.timeout)
+	defer cancel()
+	got, err := g.client.PTGetTemperatures(ctx, &empty.Empty{})
+	if err != nil {
+		return nil, err
+	}
+	return rpcToPTTemperature(got), nil
+}
+
+func (g *PTRPCClient) Close() {
+	_ = g.conn.Close()
 }
