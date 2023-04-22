@@ -54,7 +54,7 @@ func (r *restRouter) configHeater(e *Embedded) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		if len(e.Heaters.heaters) == 0 {
 			err := &Error{
-				Title:     "Failed to Config",
+				Title:     "Failed to SetConfig",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),
@@ -75,9 +75,9 @@ func (r *restRouter) configHeater(e *Embedded) gin.HandlerFunc {
 			return
 		}
 		
-		if err := e.Heaters.Config(cfg); err != nil {
+		if err := e.Heaters.SetConfig(cfg); err != nil {
 			err := &Error{
-				Title:     "Failed to Config",
+				Title:     "Failed to SetConfig",
 				Detail:    err.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),
@@ -95,11 +95,11 @@ func (r *restRouter) getHeaters(e *Embedded) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		var heaters []HeaterConfig
 		if len(e.Heaters.heaters) != 0 {
-			heaters = e.Heaters.Status()
+			heaters = e.Heaters.Get()
 		}
 		if len(heaters) == 0 {
 			err := &Error{
-				Title:     "Failed to Config",
+				Title:     "Failed to SetConfig",
 				Detail:    ErrNotImplemented.Error(),
 				Instance:  RoutesConfigHeater,
 				Timestamp: time.Now(),

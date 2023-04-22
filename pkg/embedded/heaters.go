@@ -41,10 +41,10 @@ type HeaterHandler struct {
 	heaters map[string]Heater
 }
 
-func (h *HeaterHandler) Config(cfg HeaterConfig) error {
+func (h *HeaterHandler) SetConfig(cfg HeaterConfig) error {
 	heater, err := h.by(cfg.ID)
 	if err != nil {
-		return &HeaterError{ID: cfg.ID, Op: "Config", Err: err.Error()}
+		return &HeaterError{ID: cfg.ID, Op: "SetConfig", Err: err.Error()}
 	}
 	
 	if err := heater.SetPower(cfg.Power); err != nil {
@@ -95,7 +95,7 @@ func (h *HeaterHandler) StatusBy(id string) (HeaterConfig, error) {
 	}, nil
 }
 
-func (h *HeaterHandler) Status() []HeaterConfig {
+func (h *HeaterHandler) Get() []HeaterConfig {
 	status := make([]HeaterConfig, len(h.heaters))
 	pos := 0
 	for id, heat := range h.heaters {

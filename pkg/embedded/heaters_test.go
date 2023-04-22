@@ -295,7 +295,7 @@ func (t *HeaterTestSuite) TestHeater_MultipleHeaters() {
 		t.Nil(handler.Power(arg.name, arg.power))
 	}
 	
-	stat := handler.Status()
+	stat := handler.Get()
 	t.Len(stat, len(args))
 	for _, elem := range stat {
 		correct := false
@@ -329,7 +329,7 @@ func (t *HeaterTestSuite) TestHeater_SingleHeater() {
 	err = handler.Power("firstMock", uint(16))
 	t.Nil(err)
 	
-	stat := handler.Status()
+	stat := handler.Get()
 	t.Len(stat, 1)
 	t.EqualValues(true, stat[0].Enabled)
 	t.EqualValues(16, stat[0].Power)
@@ -351,7 +351,7 @@ func (t *HeaterTestSuite) TestHeater_NoHeaters() {
 	err = handler.Enable("", true)
 	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 	
-	stat := handler.Status()
+	stat := handler.Get()
 	t.Len(stat, 0)
 }
 
