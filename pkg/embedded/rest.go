@@ -86,7 +86,7 @@ func (r *restRouter) configHeater(e *Embedded) gin.HandlerFunc {
 			return
 		}
 		
-		s, _ := e.Heaters.StatusBy(cfg.ID)
+		s, _ := e.Heaters.ConfigBy(cfg.ID)
 		r.respond(ctx, http.StatusOK, s)
 	}
 }

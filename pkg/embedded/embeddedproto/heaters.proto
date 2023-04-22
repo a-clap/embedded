@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+import "google/protobuf/empty.proto";
+
+option go_package = "github.com/a-clap/embedded/pkg/embedded/embeddedproto";
+option java_multiple_files = true;
+
+package embeddedproto;
+
+service Heater {
+  rpc HeaterGet (google.protobuf.Empty) returns (HeaterConfigs) {}
+  rpc HeaterConfigure(HeaterConfig) returns (HeaterConfig) {}
+}
+
+message HeaterConfigs {
+  repeated HeaterConfig configs = 1;
+}
+
+message HeaterConfig {
+  string ID = 1;
+  bool Enabled = 2;
+  uint32 Power = 3;
+}

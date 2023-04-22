@@ -16,20 +16,13 @@ import (
 func main() {
 	var err error
 	opts := getOpts()
-	if false {
-		handler, err := embedded.NewRest(opts...)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		err = handler.Run()
-	} else {
-		handler, err := embedded.NewRPC(opts...)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		err = handler.Run()
+	opts = append(opts, embedded.WithURL("localhost:50001"))
+	
+	handler, err := embedded.NewRPC(opts...)
+	if err != nil {
 		log.Fatalln(err)
 	}
+	err = handler.Run()
 	log.Println(err)
 }
 

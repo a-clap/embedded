@@ -12,6 +12,7 @@ import (
 
 type RPC struct {
 	embeddedproto.UnimplementedPTServer
+	embeddedproto.UnimplementedHeaterServer
 	embeddedproto.UnimplementedDSServer
 	embeddedproto.UnimplementedGPIOServer
 	*Embedded
@@ -24,7 +25,6 @@ func NewRPC(options ...Option) (*RPC, error) {
 	if err != nil {
 		return nil, err
 	}
-	e.url = ":50051"
 	r.Embedded = e
 	
 	return r, nil
@@ -39,6 +39,8 @@ func (r *RPC) Run() error {
 	embeddedproto.RegisterGPIOServer(s, r)
 	embeddedproto.RegisterDSServer(s, r)
 	embeddedproto.RegisterPTServer(s, r)
+	embeddedproto.RegisterHeaterServer(s, r)
+	
 	return s.Serve(listener)
 }
 
@@ -126,4 +128,30 @@ func (r *RPC) PTGetTemperatures(ctx context.Context, e *empty.Empty) (*embeddedp
 	logger.Debug("PTGetTemperatures")
 	t := r.Embedded.PT.GetTemperatures()
 	return ptTemperatureToRPC(t), nil
+}
+
+func (r *RPC) HeaterGet(context.Context, *empty.Empty) (*embeddedproto.HeaterConfigs, error) {
+	logger.Debug("HeaterGet")
+	g := r.Embedded.Heaters.Get()
+	
+	configs := make([]*embeddedproto.HeaterConfig, len(g))
+	for i, elem := range g {
+		configs[i] = heaterConfigToRPC(&elem)
+	}
+	return &embeddedproto.HeaterConfigs{Configs: configs}, nil
+}
+
+func (r *RPC) HeaterConfigure(ctx context.Context, config *embeddedproto.HeaterConfig) (*embeddedproto.HeaterConfig, error) {
+	logger.Debug("HeaterConfigure")
+	cfg := rpcToHeaterConfig(config)
+	err := r.Embedded.Heaters.SetConfig(cfg)
+	if err != nil {
+		return nil, err
+	}
+	newCfg, err := r.Embedded.Heaters.ConfigBy(config.ID)
+	if err != nil {
+		return nil, err
+	}
+	
+	return heaterConfigToRPC(&newCfg), nil
 }

@@ -152,3 +152,19 @@ func ptTemperatureToRPC(t []PTTemperature) *embeddedproto.PTTemperatures {
 	}
 	return temperatures
 }
+
+func heaterConfigToRPC(config *HeaterConfig) *embeddedproto.HeaterConfig {
+	return &embeddedproto.HeaterConfig{
+		ID:      config.ID,
+		Enabled: config.Enabled,
+		Power:   uint32(config.Power),
+	}
+}
+
+func rpcToHeaterConfig(config *embeddedproto.HeaterConfig) HeaterConfig {
+	return HeaterConfig{
+		ID:      config.ID,
+		Enabled: config.Enabled,
+		Power:   uint(config.Power),
+	}
+}

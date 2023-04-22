@@ -83,10 +83,10 @@ func (h *HeaterHandler) Power(id string, pwr uint) error {
 	return nil
 }
 
-func (h *HeaterHandler) StatusBy(id string) (HeaterConfig, error) {
+func (h *HeaterHandler) ConfigBy(id string) (HeaterConfig, error) {
 	heat, err := h.by(id)
 	if err != nil {
-		return HeaterConfig{}, &HeaterError{ID: id, Op: "StatusBy", Err: err.Error()}
+		return HeaterConfig{}, &HeaterError{ID: id, Op: "ConfigBy", Err: err.Error()}
 	}
 	return HeaterConfig{
 		ID:      id,
