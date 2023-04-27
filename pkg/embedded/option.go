@@ -71,10 +71,3 @@ func WithGPIOs(gpios []GPIO) Option {
 		return nil
 	}
 }
-
-func WithURL(url string) Option {
-	return func(e *Embedded) error {
-		e.url = url
-		return nil
-	}
-}

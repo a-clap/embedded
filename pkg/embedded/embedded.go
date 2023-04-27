@@ -18,7 +18,6 @@ type Embedded struct {
 	DS      *DSHandler
 	PT      *PTHandler
 	GPIO    *GPIOHandler
-	url     string
 }
 
 func New(options ...Option) (*Embedded, error) {
@@ -27,19 +26,19 @@ func New(options ...Option) (*Embedded, error) {
 		DS:      new(DSHandler),
 		PT:      new(PTHandler),
 		GPIO:    new(GPIOHandler),
-		url:     "8080",
 	}
+
 	for _, opt := range options {
 		if err := opt(e); err != nil {
 			return nil, err
 		}
 	}
-	
+
 	e.Heaters.Open()
 	e.DS.Open()
 	e.PT.Open()
 	e.GPIO.Open()
-	
+
 	return e, nil
 }
 
@@ -48,4 +47,52 @@ func (e *Embedded) close() {
 	e.DS.Close()
 	e.PT.Close()
 	e.GPIO.Close()
+}
+
+func Parse(c Config) ([]Option, []error) {
+	var errs []error
+	var opts []Option
+	{
+		heaterOpts, err := parseHeaters(c.Heaters)
+		if err != nil {
+			logger.Error("parseHeaters failed")
+			errs = append(errs, err...)
+		}
+
+		if heaterOpts != nil {
+			opts = append(opts, heaterOpts)
+		}
+	}
+	{
+		dsOpts, err := parseDS18B20(c.DS18B20)
+		if err != nil {
+			logger.Error("parseDS18B20 failed")
+			errs = append(errs, err...)
+		}
+		if dsOpts != nil {
+			opts = append(opts, dsOpts)
+		}
+	}
+	{
+		ptOpts, err := parsePT100(c.PT100)
+		if err != nil {
+			logger.Error("parsePT100 failed")
+			errs = append(errs, err...)
+		}
+		if ptOpts != nil {
+			opts = append(opts, ptOpts)
+		}
+	}
+	{
+		gpioOpts, err := parseGPIO(c.GPIO)
+		if err != nil {
+			logger.Error("parseGPIO failed")
+			errs = append(errs, err...)
+		}
+		if gpioOpts != nil {
+			opts = append(opts, gpioOpts)
+		}
+	}
+
+	return opts, errs
 }

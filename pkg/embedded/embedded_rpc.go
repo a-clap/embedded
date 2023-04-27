@@ -3,7 +3,7 @@ package embedded
 import (
 	"context"
 	"net"
-	
+
 	"github.com/a-clap/embedded/pkg/embedded/embeddedproto"
 	"github.com/a-clap/logging"
 	"github.com/golang/protobuf/ptypes/empty"
@@ -11,6 +11,7 @@ import (
 )
 
 type RPC struct {
+	url string
 	embeddedproto.UnimplementedPTServer
 	embeddedproto.UnimplementedHeaterServer
 	embeddedproto.UnimplementedDSServer
@@ -18,20 +19,22 @@ type RPC struct {
 	*Embedded
 }
 
-func NewRPC(options ...Option) (*RPC, error) {
-	r := &RPC{}
-	
+func NewRPC(url string, options ...Option) (*RPC, error) {
+	r := &RPC{
+		url: url,
+	}
+
 	e, err := New(options...)
 	if err != nil {
 		return nil, err
 	}
 	r.Embedded = e
-	
+
 	return r, nil
 }
 
 func (r *RPC) Run() error {
-	listener, err := net.Listen("tcp", r.Embedded.url)
+	listener, err := net.Listen("tcp", r.url)
 	if err != nil {
 		return err
 	}
@@ -40,7 +43,7 @@ func (r *RPC) Run() error {
 	embeddedproto.RegisterDSServer(s, r)
 	embeddedproto.RegisterPTServer(s, r)
 	embeddedproto.RegisterHeaterServer(s, r)
-	
+
 	return s.Serve(listener)
 }
 
@@ -79,7 +82,7 @@ func (r *RPC) GPIOConfigure(c context.Context, cfg *embeddedproto.GPIOConfig) (*
 func (r *RPC) DSGet(ctx context.Context, e *empty.Empty) (*embeddedproto.DSConfigs, error) {
 	logger.Debug("DSGet")
 	g := r.Embedded.DS.GetSensors()
-	
+
 	configs := make([]*embeddedproto.DSConfig, len(g))
 	for i, elem := range g {
 		configs[i] = dsConfigToRPC(&elem)
@@ -106,7 +109,7 @@ func (r *RPC) DSGetTemperatures(ctx context.Context, e *empty.Empty) (*embeddedp
 func (r *RPC) PTGet(ctx context.Context, e *empty.Empty) (*embeddedproto.PTConfigs, error) {
 	logger.Debug("PTGet")
 	g := r.Embedded.PT.GetSensors()
-	
+
 	configs := make([]*embeddedproto.PTConfig, len(g))
 	for i, elem := range g {
 		configs[i] = ptConfigToRPC(&elem)
@@ -133,7 +136,7 @@ func (r *RPC) PTGetTemperatures(ctx context.Context, e *empty.Empty) (*embeddedp
 func (r *RPC) HeaterGet(context.Context, *empty.Empty) (*embeddedproto.HeaterConfigs, error) {
 	logger.Debug("HeaterGet")
 	g := r.Embedded.Heaters.Get()
-	
+
 	configs := make([]*embeddedproto.HeaterConfig, len(g))
 	for i, elem := range g {
 		configs[i] = heaterConfigToRPC(&elem)
@@ -152,6 +155,6 @@ func (r *RPC) HeaterConfigure(ctx context.Context, config *embeddedproto.HeaterC
 	if err != nil {
 		return nil, err
 	}
-	
+
 	return heaterConfigToRPC(&newCfg), nil
 }
