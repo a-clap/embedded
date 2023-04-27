@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-	
+
 	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/a-clap/embedded/pkg/gpio"
 	"github.com/gin-gonic/gin"
@@ -32,7 +32,7 @@ func (p *GPIOClientSuite) SetupTest() {
 
 func (p *GPIOClientSuite) Test_Configure() {
 	t := p.Require()
-	
+
 	args := []embedded.GPIOConfig{
 		{
 			Config: gpio.Config{
@@ -60,19 +60,19 @@ func (p *GPIOClientSuite) Test_Configure() {
 		gpios = append(gpios, m)
 		mocks = append(mocks, m)
 	}
-	h, _ := embedded.NewRest(embedded.WithGPIOs(gpios))
+	h, _ := embedded.NewRest("", embedded.WithGPIOs(gpios))
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	hc := embedded.NewGPIOClient(srv.URL, 1*time.Second)
-	
+
 	// Heater doesn't exist
 	// Expected error - heater doesn't exist
 	_, err := hc.Configure(embedded.GPIOConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 	t.ErrorContains(err, embedded.RoutesConfigGPIO)
-	
+
 	// Error on set
 	errSet := errors.New("hello world")
 	args[0].ActiveLevel = gpio.High
@@ -81,7 +81,7 @@ func (p *GPIOClientSuite) Test_Configure() {
 	t.NotNil(err)
 	t.ErrorContains(err, errSet.Error())
 	t.ErrorContains(err, embedded.RoutesConfigGPIO)
-	
+
 	// All good
 	mocks[0].On("Configure", args[0].Config).Return(nil).Once()
 	cfg, err := hc.Configure(args[0])
@@ -91,17 +91,17 @@ func (p *GPIOClientSuite) Test_Configure() {
 
 func (p *GPIOClientSuite) Test_NotImplemented() {
 	t := p.Require()
-	h, _ := embedded.NewRest()
+	h, _ := embedded.NewRest("")
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	hc := embedded.NewGPIOClient(srv.URL, 1*time.Second)
-	
+
 	_, err := hc.Get()
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())
 	t.ErrorContains(err, embedded.RoutesGetGPIOs)
-	
+
 	_, err = hc.Configure(embedded.GPIOConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())

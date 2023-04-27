@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-	
+
 	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/mock"
@@ -48,23 +48,23 @@ func (p *HeaterClientSuite) Test_Configure() {
 		} else {
 			heater.On("Disable").Once()
 		}
-		
+
 		mocks = append(mocks, heater)
 		heaters[arg.ID] = heater
 	}
-	h, _ := embedded.NewRest(embedded.WithHeaters(heaters))
+	h, _ := embedded.NewRest("", embedded.WithHeaters(heaters))
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	hc := embedded.NewHeaterClient(srv.URL, 1*time.Second)
-	
+
 	// Heater doesn't exist
 	// Expected error - heater doesn't exist
 	_, err := hc.Configure(embedded.HeaterConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 	t.ErrorContains(err, embedded.RoutesConfigHeater)
-	
+
 	// Error on set
 	errSet := errors.New("hello world")
 	args[0].Enabled = true
@@ -73,17 +73,17 @@ func (p *HeaterClientSuite) Test_Configure() {
 	t.NotNil(err)
 	t.ErrorContains(err, errSet.Error())
 	t.ErrorContains(err, embedded.RoutesConfigHeater)
-	
+
 	// All good
 	args[0].Power = 15
 	mocks[0].On("SetPower", args[0].Power).Return(nil)
-	
+
 	if args[0].Enabled {
 		mocks[0].On("Enable", mock.Anything).Once()
 	} else {
 		mocks[0].On("Disable").Once()
 	}
-	
+
 	mocks[0].On("Power").Return(args[0].Power)
 	mocks[0].On("Enabled").Return(args[0].Enabled)
 	cfg, err := hc.Configure(args[0])
@@ -93,17 +93,17 @@ func (p *HeaterClientSuite) Test_Configure() {
 
 func (p *HeaterClientSuite) Test_NotImplemented() {
 	t := p.Require()
-	h, _ := embedded.NewRest()
+	h, _ := embedded.NewRest("")
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	hc := embedded.NewHeaterClient(srv.URL, 1*time.Second)
-	
+
 	_, err := hc.Get()
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())
 	t.ErrorContains(err, embedded.RoutesGetHeaters)
-	
+
 	_, err = hc.Configure(embedded.HeaterConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())

@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-	
+
 	"github.com/a-clap/embedded/pkg/ds18b20"
 	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/gin-gonic/gin"
@@ -33,7 +33,7 @@ func (p *DS18B20ClientSuite) SetupTest() {
 
 func (p *DS18B20ClientSuite) Test_Temperatures() {
 	t := p.Require()
-	
+
 	args := []struct {
 		cfg      embedded.DSSensorConfig
 		readings []ds18b20.Readings
@@ -80,7 +80,7 @@ func (p *DS18B20ClientSuite) Test_Temperatures() {
 			},
 		},
 	}
-	
+
 	var sensors []embedded.DSSensor
 	var readings []embedded.DSTemperature
 	for _, elem := range args {
@@ -91,21 +91,21 @@ func (p *DS18B20ClientSuite) Test_Temperatures() {
 		readings = append(readings, embedded.DSTemperature{Readings: elem.readings})
 		sensors = append(sensors, m)
 	}
-	
-	h, _ := embedded.NewRest(embedded.WithDS18B20(sensors))
+
+	h, _ := embedded.NewRest("", embedded.WithDS18B20(sensors))
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	ds := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
 	s, err := ds.Temperatures()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(readings, s)
-	
+
 }
 func (p *DS18B20ClientSuite) Test_Configure() {
 	t := p.Require()
-	
+
 	args := []struct {
 		cfg embedded.DSSensorConfig
 	}{
@@ -133,7 +133,7 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 			},
 		},
 	}
-	
+
 	var sensors []embedded.DSSensor
 	var cfgs []embedded.DSSensorConfig
 	var mocks []*DS18B20SensorMock
@@ -145,23 +145,23 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 		mocks = append(mocks, m)
 		sensors = append(sensors, m)
 	}
-	
-	h, _ := embedded.NewRest(embedded.WithDS18B20(sensors))
+
+	h, _ := embedded.NewRest("", embedded.WithDS18B20(sensors))
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	pt := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
 	s, err := pt.Get()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(cfgs, s)
-	
+
 	// Expected error - sensor doesn't exist
 	_, err = pt.Configure(embedded.DSSensorConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 	t.ErrorContains(err, embedded.RoutesConfigOnewireSensor)
-	
+
 	// Error on set now
 	errSet := errors.New("hello world")
 	cfgs[0].Samples = 15
@@ -177,28 +177,28 @@ func (p *DS18B20ClientSuite) Test_Configure() {
 	cfg, err := pt.Configure(cfgs[0])
 	t.Nil(err)
 	t.Equal(cfgs[0], cfg)
-	
+
 }
 
 func (p *DS18B20ClientSuite) Test_NotImplemented() {
 	t := p.Require()
-	h, _ := embedded.NewRest()
+	h, _ := embedded.NewRest("")
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	pt := embedded.NewDS18B20Client(srv.URL, 1*time.Second)
-	
+
 	s, err := pt.Get()
 	t.Nil(s)
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())
 	t.ErrorContains(err, embedded.RoutesGetOnewireSensors)
-	
+
 	_, err = pt.Configure(embedded.DSSensorConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())
 	t.ErrorContains(err, embedded.RoutesConfigOnewireSensor)
-	
+
 	temps, err := pt.Temperatures()
 	t.Nil(temps)
 	t.NotNil(err)

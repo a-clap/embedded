@@ -12,7 +12,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
-	
+
 	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/a-clap/embedded/pkg/gpio"
 	"github.com/gin-gonic/gin"
@@ -69,20 +69,20 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_ConfigGPIO() {
 	m.On("GetConfig").Return(newCfg.Config, nil)
 	m.On("Configure", newCfg.Config).Return(nil)
 	t.mocks = append(t.mocks, m)
-	
+
 	var body bytes.Buffer
 	_ = json.NewEncoder(&body).Encode(newCfg)
-	
+
 	t.req, _ = http.NewRequest(http.MethodPut, embedded.RoutesConfigGPIO, &body)
 	t.req.Header.Add("Content-Type", "application/json")
-	
-	h, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
+
+	h, _ := embedded.NewRest("", embedded.WithGPIOs(t.gpios()))
 	h.Router.ServeHTTP(t.resp, t.req)
 	b, _ := io.ReadAll(t.resp.Body)
-	
+
 	t.Equal(http.StatusOK, t.resp.Code)
 	t.JSONEq(toJSON(newCfg), string(b))
-	
+
 }
 func (t *GPIOTestSuite) TestGPIO_RestAPI_GetGPIOs() {
 	r := t.Require()
@@ -110,15 +110,15 @@ func (t *GPIOTestSuite) TestGPIO_RestAPI_GetGPIOs() {
 		m.On("GetConfig").Return(arg.Config, nil)
 		t.mocks = append(t.mocks, m)
 	}
-	
-	handler, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
+
+	handler, _ := embedded.NewRest("", embedded.WithGPIOs(t.gpios()))
 	r.NotNil(handler)
-	
+
 	t.req, _ = http.NewRequest(http.MethodGet, embedded.RoutesGetGPIOs, nil)
 	handler.Router.ServeHTTP(t.resp, t.req)
-	
+
 	r.Equal(http.StatusOK, t.resp.Code)
-	
+
 	b, _ := io.ReadAll(t.resp.Body)
 	var bodyJson []embedded.GPIOConfig
 	fromJSON(b, &bodyJson)
@@ -175,10 +175,10 @@ func (t *GPIOTestSuite) TestGPIO_SetConfig() {
 		m.On("Configure", arg.newCfg.Config).Return(nil)
 		t.mocks = append(t.mocks, m)
 	}
-	
-	handler, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
+
+	handler, _ := embedded.NewRest("", embedded.WithGPIOs(t.gpios()))
 	r.NotNil(handler)
-	
+
 	gpio := handler.GPIO
 	for i, arg := range args {
 		cfg, _ := gpio.GetConfig(arg.cfg.ID)
@@ -219,10 +219,10 @@ func (t *GPIOTestSuite) TestGPIO_GetConfig() {
 		m.On("GetConfig").Return(arg.cfg.Config, nil)
 		t.mocks = append(t.mocks, m)
 	}
-	
-	handler, _ := embedded.NewRest(embedded.WithGPIOs(t.gpios()))
+
+	handler, _ := embedded.NewRest("", embedded.WithGPIOs(t.gpios()))
 	r.NotNil(handler)
-	
+
 	gpio := handler.GPIO
 	for i, arg := range args {
 		cfg, _ := gpio.GetConfig(arg.cfg.ID)

@@ -11,7 +11,7 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
-	
+
 	"github.com/a-clap/embedded/pkg/embedded"
 	"github.com/a-clap/embedded/pkg/max31865"
 	"github.com/gin-gonic/gin"
@@ -33,7 +33,7 @@ func (p *PTClientSuite) SetupTest() {
 
 func (p *PTClientSuite) Test_Temperatures() {
 	t := p.Require()
-	
+
 	args := []struct {
 		cfg      embedded.PTSensorConfig
 		readings []max31865.Readings
@@ -80,7 +80,7 @@ func (p *PTClientSuite) Test_Temperatures() {
 			},
 		},
 	}
-	
+
 	var sensors []embedded.PTSensor
 	var readings []embedded.PTTemperature
 	for _, elem := range args {
@@ -90,12 +90,12 @@ func (p *PTClientSuite) Test_Temperatures() {
 		m.On("GetReadings").Return(elem.readings)
 		m.On("Configure", mock.Anything).Return(nil)
 		m.On("Poll").Return(nil)
-		
+
 		readings = append(readings, embedded.PTTemperature{Readings: elem.readings})
 		sensors = append(sensors, m)
 	}
-	
-	h, _ := embedded.NewRest(embedded.WithPT(sensors))
+
+	h, _ := embedded.NewRest("", embedded.WithPT(sensors))
 	// enable sensor, so we can get temperatures
 	for _, elem := range args {
 		cfg, err := h.PT.GetConfig(elem.cfg.ID)
@@ -104,21 +104,21 @@ func (p *PTClientSuite) Test_Temperatures() {
 		_, err = h.PT.SetConfig(cfg)
 		t.Nil(err)
 	}
-	
+
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	pt := embedded.NewPTClient(srv.URL, 1*time.Second)
 	s, err := pt.Temperatures()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(readings, s)
-	
+
 }
 
 func (p *PTClientSuite) Test_Configure() {
 	t := p.Require()
-	
+
 	args := []struct {
 		cfg embedded.PTSensorConfig
 	}{
@@ -146,7 +146,7 @@ func (p *PTClientSuite) Test_Configure() {
 			},
 		},
 	}
-	
+
 	var sensors []embedded.PTSensor
 	var cfgs []embedded.PTSensorConfig
 	var mocks []*PTMock
@@ -158,23 +158,23 @@ func (p *PTClientSuite) Test_Configure() {
 		mocks = append(mocks, m)
 		sensors = append(sensors, m)
 	}
-	
-	h, _ := embedded.NewRest(embedded.WithPT(sensors))
+
+	h, _ := embedded.NewRest("", embedded.WithPT(sensors))
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	pt := embedded.NewPTClient(srv.URL, 1*time.Second)
 	s, err := pt.Get()
 	t.Nil(err)
 	t.NotNil(s)
 	t.ElementsMatch(cfgs, s)
-	
+
 	// Expected error - sensor doesn't exist
 	_, err = pt.Configure(embedded.PTSensorConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNoSuchID.Error())
 	t.ErrorContains(err, embedded.RoutesConfigPT100Sensor)
-	
+
 	// Error on set now
 	errSet := errors.New("hello world")
 	cfgs[0].Samples = 15
@@ -190,28 +190,28 @@ func (p *PTClientSuite) Test_Configure() {
 	cfg, err := pt.Configure(cfgs[0])
 	t.Nil(err)
 	t.Equal(cfgs[0], cfg)
-	
+
 }
 
 func (p *PTClientSuite) Test_NotImplemented() {
 	t := p.Require()
-	h, _ := embedded.NewRest()
+	h, _ := embedded.NewRest("")
 	srv := httptest.NewServer(h.Router)
 	defer srv.Close()
-	
+
 	pt := embedded.NewPTClient(srv.URL, 1*time.Second)
-	
+
 	s, err := pt.Get()
 	t.Nil(s)
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())
 	t.ErrorContains(err, embedded.RoutesGetPT100Sensors)
-	
+
 	_, err = pt.Configure(embedded.PTSensorConfig{})
 	t.NotNil(err)
 	t.ErrorContains(err, embedded.ErrNotImplemented.Error())
 	t.ErrorContains(err, embedded.RoutesConfigPT100Sensor)
-	
+
 	temps, err := pt.Temperatures()
 	t.Nil(temps)
 	t.NotNil(err)
