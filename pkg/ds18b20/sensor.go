@@ -82,6 +82,7 @@ func NewSensor(o FileReaderWriter, id, basePath string) (*Sensor, error) {
 		data:             nil,
 		average:          nil,
 		cfg: SensorConfig{
+			Name:         id,
 			ID:           id,
 			Correction:   0,
 			Resolution:   Resolution11Bit,
@@ -243,7 +244,7 @@ func (s *Sensor) resolution() (r Resolution, err error) {
 }
 
 func (s *Sensor) setResolution(res Resolution) (err error) {
-	buf := strconv.FormatInt(int64(res), 10) + "\r\n"
+	buf := strconv.FormatInt(int64(res), 10)
 	if err = s.WriteFile(s.resolutionPath, []byte(buf)); err != nil {
 		return fmt.Errorf("setResolution {Path: %v}: %w", s.resolutionPath, err)
 	}
