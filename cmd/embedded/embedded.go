@@ -9,7 +9,7 @@ import (
 	"flag"
 	"log"
 	"strconv"
-	
+
 	"github.com/a-clap/embedded/pkg/embedded"
 )
 
@@ -25,13 +25,16 @@ type handler interface {
 
 func main() {
 	flag.Parse()
-	
+
 	opts, errs := getOpts()
 	if errs != nil {
-		log.Fatalln(errs)
+		log.Println(errs)
+	}
+	if opts == nil || len(opts) == 0 {
+		log.Fatalln("Can't run without any option")
 	}
 	addr := "localhost:" + strconv.FormatInt(int64(*port), 10)
-	
+
 	var err error
 	var handler handler
 	if *rest {
@@ -46,7 +49,7 @@ func main() {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		
+
 	}
 	err = handler.Run()
 	log.Println(err)
