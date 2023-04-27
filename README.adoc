@@ -110,7 +110,7 @@ Also in this package you can find apropriate clients to read data from it. Depen
 
 === REST clients
 
-Take a look at example, how to create apropriate rest clients:
+Take a look at example, how to create appropriate rest clients:
 
 [source, go]
 ----
@@ -136,7 +136,7 @@ func restClients() {
 
 === gRPC clients
 
-Take a look at example, how to create apropriate gRPC clients:
+Take a look at example, how to create appropriate gRPC clients:
 
 [source, go]
 ----
