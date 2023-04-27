@@ -9,6 +9,7 @@ import (
 	"flag"
 	"log"
 	"strconv"
+	"time"
 
 	"github.com/a-clap/embedded/pkg/embedded"
 )
@@ -47,6 +48,10 @@ func main() {
 			log.Fatalln(err)
 		}
 	}
+	go func() {
+		<-time.After(time.Second)
+		restClients()
+	}()
 	err = handler.Run()
 	log.Println(err)
 }

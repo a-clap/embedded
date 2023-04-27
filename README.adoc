@@ -96,12 +96,82 @@ Another wrapper for https://github.com/theojulienne/go-wireless[go-wireless] - g
 
 === Restclient
 
-Generic REST Client used in embedded REST API user interface
+Generic REST Client used in embedded REST API user interface.
+
+=== Embeddedproto
+
+This just contains precompiled protobuf structures used with gRPC.
 
 == Embedded
 
-== User interface
+This package contains all subpackages (ds, heaters, max etc.) and allows user to interact with them - via REST API or gRPC. Take a look at *cmd* to see how it is used.
 
+Also in this package you can find apropriate clients to read data from it. Depends on what kind of user interface you chosed, you should pick rest clients or gRPC clients. They both share same interface, so they are interchangeable.
+
+=== REST clients
+
+Take a look at example, how to create apropriate rest clients:
+
+[source, go]
+----
+package clients
+
+import (
+	"time"
+
+	"github.com/a-clap/embedded/pkg/embedded"
+)
+
+func restClients() {
+	const addr = "http://localhost:50001"
+	const timeout = time.Second
+
+	heaterClient := embedded.NewHeaterClient(addr, timeout)
+	gpioClient := embedded.NewGPIOClient(addr, timeout)
+	dsClient := embedded.NewDS18B20Client(addr, timeout)
+	ptClient := embedded.NewPTClient(addr, timeout)
+    ...
+}
+----
+
+=== gRPC clients
+
+Take a look at example, how to create apropriate gRPC clients:
+
+[source, go]
+----
+package clients
+
+import (
+	"log"
+	"time"
+
+	"github.com/a-clap/embedded/pkg/embedded"
+)
+
+func rpcClients() {
+	const addr = "localhost:50001"
+	const timeout = time.Second
+
+	heaterClient, err := embedded.NewHeaterRPCCLient(addr, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+	gpioClient, err := embedded.NewGPIORPCClient(addr, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+	dsClient, err := embedded.NewDSRPCClient(addr, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+	ptClient, err := embedded.NewPTRPCClient(addr, timeout)
+	if err != nil {
+		log.Fatal(err)
+	}
+    ...
+}
+----
 
 
 
