@@ -33,7 +33,7 @@ func main() {
 	if opts == nil || len(opts) == 0 {
 		log.Fatalln("Can't run without any option")
 	}
-	addr := "localhost:" + strconv.FormatInt(int64(*port), 10)
+	addr := ":" + strconv.FormatInt(int64(*port), 10)
 
 	var err error
 	var handler handler

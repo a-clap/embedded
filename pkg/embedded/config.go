@@ -35,7 +35,7 @@ type ConfigDS18B20 struct {
 
 type ConfigPT100 struct {
 	Path     string          `mapstructure:"path"`
-	ID       string          `mapstructure:"id"`
+	Name     string          `mapstructure:"name"`
 	RNominal float64         `mapstructure:"r_nominal"`
 	RRef     float64         `mapstructure:"r_ref"`
 	Wiring   max31865.Wiring `mapstructure:"wiring"`
@@ -52,7 +52,7 @@ type ConfigGPIO struct {
 
 func parseHeaters(config []ConfigHeater) (Option, []error) {
 	logger.Debug("parseHeaters", logging.Reflect("ConfigHeater", config))
-	
+
 	heaters := make(map[string]Heater, len(config))
 	var errs []error
 	for _, maybeHeater := range config {
@@ -72,7 +72,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 
 func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 	logger.Debug("parseDS18B20", logging.Reflect("ConfigDS18B20", config))
-	
+
 	sensors := make([]DSSensor, 0, len(config))
 	var errs []error
 	for _, busConfig := range config {
@@ -82,7 +82,7 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 			errs = append(errs, err)
 			continue
 		}
-		
+
 		discovered, discoverErrs := bus.Discover()
 		if discoverErrs != nil {
 			discErrs := make([]logging.Field, len(discoverErrs)+1)
@@ -107,34 +107,35 @@ func parseDS18B20(config []ConfigDS18B20) (Option, []error) {
 
 func parsePT100(config []ConfigPT100) (Option, []error) {
 	logger.Debug("parsePT100", logging.Reflect("ConfigPT100", config))
-	
+
 	pts := make([]PTSensor, 0, len(config))
 	var errs []error
 	for _, cfg := range config {
 		s, err := max31865.NewSensor(
 			max31865.WithSpidev(cfg.Path),
-			max31865.WithID(cfg.ID),
+			max31865.WithID(cfg.Path),
+			max31865.WithName(cfg.Name),
 			max31865.WithNominalRes(cfg.RNominal),
 			max31865.WithRefRes(cfg.RRef),
 			max31865.WithWiring(cfg.Wiring),
-			max31865.WithReadyPin(cfg.ReadyPin, cfg.ID),
+			max31865.WithReadyPin(cfg.ReadyPin, cfg.Path),
 		)
-		
+
 		if err != nil {
 			logger.Error("failed to create PT100", logging.Reflect("config", cfg), logging.String("error", err.Error()))
 			errs = append(errs, err)
 			continue
 		}
-		
+
 		pts = append(pts, s)
 	}
-	
+
 	return WithPT(pts), errs
 }
 
 func parseGPIO(config []ConfigGPIO) (Option, []error) {
 	logger.Debug("parseGPIO", logging.Reflect("ConfigGPIO", config))
-	
+
 	ios := make([]GPIO, 0, len(config))
 	var errs []error
 	for _, cfg := range config {
@@ -157,20 +158,20 @@ func parseGPIO(config []ConfigGPIO) (Option, []error) {
 			}
 			maybeGpio = &gpioHandler{GPIO: gp}
 		}
-		
+
 		cfg := gpio.Config{
 			ID:          "",
 			Direction:   cfg.Direction,
 			ActiveLevel: cfg.ActiveLevel,
 			Value:       cfg.Value,
 		}
-		
+
 		if err := maybeGpio.Configure(cfg); err != nil {
 			logger.Error("failed to Configure GPIO", logging.String("ID", maybeGpio.ID()), logging.String("error", err.Error()))
 			errs = append(errs, err)
 			continue
 		}
-		
+
 		ios = append(ios, maybeGpio)
 	}
 	return WithGPIOs(ios), errs
