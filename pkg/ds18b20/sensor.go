@@ -134,7 +134,10 @@ func (s *Sensor) Poll() {
 // Temperature returns current temperature and average (which is based on Samples)
 func (s *Sensor) Temperature() (actual, avg float64, err error) {
 	conv, err := s.readFile(s.temperaturePath)
-	if err != nil {
+	if err != nil || len(conv) == 0 {
+		if err == nil {
+			err = errors.New("file returned empty buffer")
+		}
 		err = fmt.Errorf("Temperature.readFile {ID: %v, path: %v}: %w", s.fullID, s.temperaturePath, err)
 		return 0, 0, err
 	}
@@ -226,18 +229,26 @@ func (s *Sensor) Close() {
 }
 
 func (s *Sensor) resolution() (r Resolution, err error) {
-	res, err := s.readFile(s.resolutionPath)
-	if err != nil {
-		return r, fmt.Errorf("resolution: {ID: %v}: %w", s.fullID, err)
+	// Sometimes resolution returns < 0, no idea why
+	tries := 3
+	var resolution int64
+	for i := 0; i < tries; i++ {
+		res, err := s.readFile(s.resolutionPath)
+		if err != nil {
+			return r, fmt.Errorf("resolution: {ID: %v}: %w", s.fullID, err)
+		}
+		resolution, err = strconv.ParseInt(res, 10, 32)
+		if err != nil {
+			return r, fmt.Errorf("resolution: {ID: %v, Resolution: %v}: %w", s.fullID, res, err)
+		}
+		if resolution > 0 {
+			break
+		}
 	}
 
-	maybeRes, err := strconv.ParseInt(res, 10, 32)
-	if err != nil {
-		return r, fmt.Errorf("resolution: {ID: %v, Resolution: %v}: %w", s.fullID, res, err)
-	}
-	r = Resolution(maybeRes)
+	r = Resolution(resolution)
 	if r < Resolution9Bit || r > Resolution12Bit {
-		return r, fmt.Errorf("resolution: {ID: %v, Resolution: %v}: %w", s.fullID, res, ErrUnexpectedResolution)
+		return r, fmt.Errorf("resolution: {ID: %v, Resolution: %v}: %w", s.fullID, resolution, ErrUnexpectedResolution)
 	}
 
 	return
@@ -262,7 +273,7 @@ func (s *Sensor) poll() {
 		select {
 		case <-s.stop:
 			s.polling.Store(false)
-		case <-time.After(s.cfg.PollInterval):
+		case <-time.After(750 * time.Millisecond):
 			actual, average, err := s.Temperature()
 			e := ""
 			if err != nil {
