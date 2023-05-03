@@ -3,7 +3,7 @@ module github.com/a-clap/embedded
 go 1.18
 
 require (
-	github.com/a-clap/logging v0.0.0-20230406162054-e25047d44282
+	github.com/a-clap/logging v0.0.0-20230503053547-d9ae4a43c7a4
 	github.com/gin-gonic/gin v1.8.1
 	github.com/golang/protobuf v1.5.2
 	github.com/spf13/viper v1.15.0
@@ -49,6 +49,7 @@ require (
 	golang.org/x/text v0.5.0 // indirect
 	google.golang.org/genproto v0.0.0-20221227171554-f9683d7f8bef // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
+	gopkg.in/natefinch/lumberjack.v2 v2.2.1 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

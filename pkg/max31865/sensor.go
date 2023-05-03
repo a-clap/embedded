@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/a-clap/embedded/pkg/avg"
+	"github.com/a-clap/logging"
 )
 
 // Sensor is representation of each Max31865
@@ -237,14 +238,18 @@ func (s *Sensor) poll() {
 			if err != nil {
 				e = err.Error()
 			}
-
-			s.data <- Readings{
+			r := Readings{
 				ID:          s.ID(),
 				Temperature: tmp,
 				Average:     average,
 				Stamp:       time.Now(),
 				Error:       e,
 			}
+			if e != "" {
+				logger.Error("error on max31865.Poll", logging.Reflect("readings", r))
+			}
+
+			s.data <- r
 		case e := <-s.err:
 			s.data <- Readings{
 				Error: e.Error(),

@@ -16,6 +16,11 @@ import (
 	"time"
 
 	"github.com/a-clap/embedded/pkg/avg"
+	"github.com/a-clap/logging"
+)
+
+var (
+	logger = logging.GetLogger()
 )
 
 type Resolution int
@@ -273,19 +278,23 @@ func (s *Sensor) poll() {
 		select {
 		case <-s.stop:
 			s.polling.Store(false)
-		case <-time.After(750 * time.Millisecond):
+		case <-time.After(s.cfg.PollInterval):
 			actual, average, err := s.Temperature()
 			e := ""
 			if err != nil {
 				e = err.Error()
 			}
-			s.data <- Readings{
+			r := Readings{
 				ID:          s.id,
 				Temperature: actual,
 				Average:     average,
 				Stamp:       time.Now(),
 				Error:       e,
 			}
+			if e != "" {
+				logger.Error("error on ds18b20.Poll", logging.Reflect("readings", r))
+			}
+			s.data <- r
 		}
 	}
 	// For sure there won't be more data

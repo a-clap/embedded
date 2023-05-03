@@ -26,6 +26,8 @@ type handler interface {
 func main() {
 	flag.Parse()
 
+	setupLogging()
+
 	opts, errs := getOpts()
 	if errs != nil {
 		log.Println(errs)

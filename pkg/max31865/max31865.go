@@ -7,6 +7,12 @@ package max31865
 
 import (
 	"io"
+
+	"github.com/a-clap/logging"
+)
+
+var (
+	logger = logging.GetLogger()
 )
 
 // Internal registers in Max

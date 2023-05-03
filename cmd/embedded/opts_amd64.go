@@ -6,6 +6,10 @@ import (
 	"github.com/a-clap/embedded/pkg/gpio"
 )
 
+func setupLogging() {
+
+}
+
 func getOpts() ([]embedded.Option, []error) {
 
 	ptIds := []string{"PT_1", "PT_2", "PT_3"}
