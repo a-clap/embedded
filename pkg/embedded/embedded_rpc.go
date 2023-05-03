@@ -51,7 +51,6 @@ func (r *RPC) Close() {
 	r.Embedded.close()
 }
 func (r *RPC) GPIOGet(ctx context.Context, empty *empty.Empty) (*embeddedproto.GPIOConfigs, error) {
-	logger.Debug("GPIOGet")
 	g, err := r.Embedded.GPIO.GetConfigAll()
 	if err != nil {
 		logger.Error("GPIOGet", logging.String("error", err.Error()))
@@ -65,7 +64,6 @@ func (r *RPC) GPIOGet(ctx context.Context, empty *empty.Empty) (*embeddedproto.G
 }
 
 func (r *RPC) GPIOConfigure(c context.Context, cfg *embeddedproto.GPIOConfig) (*embeddedproto.GPIOConfig, error) {
-	logger.Debug("GPIOConfigure")
 	config := rpcToGPIOConfig(cfg)
 	err := r.Embedded.GPIO.SetConfig(config)
 	if err != nil {
@@ -80,7 +78,6 @@ func (r *RPC) GPIOConfigure(c context.Context, cfg *embeddedproto.GPIOConfig) (*
 }
 
 func (r *RPC) DSGet(ctx context.Context, e *empty.Empty) (*embeddedproto.DSConfigs, error) {
-	logger.Debug("DSGet")
 	g := r.Embedded.DS.GetSensors()
 
 	configs := make([]*embeddedproto.DSConfig, len(g))
@@ -91,7 +88,6 @@ func (r *RPC) DSGet(ctx context.Context, e *empty.Empty) (*embeddedproto.DSConfi
 }
 
 func (r *RPC) DSConfigure(ctx context.Context, config *embeddedproto.DSConfig) (*embeddedproto.DSConfig, error) {
-	logger.Debug("DSConfigure")
 	cfg := rpcToDSConfig(config)
 	newCfg, err := r.Embedded.DS.SetConfig(cfg)
 	if err != nil {
@@ -101,13 +97,11 @@ func (r *RPC) DSConfigure(ctx context.Context, config *embeddedproto.DSConfig) (
 }
 
 func (r *RPC) DSGetTemperatures(ctx context.Context, e *empty.Empty) (*embeddedproto.DSTemperatures, error) {
-	logger.Debug("DSGetTemperatures")
 	t := r.Embedded.DS.GetTemperatures()
 	return dsTemperatureToRPC(t), nil
 }
 
 func (r *RPC) PTGet(ctx context.Context, e *empty.Empty) (*embeddedproto.PTConfigs, error) {
-	logger.Debug("PTGet")
 	g := r.Embedded.PT.GetSensors()
 
 	configs := make([]*embeddedproto.PTConfig, len(g))
@@ -118,7 +112,6 @@ func (r *RPC) PTGet(ctx context.Context, e *empty.Empty) (*embeddedproto.PTConfi
 }
 
 func (r *RPC) PTConfigure(ctx context.Context, config *embeddedproto.PTConfig) (*embeddedproto.PTConfig, error) {
-	logger.Debug("PTConfigure")
 	cfg := rpcToPTConfig(config)
 	newCfg, err := r.Embedded.PT.SetConfig(cfg)
 	if err != nil {
@@ -128,13 +121,11 @@ func (r *RPC) PTConfigure(ctx context.Context, config *embeddedproto.PTConfig) (
 }
 
 func (r *RPC) PTGetTemperatures(ctx context.Context, e *empty.Empty) (*embeddedproto.PTTemperatures, error) {
-	logger.Debug("PTGetTemperatures")
 	t := r.Embedded.PT.GetTemperatures()
 	return ptTemperatureToRPC(t), nil
 }
 
 func (r *RPC) HeaterGet(context.Context, *empty.Empty) (*embeddedproto.HeaterConfigs, error) {
-	logger.Debug("HeaterGet")
 	g := r.Embedded.Heaters.Get()
 
 	configs := make([]*embeddedproto.HeaterConfig, len(g))
@@ -145,7 +136,6 @@ func (r *RPC) HeaterGet(context.Context, *empty.Empty) (*embeddedproto.HeaterCon
 }
 
 func (r *RPC) HeaterConfigure(ctx context.Context, config *embeddedproto.HeaterConfig) (*embeddedproto.HeaterConfig, error) {
-	logger.Debug("HeaterConfigure")
 	cfg := rpcToHeaterConfig(config)
 	err := r.Embedded.Heaters.SetConfig(cfg)
 	if err != nil {
