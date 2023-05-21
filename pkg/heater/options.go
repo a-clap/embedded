@@ -23,9 +23,9 @@ func WithTicker(t Ticker) Option {
 	}
 }
 
-func WithGpioHeating(pin gpio.Pin, id string) Option {
+func WithGpioHeating(pin gpio.Pin, id string, level gpio.ActiveLevel) Option {
 	return func(heater *Heater) {
-		heater.heating = newGpioHeating(pin, id)
+		heater.heating = newGpioHeating(pin, id, level)
 	}
 }
 

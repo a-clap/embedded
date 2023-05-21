@@ -17,7 +17,7 @@ func main() {
 	// Get predefined gpio pin
 	pin := gpio.GetBananaPin(gpio.PWR_LED)
 	// Create 'heater' on specified PIN
-	heater, err := heater.New(heater.WithGpioHeating(pin, "my_heater"))
+	heater, err := heater.New(heater.WithGpioHeating(pin, "my_heater", gpio.Low))
 	if err != nil {
 		log.Fatalln(err)
 	}

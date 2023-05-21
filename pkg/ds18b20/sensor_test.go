@@ -228,7 +228,7 @@ func (t *SensorSuite) TestSensor_InitConfig() {
 				PollInterval: 123,
 				Samples:      15,
 			},
-			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution9Bit), 10) + "\r\n"),
+			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution9Bit), 10)),
 			expectedErr:    nil,
 		},
 		{
@@ -240,7 +240,7 @@ func (t *SensorSuite) TestSensor_InitConfig() {
 				PollInterval: 123,
 				Samples:      15,
 			},
-			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution10Bit), 10) + "\r\n"),
+			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution10Bit), 10)),
 			expectedErr:    nil,
 		},
 		{
@@ -252,7 +252,7 @@ func (t *SensorSuite) TestSensor_InitConfig() {
 				PollInterval: 123,
 				Samples:      15,
 			},
-			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution11Bit), 10) + "\r\n"),
+			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution11Bit), 10)),
 			expectedErr:    nil,
 		},
 		{
@@ -264,7 +264,7 @@ func (t *SensorSuite) TestSensor_InitConfig() {
 				PollInterval: 123,
 				Samples:      15,
 			},
-			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution12Bit), 10) + "\r\n"),
+			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution12Bit), 10)),
 			expectedErr:    nil,
 		},
 		{
@@ -276,7 +276,7 @@ func (t *SensorSuite) TestSensor_InitConfig() {
 				PollInterval: 123,
 				Samples:      15,
 			},
-			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution12Bit), 10) + "\r\n"),
+			expectedResBuf: []byte(strconv.FormatInt(int64(ds18b20.Resolution12Bit), 10)),
 			resWriteErr:    errors.New("write error"),
 			expectedErr:    errors.New("write error"),
 		},

@@ -16,8 +16,14 @@ type gpioHeating struct {
 
 var _ Heating = (*gpioHeating)(nil)
 
-func newGpioHeating(pin gpio.Pin, id string) *gpioHeating {
+func newGpioHeating(pin gpio.Pin, id string, level gpio.ActiveLevel) *gpioHeating {
 	out, err := gpio.Output(pin, id, false)
+	if err == nil {
+		if cfg, err := out.GetConfig(); err == nil {
+			cfg.ActiveLevel = level
+			err = out.Configure(cfg)
+		}
+	}
 	return &gpioHeating{Out: out, err: err}
 }
 

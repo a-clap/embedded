@@ -3,14 +3,17 @@ heaters:
     gpio_pin:
       chip: "gpiochip0"
       line: 20
+      active_level: 1
   - hardware_id: "SSR2"
     gpio_pin:
       chip: "gpiochip0"
       line: 21
+      active_level: 1
   - hardware_id: "SSR3"
     gpio_pin:
       chip: "gpiochip0"
       line: 2
+      active_level: 1
 ds18b20:
   - path: "/sys/bus/w1/devices/w1_bus_master1/"
     bus_name: "master1"

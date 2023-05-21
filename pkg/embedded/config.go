@@ -21,8 +21,9 @@ type Config struct {
 }
 
 type ConfigHeater struct {
-	ID  string   `mapstructure:"hardware_id"`
-	Pin gpio.Pin `mapstructure:"gpio_pin"`
+	ID          string           `mapstructure:"hardware_id"`
+	Pin         gpio.Pin         `mapstructure:"gpio_pin"`
+	ActiveLevel gpio.ActiveLevel `mapstructure:"active_level"`
 }
 
 type ConfigDS18B20 struct {
@@ -57,7 +58,7 @@ func parseHeaters(config []ConfigHeater) (Option, []error) {
 	var errs []error
 	for _, maybeHeater := range config {
 		h, err := heater.New(
-			heater.WithGpioHeating(maybeHeater.Pin, maybeHeater.ID),
+			heater.WithGpioHeating(maybeHeater.Pin, maybeHeater.ID, maybeHeater.ActiveLevel),
 			heater.WitTimeTicker(),
 		)
 		if err != nil {
