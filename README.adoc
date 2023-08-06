@@ -6,6 +6,10 @@
 
 Linux embedded components.
 
+== Abandoned
+
+WARNING: This repo is abandoned in favor of a monorepo, which lives https://github.com/a-clap/distillation-project[here].
+
 == What is this?
 
 This repo contains embedded-like components with REST/gRPC API.
